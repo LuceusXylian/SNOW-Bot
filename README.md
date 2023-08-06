@@ -4,7 +4,7 @@ Get notifications and half-automate your workflow for service-now.com
 SNOW Bot is a browser extention for Firefox (Chrome may also work, but it is untested).
 
 ## Features
-- [ ] Toggle active state
+- [x] Toggle active state
 - [ ] Grouping bot actions and toggle its active state
 - [ ] Getting notifications on new tasks and incidents
 - [ ] Half automation for returns
