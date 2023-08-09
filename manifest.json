@@ -28,14 +28,12 @@
     "browser_action": {
         "default_icon": "icons/snow-bot-48.png",
         "default_title": "SNOW Bot",
-        "default_popup": "controller/snow-bot-controller.html"
+        "default_popup": "popup/snow-bot-popup.html"
     },
 
     "background": {
       "scripts": [
-        "require.js",
-        "node_modules/webextension-polyfill/dist/browser-polyfill.js", 
-        "background/background.js"
+        "background/snow-bot-back.js"
       ]
     },
   
@@ -43,7 +41,7 @@
       {
         "matches": ["*://siam.service-now.com/*", "<all_urls>"],
         "js": [ 
-            "content_scripts/snow-bot.js"
+            "content_scripts/snow-bot-front.js"
         ]
       }
     ]

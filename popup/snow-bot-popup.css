@@ -1,0 +1,30 @@
+html, body { background: #0a3042; color: white; padding: 0; margin: 0; }
+* { font: 1rem/1.5 "Segoe UI", Inter, sans-serif; box-sizing: border-box; }
+
+.controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem; font-weight: bold;   }
+.controller-goback { display: inline-block; text-align: center; width: 40px; cursor: pointer; }
+.controller-title  { display: inline-block; text-align: center; width: calc(100% - 40px); padding-right: 40px; }
+
+.controller-header.goback-hidden > .controller-goback { display: none ; }
+.controller-header.goback-hidden > .controller-title { width: 100%; padding-right: 0px; }
+
+.activeState-button {
+    display: block;
+    background-color: transparent;
+    border: 0;
+    margin: auto;
+    padding: 0;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    width: 80px;
+    cursor: pointer;
+}
+
+.activeState-button > svg > path { fill: red; }
+.activeState-button.active > svg > path { fill: #568df3; }
+
+.activeState-button-wrapper { padding: 1rem; }
+
+textarea { width: 100%; resize: vertical; min-height: 50px; }
+.btn-primary { display: block; }
