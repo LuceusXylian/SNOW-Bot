@@ -28,3 +28,13 @@ html, body { background: #0a3042; color: white; padding: 0; margin: 0; }
 
 textarea { width: 100%; resize: vertical; min-height: 50px; }
 .btn-primary { display: block; }
+
+.menu { margin-top: 1rem; }
+.menu-item { padding: 1rem; border: 1px solid white; }
+.menu-item:nth-child(2) { border-top: 0; }
+.menu-item:last-child { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+.menu-item-title { cursor: pointer; }
+.menu-item-container { display: none; }
+
+.menu-item.selected .menu-item-title { cursor: default; }
+.menu-item.selected .menu-item-container { display: block; }

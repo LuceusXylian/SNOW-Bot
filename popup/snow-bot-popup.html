@@ -20,11 +20,24 @@
     </div>
 
 
+    <div class="menu">
+      <div class="menu-item">
+        <div class="menu-item-title">Handle Serialnumbers</div>
+        <div class="menu-item-container">
+          <textarea name="serialnumbers" id="serialnumbers_textarea" cols="30" rows="10"></textarea>
+          <button type="button" class="btn-primary">Handle Serialnumbers</button>
+        </div>
+      </div>
 
-    <textarea name="serialnumbers" id="serialnumbers_textarea" cols="30" rows="10"></textarea>
-    <button type="button" class="btn-primary">Handle Serialnumbers</button>
 
-    <script src="../node_modules/webextension-polyfill/dist/browser-polyfill.js"></script>
+      <div class="menu-item">
+        <div class="menu-item-title">Log</div>
+        <div id="log" class="menu-item-container"></div>
+      </div>
+
+      
+    </div>
+
     <script src="snow-bot-popup.js"></script>
   </body>
 </html>
