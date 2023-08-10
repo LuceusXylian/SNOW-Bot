@@ -46,5 +46,12 @@ function set_active(_active) {
 }
 
 function serialnumbers(params, sendResponse) {
-    
+	if (typeof params.serialnumbers !== "string") {
+		debug_and_sendResponse("[ERROR] params.serialnumbers is not a string");
+	} else {
+		const serialnumber = params.serialnumbers.split("\n")[0].trim();
+		sendAction("site_open", { url: "https://siam.service-now.com/nav_to.do?uri=%2Falm_hardware_list.do%3Fsysparm_query%3Dserial_number%253D"+ serialnumber })
+	}
+
+	sendResponse(true);
 }

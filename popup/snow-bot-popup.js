@@ -77,5 +77,5 @@ const serialnumbers_textarea = document.getElementById("serialnumbers-textarea")
 const serialnumbers_submit = document.getElementById("serialnumbers-submit");
 
 serialnumbers_submit.addEventListener("click", () => {
-    sendAction("serialnumbers", { serialnumbers: serialnumbers_textarea.ariaValueMax.trim() });
+    sendAction("serialnumbers", { serialnumbers: serialnumbers_textarea.value.trim() });
 });

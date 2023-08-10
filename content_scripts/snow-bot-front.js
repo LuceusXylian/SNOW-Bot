@@ -16,7 +16,7 @@ chrome.storage.local.get(["active"], (result) => {
 
 // Receive message from snow-bot-back
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-	console.log("snow-bot.js - Recv. message", message);
+	console.log("snow-bot-front.js - Recv. message", message);
 
 	if (!shared.active) {
 		debug_and_sendResponse("[ERROR] SNOW-BOT is disabled!");
@@ -36,7 +36,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 
 function site_open(params, sendResponse) {
-	if (typeof window.location.href === "string") {
+	if (typeof params.url === "string") {
 		window.location.href = params.href;
 		sendResponse("OK");
 	} else {
