@@ -6,9 +6,9 @@
 	</head>
 
   <body>
-    <div class="controller-header goback-hidden">
+    <header id="header" class="controller-header goback-hidden">
       <button type="button" id="controller-goback" class="controller-goback">&lt;</button><div class="controller-title">ServiceNow Bot</div>
-    </div>
+    </header>
 
     <div class="activeState-button-wrapper">
       <div id="active-toggler" class="activeState-button" role="button" tabindex="0"><!--
@@ -20,12 +20,12 @@
     </div>
 
 
-    <div class="menu">
+    <div id="menu" class="menu">
       <div class="menu-item">
         <div class="menu-item-title">Handle Serialnumbers</div>
         <div class="menu-item-container">
-          <textarea name="serialnumbers" id="serialnumbers_textarea" cols="30" rows="10"></textarea>
-          <button type="button" class="btn-primary">Handle Serialnumbers</button>
+          <textarea name="serialnumbers" id="serialnumbers-textarea" cols="30" rows="10"></textarea>
+          <button id="serialnumbers-submit" type="button" class="btn-primary">Handle Serialnumbers</button>
         </div>
       </div>
 

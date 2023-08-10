@@ -2,6 +2,10 @@ console.log("snow-bot-back.js");
 function debug(params) {
     console.log("[snow-bot-back.js]", params);
 }
+function debug_and_sendResponse(params, sendResponse) {
+	debug(params);
+	sendResponse(params);
+}
 
 var shared;
 chrome.storage.local.get(["active"], (result) => {
