@@ -18,6 +18,7 @@
         "privacy",
         "storage",
         "tabs",
+        "contextMenus",
         "unlimitedStorage",
         "webNavigation",
         "webRequest",

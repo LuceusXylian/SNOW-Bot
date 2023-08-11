@@ -1,7 +1,7 @@
-console.log("snow-bot-popup.js");
 function debug(params) {
     console.log("[snow-bot-popup.js]", params);
 }
+debug("start");
 
 var shared;
 chrome.storage.local.get(["active"], (result) => {
@@ -79,3 +79,7 @@ const serialnumbers_submit = document.getElementById("serialnumbers-submit");
 serialnumbers_submit.addEventListener("click", () => {
     sendAction("serialnumbers", { serialnumbers: serialnumbers_textarea.value.trim() });
 });
+
+
+// test
+document.getElementById("serialnumbers-submit").click();
