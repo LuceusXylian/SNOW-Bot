@@ -1,12 +1,12 @@
-html, body { background: #0a3042; color: white; padding: 0; margin: 0; }
+html, body { background: #0a3042; color: white; padding: 0; margin: 0; min-width: 320px; }
 * { font: 1rem/1.5 "Segoe UI", Inter, sans-serif; box-sizing: border-box; }
 
-.controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem; font-weight: bold;   }
+.controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem; font-weight: bold; }
 .controller-goback { display: inline-block; text-align: center; width: 40px; cursor: pointer; }
 .controller-title  { display: inline-block; text-align: center; width: calc(100% - 40px); padding-right: 40px; user-select: none; }
 
-.controller-header.goback-hidden > .controller-goback { display: none ; }
-.controller-header.goback-hidden > .controller-title { width: 100%; padding-right: 0px; }
+.controller-header.goback-hidden > .controller-goback { display: none; }
+.controller-header.goback-hidden > .controller-title { width: 100%; padding-right: 0; }
 
 .activeState-button {
     display: block;
