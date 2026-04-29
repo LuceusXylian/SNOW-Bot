@@ -23,6 +23,27 @@
 
 	<div id="menu" class="menu">
 		<div class="menu-item">
+			<div class="menu-item-title">Templates</div>
+			<div class="menu-item-container">
+				<div class="template-form">
+					<input type="text" id="template-name-input" placeholder="Template name" class="template-input" />
+					<textarea id="template-content-textarea" placeholder="Template content" rows="5" class="template-textarea"></textarea>
+					<button id="template-save-btn" type="button" class="btn-primary">Save Template</button>
+				</div>
+				<table id="templates-table" class="templates-table">
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody id="templates-tbody">
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="menu-item">
 			<div class="menu-item-title">Handle Serialnumbers</div>
 			<div class="menu-item-container">
 				<textarea name="serialnumbers" id="serialnumbers-textarea" cols="30" rows="10"></textarea>

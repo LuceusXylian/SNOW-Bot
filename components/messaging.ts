@@ -4,6 +4,9 @@ export enum MessageType {
 	GET_ACTIVE = 'GET_ACTIVE',
 	BOT_READY = 'BOT_READY',
 	EXECUTE_ACTION = 'EXECUTE_ACTION',
+	GET_BOT_ID = 'GET_BOT_ID',
+	INSERT_TEMPLATE = 'INSERT_TEMPLATE',
+	SET_TEMPLATE = 'SET_TEMPLATE',
 }
 
 export interface Message {
@@ -39,10 +42,11 @@ export async function sendMessage(message: Message): Promise<MessageResponse> {
  * @param callback Function that handles incoming messages and returns a response
  */
 export function registerMessageHandler(
-	callback: (message: Message) => Promise<MessageResponse> | MessageResponse
+	callback: (message: Message, sender?: any) => Promise<MessageResponse> | MessageResponse
 ) {
+	// @ts-ignore noImplicitAny
 	browser.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-		Promise.resolve(callback(message)).then(sendResponse).catch((error) => {
+		Promise.resolve(callback(message, sender)).then(sendResponse).catch((error) => {
 			sendResponse({
 				success: false,
 				error: error instanceof Error ? error.message : String(error),

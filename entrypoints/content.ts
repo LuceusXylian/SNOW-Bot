@@ -3,16 +3,18 @@ import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageT
 import { get_shared_data } from '@/components/client';
 
 const LOGGER = new Logger(LogFrom.content);
+// Track last focused input/textarea/select element
+let lastFocusedElement: HTMLElement | null = null;
 
 /**
  * Handler for messages from background script
  */
-async function handleBackgroundMessage(message: Message, shared: SharedData): Promise<MessageResponse> {
+async function handleBackgroundMessage(message: Message, shared: SharedData, bot_id: number): Promise<MessageResponse> {
 	LOGGER.debug(`Received message: ${message.type}`, message);
 
 	try {
 		switch (message.type) {
-			case "EXECUTE_ACTION": {
+			case MessageType.EXECUTE_ACTION: {
 				// Handle mass actions on serial numbers
 				const { action, serialnumbers } = message.data || {};
 				if (action === 'mass_hardware_actions' && serialnumbers) {
@@ -29,11 +31,13 @@ async function handleBackgroundMessage(message: Message, shared: SharedData): Pr
 				};
 			}
 
-			case "SET_ACTIVE": {
+			case MessageType.SET_ACTIVE: {
 				// Handle active state change
 				const { active } = message.data || {};
 				if (typeof active === "boolean") {
 					LOGGER.debug(`Bot ${active ? 'enabled' : 'disabled'}`);
+					shared._applyStateChange({ active });
+					LOGGER.debug(`Bot ${shared.getActive() ? 'enabled' : 'disabled'}`);
 					// TODO: Start/stop bot observers
 					return {
 						success: true,
@@ -43,6 +47,62 @@ async function handleBackgroundMessage(message: Message, shared: SharedData): Pr
 				return {
 					success: false,
 					error: "Invalid active value",
+				};
+			}
+
+			case MessageType.INSERT_TEMPLATE: {
+				// Handle template insertion into last focused element
+				const { content } = message.data || {};
+				if (!content) {
+					return {
+						success: false,
+						error: "No template content provided",
+					};
+				}
+
+				if (!lastFocusedElement) {
+					LOGGER.debug("No focused element to insert template into");
+					return {
+						success: false,
+						error: "No element focused",
+					};
+				}
+
+				// Insert template content into focused element
+				if (lastFocusedElement instanceof HTMLInputElement || lastFocusedElement instanceof HTMLTextAreaElement) {
+					const start = lastFocusedElement.selectionStart || 0;
+					const end = lastFocusedElement.selectionEnd || lastFocusedElement.value.length;
+
+					lastFocusedElement.value =
+						lastFocusedElement.value.slice(0, start) +
+						content +
+						lastFocusedElement.value.slice(end);
+
+					// Move caret to end of inserted text
+					const newPos = start + content.length;
+					lastFocusedElement.setSelectionRange(newPos, newPos);
+
+					// Trigger change/input events
+					lastFocusedElement.dispatchEvent(new Event("input", { bubbles: true }));
+					lastFocusedElement.dispatchEvent(new Event("change", { bubbles: true }));
+
+					LOGGER.debug("Template inserted successfully");
+					return {
+						success: true,
+						data: { inserted: true },
+					};
+				} else if (lastFocusedElement instanceof HTMLSelectElement) {
+					// For select elements, just log that it's not supported
+					LOGGER.debug("Template insertion not supported for select elements");
+					return {
+						success: false,
+						error: "Template insertion not supported for select elements",
+					};
+				}
+
+				return {
+					success: false,
+					error: "Unsupported element type for template insertion",
 				};
 			}
 
@@ -143,10 +203,29 @@ export default defineContentScript({
 		const shared = await get_shared_data(LOGGER);
 		paste_cleaner(shared);
 
-		// Register message handler
-		registerMessageHandler((message) => handleBackgroundMessage(message, shared));
+		// Track focused elements for template insertion
+		document.addEventListener('focus', (event) => {
+			const target = event.target;
+			if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+				lastFocusedElement = target;
+				LOGGER.debug("Focused element tracked", { type: target.constructor.name });
+			}
+		}, true);
 
-		const response = await sendMessage({ type: MessageType.BOT_READY });
-		LOGGER.debug("Content ready signal sent", response);
+		// Get bot_id from background, which creates a record for this content script instance
+		const get_bot_id_response = await sendMessage({ type: MessageType.GET_BOT_ID });
+		const bot_id: number = get_bot_id_response.data?.bot_id;
+		
+		if (!bot_id) {
+			LOGGER.debug("Failed to get bot_id from background");
+			return;
+		}
+
+		// Register message handler with bot_id context
+		registerMessageHandler((message) => handleBackgroundMessage(message, shared, bot_id));
+		
+		// Get bot_id, background creates a record, but set it as active=false
+		const response = await sendMessage({ type: MessageType.BOT_READY, data: {bot_id: bot_id} });
+		LOGGER.debug("Content ready signal sent bot_id:", bot_id, "response:", response);
 	},
 });

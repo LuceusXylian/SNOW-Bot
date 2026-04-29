@@ -39,3 +39,21 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 .menu.deeper > .menu-item:not(.selected) { display: none; }
 .menu-item.selected { cursor: default; }
 .menu-item.selected .menu-item-container { display: block; }
+
+/* Template Styles */
+.template-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.template-input { padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; }
+.template-textarea { padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; font-family: monospace; }
+.template-input::placeholder, .template-textarea::placeholder { color: #999; }
+.template-input:focus, .template-textarea:focus { outline: none; border-color: #568df3; box-shadow: 0 0 3px #568df3; }
+
+.templates-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+.templates-table thead { background-color: #1a2a3a; }
+.templates-table th { padding: 0.5rem; text-align: left; border: 1px solid #999; font-weight: bold; }
+.templates-table td { padding: 0.5rem; border: 1px solid #999; }
+.templates-table tbody tr:hover { background-color: #1a2a3a; }
+
+.btn-edit, .btn-delete, .btn-insert { padding: 0.3rem 0.6rem; margin-right: 0.3rem; border: 1px solid #999; background-color: #39495e; color: white; cursor: pointer; border-radius: 3px; font-size: 0.8rem; }
+.btn-edit:hover { background-color: #568df3; }
+.btn-delete:hover { background-color: #d32f2f; }
+.btn-insert:hover { background-color: #388e3c; }

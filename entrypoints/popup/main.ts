@@ -91,4 +91,102 @@ function init(shared: SharedData) {
 			LOGGER.debug("Failed to send mass action command", response);
 		}
 	});
+
+
+	// Templates Management
+	const templateNameInput = document.getElementById("template-name-input") as HTMLInputElement;
+	const templateContentTextarea = document.getElementById("template-content-textarea") as HTMLTextAreaElement;
+	const templateSaveBtn = document.getElementById("template-save-btn")!;
+	const templatesTable = document.getElementById("templates-table")!;
+	const templatesTbody = document.getElementById("templates-tbody")!;
+
+	let editingTemplateId: string | null = null;
+
+	function generateTemplateId(): string {
+		return `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+	}
+
+	function renderTemplates() {
+		const templates = shared.getTemplates();
+		templatesTbody.innerHTML = '';
+
+		if (templates.length === 0) {
+			templatesTbody.innerHTML = '<tr><td colspan="2">No templates yet</td></tr>';
+			return;
+		}
+
+		templates.forEach((template) => {
+			const row = document.createElement('tr');
+			row.innerHTML = `
+				<td>${template.name}</td>
+				<td>
+					<button class="btn-edit" data-template-id="${template.id}">Edit</button>
+					<button class="btn-delete" data-template-id="${template.id}">Delete</button>
+					<button class="btn-insert" data-template-id="${template.id}">Insert</button>
+				</td>
+			`;
+
+			// Edit button
+			row.querySelector('.btn-edit')!.addEventListener('click', () => {
+				editingTemplateId = template.id;
+				templateNameInput.value = template.name;
+				templateContentTextarea.value = template.content;
+				templateSaveBtn.textContent = 'Update Template';
+				templateNameInput.focus();
+			});
+
+			// Delete button
+			row.querySelector('.btn-delete')!.addEventListener('click', async () => {
+				if (confirm(`Delete template "${template.name}"?`)) {
+					await shared.deleteTemplate(template.id);
+					renderTemplates();
+				}
+			});
+
+			// Insert button
+			row.querySelector('.btn-insert')!.addEventListener('click', async () => {
+				// Send insert command to background which will relay to active tab
+				const response = await sendMessage({
+					type: MessageType.INSERT_TEMPLATE,
+					data: {
+						content: template.content,
+					}
+				});
+				LOGGER.debug("Template insert command sent", response);
+			});
+
+			templatesTbody.appendChild(row);
+		});
+	}
+
+	// Save/Update template
+	templateSaveBtn.addEventListener('click', async () => {
+		const name = templateNameInput.value.trim();
+		const content = templateContentTextarea.value.trim();
+
+		if (!name || !content) {
+			alert('Please fill in template name and content');
+			return;
+		}
+
+		const templateId = editingTemplateId || generateTemplateId();
+		const template = {
+			id: templateId,
+			name,
+			content,
+			createdAt: Date.now(),
+		};
+
+		await shared.setTemplate(template);
+		renderTemplates();
+
+		// Reset form
+		templateNameInput.value = '';
+		templateContentTextarea.value = '';
+		templateSaveBtn.textContent = 'Save Template';
+		editingTemplateId = null;
+	});
+
+	// Initial render
+	renderTemplates();
 }

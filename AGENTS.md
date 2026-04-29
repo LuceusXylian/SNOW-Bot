@@ -22,14 +22,23 @@ For communication between popup, background and content we use @wxt-dev/runtime.
 
 ## Goals
 - "background.ts" the comstation
-    - synchronize data between "popup/main.ts" and "content.ts". if "popup/main.ts" sends data to update then "background.ts" passes it to "content.ts" and vice versa.
-
-- "popup/main.ts" the controller UI
-    - sends commands to "background.ts", which will then be relayed to "content.ts"
+    - if "popup/main.ts" uses SharedData update methods then "background.ts" passes these to "content.ts"
 	- create "bot_id" on GET_STATE (ONLY FOR content) and save which tab it is, so we can send commands to it later
 
+- "popup/main.ts" the controller UI
+	- new abstraction for commands
+	    - sends commands to "background.ts", which will then be relayed to "content.ts"
+		- do not touch SharedData for this new abstraction
+	- text_template UI
+		- create new templates which are plaintext. use textarea
+		- table with actions: edit, delete, execute command insert_template
+
 - "content.ts" the bot
-    - send request to "background.ts" await data
+    - remember last focused input/textarea/select
+	- receive command insert_template
+		- text_template can contain shortcodes, regex: "[(.+)]"
+			1. autosearch on page for any "label" with the "captured inner content", follow span.label-text.innerText
+			2. same parent as elemt of 1. but it is previous element
 
 ## Already implemented
 - "background.ts" the comstation

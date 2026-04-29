@@ -19,6 +19,19 @@ export interface LogEntry {
 	text: string,
 }
 
+export interface TemplateData {
+	id: string;
+	name: string;
+	content: string;
+	createdAt: number;
+}
+
+export interface BotInstance {
+	bot_id: number;
+	tabId: number;
+	active: boolean;
+}
+
 export class Logger {
 	from: LogFrom;
 
@@ -42,6 +55,7 @@ export class Logger {
 export interface SharedDataInner {
 	//** if false, it acts as a kill switch and stops any proccesses in "content.ts" */
 	active: boolean,
+	templates: TemplateData[],
 }
 
 /**
@@ -54,12 +68,17 @@ export class SharedData {
 	constructor(data: Partial<SharedDataInner> = {}) {
 		this.data = {
 			active: data.active ?? DEFAULT_ACTIVE,
+			templates: data.templates ?? [],
 		};
 	}
 
 	// Getters
 	getActive(): boolean {
 		return this.data.active;
+	}
+
+	getTemplates(): TemplateData[] {
+		return this.data.templates;
 	}
 
 	// Setters
@@ -69,6 +88,27 @@ export class SharedData {
 			data: { active }
 		});
 		this.data.active = active;
+	}
+
+	async setTemplate(template: TemplateData): Promise<void> {
+		await sendMessage({
+			type: MessageType.SET_TEMPLATE,
+			data: { template }
+		});
+		const index = this.data.templates.findIndex(t => t.id === template.id);
+		if (index >= 0) {
+			this.data.templates[index] = template;
+		} else {
+			this.data.templates.push(template);
+		}
+	}
+
+	async deleteTemplate(templateId: string): Promise<void> {
+		await sendMessage({
+			type: MessageType.SET_TEMPLATE,
+			data: { action: 'delete', templateId }
+		});
+		this.data.templates = this.data.templates.filter(t => t.id !== templateId);
 	}
 
 	/**
