@@ -1,50 +1,30 @@
-import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData } from "@/components/basics";
+import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message } from "@/components/basics";
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
-import {
-	LS_KEY_SHARED_DATA,
-} from "@/components/constants";
+import { KEY_SHARED_DATA } from "@/components/constants";
 import { storage } from '#imports';
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
 
-// Generate unique bot_id
-let prev_bot_id = 0;
-function generateBotId(): number {
-	prev_bot_id++;
-	let bot_id = prev_bot_id;
-	return bot_id;
-}
-
 // Initialize shared data from localStorage or use defaults
-async function initializeSharedData(): Promise<SharedData> {
-	const stored = await storage.getItem<SharedDataInner>(LS_KEY_SHARED_DATA);
+async function initializeSharedData(COMMANDER: BotCommander): Promise<SharedData> {
+	const stored = await storage.getItem<SharedDataInner>(KEY_SHARED_DATA);
 	if (stored) {
 		try {
-			return new SharedData(stored);
+			return new SharedData(COMMANDER, stored);
 		} catch (error) {
 			LOGGER.debug("Failed to parse stored SharedData, using defaults");
 		}
 	}
 
-	return new SharedData();
+	return new SharedData(COMMANDER);
 }
 
 export default defineBackground(async () => {
-	let sharedData = await initializeSharedData();
-	LOGGER.debug("Background script initialized", { id: browser.runtime.id });
-
 	// In-memory storage for active bot instances (reconstructed on start)
-	// Key is bot_id (number), value is BotInstance
-	let botInstances: Record<number, BotInstance> = {};
-
-	/**
-	 * Save shared data to localStorage
-	 */
-	function persistSharedData() {
-		storage.setItem(LS_KEY_SHARED_DATA, sharedData.export());
-		LOGGER.debug("SharedData persisted to localStorage");
-	}
+	const COMMANDER = new BotCommander(LOGGER);
+	const sharedData = await initializeSharedData(COMMANDER);
+	LOGGER.debug("Background script initialized", { id: browser.runtime.id });
 
 	/**
 	 * Message handler for all incoming messages
@@ -56,80 +36,46 @@ export default defineBackground(async () => {
 			switch (message.type) {
 				case MessageType.GET_STATE:
 					// Return current shared data
-					return {
-						success: true,
-						data: sharedData.export(),
-					};
+					return success_message(sharedData.export());
 
-				case MessageType.SET_ACTIVE: {
+				case MessageType.UPDATE_SHARED_DATA: {
 					// Update active state
-					const newActive = message.data?.active;
-					if (typeof newActive === "boolean") {
-						sharedData._applyStateChange({ active: newActive });
-						persistSharedData();
-						// TODO: send change to all bots
-						return {
-							success: true,
-							data: { active: sharedData.getActive() },
-						};
+					const data = message.data;
+					if (data) {
+						sharedData.applyStateChange(data);
+						const success = await COMMANDER.sendMessageAll(MessageType.UPDATE_SHARED_DATA, { newActive: data });
+						if (success) {
+							return success_message({ active: sharedData.getActive() });
+						} else {
+							return error_message("Failed to notify all bots of state change: active="+sharedData.getActive());
+						}
 					}
-					return {
-						success: false,
-						error: "Invalid active value",
-					};
+					return error_message("Invalid new sharedData");
 				}
-				
+
 				case MessageType.GET_BOT_ID: {
 					// Content script requests its bot_id
 					const tabId = sender?.tab?.id;
 					if (!tabId) {
-						return {
-							success: false,
-							error: "Could not determine tab ID",
-						};
+						return error_message("Could not determine tab ID");
 					}
 
-					// Check if bot already exists for this tab
-					let botInstance = Object.values(botInstances).find(b => b.tabId === tabId);
-
-					if (!botInstance) {
-						// Create new bot instance
-						const bot_id = generateBotId();
-						botInstance = {
-							bot_id,
-							tabId,
-							active: false,
-						};
-						botInstances[bot_id] = botInstance;
-						LOGGER.debug(`New bot assigned: ${bot_id} on tab ${tabId}`);
-					}
-
-					return {
-						success: true,
-						data: { bot_id: botInstance.bot_id },
-					};
+					const bot = COMMANDER.add_bot(tabId);
+					return success_message({ bot_id: bot.bot_id });
 				}
 
 				case MessageType.BOT_READY: {
-					// Content script signals it's ready - set active to true
-					const bot_id: number = message.data.bot_id;
-					botInstances[bot_id].active = true;
+					// Content script signals it's ready / no longer busy
+					const bot = COMMANDER.set_busy(message.data.bot_id, false);
+					LOGGER.debug(`Bot is ready: ${bot.bot_id} on tab ${bot.tabId}`);
 
-					LOGGER.debug(`Bot is ready: ${bot_id} on tab ${botInstances[bot_id].tabId}`);
-
-					return {
-						success: true,
-						data: { bot_id, acknowledged: true },
-					};
+					return success_message({ bot_id: bot.bot_id, acknowledged: true });
 				}
 
 				case MessageType.EXECUTE_ACTION: {
 					// Execute an action (will be processed by content)
 					LOGGER.debug("Action queued for execution", message.data);
-					return {
-						success: true,
-						data: { queued: true },
-					};
+					return success_message({});
 				}
 
 				case MessageType.SET_TEMPLATE: {
@@ -138,16 +84,11 @@ export default defineBackground(async () => {
 
 					if (action === 'delete' && templateId) {
 						const templates = sharedData.getTemplates();
-						sharedData._applyStateChange({
+						sharedData.applyStateChange({
 							templates: templates.filter(t => t.id !== templateId),
 						});
-						persistSharedData();
 						LOGGER.debug(`Template deleted: ${templateId}`);
-						return {
-							success: true,
-							data: { deleted: true },
-						};
-					}
+						return success_message({});					}
 
 					if (template) {
 						const templates = sharedData.getTemplates();
@@ -159,63 +100,34 @@ export default defineBackground(async () => {
 							templates.push(template);
 						}
 
-						sharedData._applyStateChange({ templates });
-						persistSharedData();
+						sharedData.applyStateChange({ templates });
 						LOGGER.debug(`Template saved: ${template.id}`);
 
-						return {
-							success: true,
-							data: { saved: true },
-						};
+						return success_message({});
 					}
 
-					return {
-						success: false,
-						error: "Invalid template data",
-					};
+					return error_message("Invalid template data");
 				}
 
 				case MessageType.INSERT_TEMPLATE: {
 					// Route template insertion to active bot instance
 					const { content } = message.data || {};
-					if (!content) {
-						return {
-							success: false,
-							error: "No template content provided",
-						};
+					if (!content) return error_message("No template content provided");
+
+					try {
+						const data = await COMMANDER.sendMessageFocus(MessageType.INSERT_TEMPLATE, { content });
+						return success_message(data);
+					} catch (error) {
+						return error_message("No active bot instance found");
 					}
-
-					// Find active bot instance for this tab
-					const activeBots = Object.values(botInstances).filter(b => b.active);
-					if (activeBots.length === 0) {
-						return {
-							success: false,
-							error: "No active bot instance found",
-						};
-					}
-
-					// Get the most recently active bot
-					const activeBotInstance = activeBots[activeBots.length - 1];
-					LOGGER.debug(`Routing template insertion to bot ${activeBotInstance.bot_id} on tab ${activeBotInstance.tabId}`);
-
-					return {
-						success: true,
-						data: { routed: true, bot_id: activeBotInstance.bot_id },
-					};
 				}
 
 				default:
-					return {
-						success: false,
-						error: `Unknown message type: ${message.type}`,
-					};
+					return error_message(`Unknown message type: ${message.type}`);
 			}
 		} catch (error) {
 			LOGGER.debug("Error processing message", error);
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : String(error),
-			};
+			return error_message(error instanceof Error ? error.message : String(error));
 		}
 	}
 

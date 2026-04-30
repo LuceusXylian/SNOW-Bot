@@ -35,7 +35,7 @@ function init(shared: SharedData) {
 	set_active_toggler_state(shared.getActive());
 
 	active_toggler.addEventListener("click", async () => {
-		await shared.setActive(!shared.getActive());
+		await shared.applyStateChange({ active: !shared.getActive() });
 		set_active_toggler_state(shared.getActive());
 	});
 
@@ -122,7 +122,7 @@ function init(shared: SharedData) {
 				<td>
 					<button class="btn-edit" data-template-id="${template.id}">Edit</button>
 					<button class="btn-delete" data-template-id="${template.id}">Delete</button>
-					<button class="btn-insert" data-template-id="${template.id}">Insert</button>
+					<button class="btn-insert" data-template-id="${template.id}">Execute Insert</button>
 				</td>
 			`;
 

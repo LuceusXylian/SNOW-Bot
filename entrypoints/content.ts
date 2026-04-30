@@ -20,52 +20,32 @@ async function handleBackgroundMessage(message: Message, shared: SharedData, bot
 				if (action === 'mass_hardware_actions' && serialnumbers) {
 					LOGGER.debug("Executing mass hardware actions", serialnumbers);
 					// TODO: Implement actual bot logic for mass actions
-					return {
-						success: true,
-						data: { executed: true, count: serialnumbers.length },
-					};
+					return success_message({ executed: true, count: serialnumbers.length });
 				}
-				return {
-					success: false,
-					error: "Invalid action parameters",
-				};
+				return error_message("Invalid action parameters");
 			}
 
-			case MessageType.SET_ACTIVE: {
+			case MessageType.UPDATE_SHARED_DATA: {
 				// Handle active state change
 				const { active } = message.data || {};
 				if (typeof active === "boolean") {
 					LOGGER.debug(`Bot ${active ? 'enabled' : 'disabled'}`);
-					shared._applyStateChange({ active });
+					shared.applyStateChange({ active });
 					LOGGER.debug(`Bot ${shared.getActive() ? 'enabled' : 'disabled'}`);
 					// TODO: Start/stop bot observers
-					return {
-						success: true,
-						data: { active },
-					};
+					return success_message({ active });
 				}
-				return {
-					success: false,
-					error: "Invalid active value",
-				};
+				return error_message("Invalid active value");
 			}
 
 			case MessageType.INSERT_TEMPLATE: {
 				// Handle template insertion into last focused element
 				const { content } = message.data || {};
-				if (!content) {
-					return {
-						success: false,
-						error: "No template content provided",
-					};
-				}
-
+				if (!content) return error_message("No template content provided");
+				
 				if (!lastFocusedElement) {
 					LOGGER.debug("No focused element to insert template into");
-					return {
-						success: false,
-						error: "No element focused",
-					};
+					return error_message("No element focused");
 				}
 
 				// Insert template content into focused element
@@ -87,37 +67,17 @@ async function handleBackgroundMessage(message: Message, shared: SharedData, bot
 					lastFocusedElement.dispatchEvent(new Event("change", { bubbles: true }));
 
 					LOGGER.debug("Template inserted successfully");
-					return {
-						success: true,
-						data: { inserted: true },
-					};
-				} else if (lastFocusedElement instanceof HTMLSelectElement) {
-					// For select elements, just log that it's not supported
-					LOGGER.debug("Template insertion not supported for select elements");
-					return {
-						success: false,
-						error: "Template insertion not supported for select elements",
-					};
+					return success_message({ inserted: true });
 				}
 
-				return {
-					success: false,
-					error: "Unsupported element type for template insertion",
-				};
+				return error_message("Unsupported element type for template insertion");
 			}
-
-			default:
-				return {
-					success: false,
-					error: `Unknown message type: ${message.type}`,
-				};
+			
+			default: return error_message(`Unknown message type: ${message.type}`);
 		}
 	} catch (error) {
 		LOGGER.debug("Error handling message", error);
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : String(error),
-		};
+		return error_message(error instanceof Error ? error.message : String(error));
 	}
 }
 
