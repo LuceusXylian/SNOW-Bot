@@ -22,15 +22,17 @@ For communication between popup, background and content we use @wxt-dev/runtime.
 
 ## Goals
 - "background.ts" the comstation
+	- save informative logs and provice them to popup
+		- max 100 entries (save 100 in constant.ts)
 
 - "popup/main.ts" the controller UI
-	- //TODO: write todos for text_template UI
 
 - "content.ts" the bot
 	- receive command insert_template
 		- text_template can contain shortcodes, regex: "[(.+)]"
 			1. autosearch on page for any "label" with the "captured inner content", follow span.label-text.innerText
 			2. same parent as elemt of 1. but it is previous element
+			3. at last, if not found/value is null/undefined then prompt user for value
 
 ## Already implemented
 - "background.ts" the comstation

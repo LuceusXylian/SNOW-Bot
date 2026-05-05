@@ -30,6 +30,13 @@ export interface BotInstance {
 	bot_id: number;
 	tabId: number;
 	is_busy: boolean;
+	sendMessage: (message_type: MessageType, data: Object) => Promise<any>
+}
+
+export enum BotSelect {
+	BOT_ID = 0,
+	ACTIVE_TAB = 1,
+	ALL = 99,
 }
 
 export class Logger {
@@ -81,16 +88,34 @@ export class BotCommander {
 		this.LOGGER = LOGGER;
 	}
 
+	// @internal only for background
 	add_bot(tabId: number): BotInstance {
 		// Check if bot already exists for this tab
 		let botInstance = this.botInstances.find(b => b.tabId === tabId);
 		if (!botInstance) {
+			const self = this;
 			// Create new bot instance
 			const bot_id = this.botInstances.length;
 			botInstance = {
 				bot_id,
 				tabId,
 				is_busy: false,
+				sendMessage: async function (message_type: MessageType, data: Object) {
+					this.is_busy = true;
+					
+					try {
+						const response = await browser.tabs.sendMessage(this.tabId, {
+							type: message_type,
+							data: data,
+						});
+						this.is_busy = false;
+						return response;
+					} catch (error) {
+						this.is_busy = false;
+						self.LOGGER.debug(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);
+						return error_message("Failed to send message: "+String(error));
+					}
+				}
 			};
 			this.botInstances[bot_id] = botInstance;
 			this.LOGGER.debug(`New bot assigned: ${bot_id} on tab ${tabId}`);
@@ -99,32 +124,37 @@ export class BotCommander {
 		return botInstance;
 	}
 
+	// @internal only for background
 	set_busy(bot_id: number, is_busy: boolean) {
 		this.botInstances[bot_id].is_busy = is_busy;
 		return this.botInstances[bot_id];
 	}
 
 	async sendMessage(bot_id: number, message_type: MessageType, data: Object) {
-		const botInstance = this.botInstances[bot_id]
-		try {
-			return await browser.tabs.sendMessage(botInstance.tabId, {
-				type: message_type,
-				data: data,
+		if (this.LOGGER.from === LogFrom.popup) {
+			// pass to background
+			return await sendMessage({
+				type: MessageType.RELAY_COMMAND,
+				data: {
+					bot_select: BotSelect.BOT_ID,
+					bot_id: bot_id,
+					type: message_type,
+					data: data
+				}
 			});
-		} catch (error) {
-			this.LOGGER.debug(`Failed to send message of type:${message_type} to bot ${botInstance.bot_id} on tab ${botInstance.tabId}. data:`, data, "error:", error);
-			throw error;
 		}
+
+		// LogFrom.background
+		return this.botInstances[bot_id].sendMessage(message_type, data);
 	}
 
 	/**
 	 * @returns BotInstance that is not busy
 	 * and sets it to busy, because we exepect it will be busy to prevent that another thread tries to accoupy this bot
 	 */
-	async getBot(): Promise<BotInstance> {
-		for (let z = this.botInstances.length -1; z < -1; z--) {
+	private async getBot(): Promise<BotInstance> {
+		for (let z = this.botInstances.length -1; z >= 0; z--) {
 			if (!this.botInstances[z].is_busy) {
-				this.botInstances[z].is_busy = true;
 				return this.botInstances[z];
 			}			
 		}
@@ -135,43 +165,64 @@ export class BotCommander {
 	 * @returns BotInstance that is not busy and focused
 	 * and sets it to busy, because we exepect it will be busy to prevent that another thread tries to accoupy this bot
 	 */
-	async getBotFocus(): Promise<BotInstance> {
+	private async getBotFocus(): Promise<BotInstance> {
 		const [focusedTab] = await browser.tabs.query({
 			active: true,
 			lastFocusedWindow: true,
 		});
+		const focusedTab_id = focusedTab.id;
 		
-		for (let z = this.botInstances.length -1; z < -1; z--) {
-			if (this.botInstances[z].tabId === focusedTab.id) {
+		for (let z = this.botInstances.length -1; z >= 0; z--) {
+			if (this.botInstances[z].tabId === focusedTab_id) {
 				if (this.botInstances[z].is_busy) {
 					throw new Error("Found bot in focused tab:"+focusedTab.id+", but it is busy");
 				} else {
-					this.botInstances[z].is_busy = true;
 					return this.botInstances[z];
 				}			
 			}
 		}
-		throw new Error("No active bot instance found");
+		this.LOGGER.debug("No active tab bot instance found. focusedTab:", focusedTab)
+		this.LOGGER.debug("No active tab bot instance found. focusedTab:", focusedTab_id)
+		this.LOGGER.debug("No active tab bot instance found. this.botInstances:", this.botInstances)
+		throw new Error("No active tab bot instance found");
 	}
 
 	/**
-	 * send message to a bot that is not busy
+	 * send message to a bot that is not busy and focus the current tab
 	 */
 	async sendMessageFocus(message_type: MessageType, data: Object) {
-		const bot = await this.getBot();
-		try {
-			return await browser.tabs.sendMessage(bot.tabId, {
-				type: message_type,
-				data: data,
+		if (this.LOGGER.from === LogFrom.popup) {
+			// pass to background
+			return await sendMessage({
+				type: MessageType.RELAY_COMMAND,
+				data: {
+					bot_select: BotSelect.ACTIVE_TAB,
+					type: message_type,
+					data: data
+				}
 			});
-		} catch (error) {
-			this.LOGGER.debug(`Failed to send message of type:${message_type} to bot ${bot.bot_id} on tab ${bot.tabId}. data:`, data, "error:", error);
-			throw error;
 		}
+
+		// LogFrom.background
+		const bot = await this.getBotFocus();
+		return bot.sendMessage(message_type, data);
 	}
 
 	async sendMessageAll(message_type: MessageType, data: Object) {
-		let no_error = true;
+		if (this.LOGGER.from === LogFrom.popup) {
+			// pass to background
+			return await sendMessage({
+				type: MessageType.RELAY_COMMAND,
+				data: {
+					bot_select: BotSelect.ALL,
+					type: message_type,
+					data: data
+				}
+			});
+		}
+
+		// LogFrom.background
+		let success = true;
 		let promises = [];
 
 		for (const botInstance of this.botInstances) {
@@ -187,10 +238,15 @@ export class BotCommander {
 			try {
 				await promises[i];
 			} catch (error) {
-				no_error = false;
+				success = false;
 			}			
 		}
-		return no_error;
+		
+		if (success) {
+			return success_message({});
+		} else {
+			return error_message("Failed to notify all bots of state change: "+String(this));
+		}
 	}
 }
 
@@ -200,9 +256,11 @@ export class BotCommander {
  */
 export class SharedData {
 	private data: SharedDataInner;
+	LOGGER: Logger;
 	COMMANDER: BotCommander;
 
-	constructor(COMMANDER: BotCommander, data: Partial<SharedDataInner> = {}) {
+	constructor(LOGGER: Logger, COMMANDER: BotCommander, data: Partial<SharedDataInner> = {}) {
+		this.LOGGER = LOGGER;
 		this.COMMANDER = COMMANDER;
 		this.data = {
 			active: data.active ?? DEFAULT_ACTIVE,
@@ -244,15 +302,19 @@ export class SharedData {
 	/**
 	 * apply state changes and pass them on
 	 */
-	applyStateChange(update: Partial<SharedDataInner>): void {
+	async applyStateChange(update: Partial<SharedDataInner>) {
 		Object.assign(this.data, update);
 		if (this.COMMANDER.LOGGER.from === LogFrom.popup) {
-			// pass changes to background
-			sendMessage({
+			// pass to background
+			await sendMessage({
 				type: MessageType.UPDATE_SHARED_DATA,
 				data: this.data
 			});
+		} else if (this.COMMANDER.LOGGER.from === LogFrom.background) {
+			this.save();
+			return this.COMMANDER.sendMessageAll(MessageType.UPDATE_SHARED_DATA, this.data);
 		}
+		return success_message({});
 	}
 
 	export(): SharedDataInner {

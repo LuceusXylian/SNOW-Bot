@@ -14,17 +14,6 @@ async function handleBackgroundMessage(message: Message, shared: SharedData, bot
 
 	try {
 		switch (message.type) {
-			case MessageType.EXECUTE_ACTION: {
-				// Handle mass actions on serial numbers
-				const { action, serialnumbers } = message.data || {};
-				if (action === 'mass_hardware_actions' && serialnumbers) {
-					LOGGER.debug("Executing mass hardware actions", serialnumbers);
-					// TODO: Implement actual bot logic for mass actions
-					return success_message({ executed: true, count: serialnumbers.length });
-				}
-				return error_message("Invalid action parameters");
-			}
-
 			case MessageType.UPDATE_SHARED_DATA: {
 				// Handle active state change
 				const { active } = message.data || {};
@@ -160,7 +149,8 @@ export default defineContentScript({
 	matches: ['*://*.service-now.com/*', "file:///*"],
 	async main() {
 		LOGGER.debug('Content script started');
-		const shared = await get_shared_data(LOGGER);
+		const COMMANDER = new BotCommander(LOGGER);
+		const shared = await get_shared_data(LOGGER, COMMANDER);
 		paste_cleaner(shared);
 
 		// Track focused elements for template insertion
@@ -175,16 +165,15 @@ export default defineContentScript({
 		// Get bot_id from background, which creates a record for this content script instance
 		const get_bot_id_response = await sendMessage({ type: MessageType.GET_BOT_ID });
 		const bot_id: number = get_bot_id_response.data?.bot_id;
-		
-		if (!bot_id) {
-			LOGGER.debug("Failed to get bot_id from background");
+		if (!get_bot_id_response.success) {
+			LOGGER.debug("Failed to get bot_id from background", get_bot_id_response);
 			return;
 		}
 
 		// Register message handler with bot_id context
 		registerMessageHandler((message) => handleBackgroundMessage(message, shared, bot_id));
 		
-		// Get bot_id, background creates a record, but set it as active=false
+		// SEND BOT_READY, set is_busy=false
 		const response = await sendMessage({ type: MessageType.BOT_READY, data: {bot_id: bot_id} });
 		LOGGER.debug("Content ready signal sent bot_id:", bot_id, "response:", response);
 	},

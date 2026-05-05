@@ -1,6 +1,7 @@
-import { SharedData, LogFrom, Logger } from '@/components/basics';
+import { SharedData, LogFrom, Logger, BotCommander } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
+import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
 
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
@@ -8,14 +9,15 @@ LOGGER.debug("Popup started");
 // Fetch state from background and initialize UI
 (async () => {
 	try {
-		const shared = await get_shared_data(LOGGER);
-		init(shared);
+		const COMMANDER = new BotCommander(LOGGER);
+		const shared = await get_shared_data(LOGGER, COMMANDER);
+		init(COMMANDER, shared);
 	} catch (error) {
 		LOGGER.debug("Failed to initialize popup", error);
 	}
 })();
 
-function init(shared: SharedData) {
+function init(COMMANDER: BotCommander, shared: SharedData) {
 	// Active Toggler
 	const active_toggler = document.getElementById("active-toggler")!;
 
@@ -46,18 +48,24 @@ function init(shared: SharedData) {
 	const menu = document.getElementById("menu")!;
 	const menu_items = <HTMLCollectionOf<HTMLDivElement>>document.getElementsByClassName("menu-item");
 	var menu_item_selected: HTMLDivElement | null = null;
+	storage.getItem(KEY_POPUP_MENU_INDEX).then((stored_index) => {
+		for (let i = 0; i < menu_items.length; i++) {
+			const item = menu_items[i];
+			const index = i;
+			
+			item.addEventListener("click", () => {
+				if (menu_item_selected === null) {
+					menu.classList.add("deeper");
+					item.classList.add("selected");
+					header.classList.remove("goback-hidden");
+					menu_item_selected = item;
+					storage.setItem(KEY_POPUP_MENU_INDEX, index);
+				}
+			});
 
-	for (let i = 0; i < menu_items.length; i++) {
-		const item = menu_items[i];
-		item.addEventListener("click", () => {
-			if (menu_item_selected === null) {
-				menu.classList.add("deeper");
-				item.classList.add("selected");
-				header.classList.remove("goback-hidden");
-				menu_item_selected = item;
-			}
-		});
-	}
+			if(index === stored_index) item.click();
+		}
+	})
 
 
 	controller_goback.addEventListener("click", () => {
@@ -66,6 +74,7 @@ function init(shared: SharedData) {
 			menu_item_selected.classList.remove("selected");
 			header.classList.add("goback-hidden");
 			menu_item_selected = null;
+			storage.setItem(KEY_POPUP_MENU_INDEX, null);
 		}
 	});
 
@@ -78,7 +87,7 @@ function init(shared: SharedData) {
 		// Send command to background to execute mass action on serial numbers
 		const serialnumbers = serialnumbers_textarea.value.trim().split('\n').filter((s: string) => s);
 		const response = await sendMessage({
-			type: MessageType.EXECUTE_ACTION,
+			type: MessageType.RELAY_COMMAND,
 			data: {
 				action: 'mass_hardware_actions',
 				serialnumbers,
@@ -117,41 +126,37 @@ function init(shared: SharedData) {
 
 		templates.forEach((template) => {
 			const row = document.createElement('tr');
-			row.innerHTML = `
-				<td>${template.name}</td>
-				<td>
-					<button class="btn-edit" data-template-id="${template.id}">Edit</button>
-					<button class="btn-delete" data-template-id="${template.id}">Delete</button>
-					<button class="btn-insert" data-template-id="${template.id}">Execute Insert</button>
-				</td>
-			`;
-
-			// Edit button
-			row.querySelector('.btn-edit')!.addEventListener('click', () => {
+			const td1 = row.appendChild(document.createElement('td'));
+			td1.innerText = template.name;
+			const td2 = row.appendChild(document.createElement('td'));
+			
+			const btn_edit = td2.appendChild(document.createElement('button'));
+			btn_edit.className = "btn-edit";
+			btn_edit.innerText = "Edit";
+			btn_edit.addEventListener('click', () => {
 				editingTemplateId = template.id;
 				templateNameInput.value = template.name;
 				templateContentTextarea.value = template.content;
 				templateSaveBtn.textContent = 'Update Template';
 				templateNameInput.focus();
 			});
-
-			// Delete button
-			row.querySelector('.btn-delete')!.addEventListener('click', async () => {
+			
+			const btn_delete = td2.appendChild(document.createElement('button'));
+			btn_delete.className = "btn-delete";
+			btn_delete.innerText = "Delete";
+			btn_delete.addEventListener('click', async () => {
 				if (confirm(`Delete template "${template.name}"?`)) {
 					await shared.deleteTemplate(template.id);
 					renderTemplates();
 				}
 			});
-
-			// Insert button
-			row.querySelector('.btn-insert')!.addEventListener('click', async () => {
-				// Send insert command to background which will relay to active tab
-				const response = await sendMessage({
-					type: MessageType.INSERT_TEMPLATE,
-					data: {
-						content: template.content,
-					}
-				});
+			
+			const btn_insert = td2.appendChild(document.createElement('button'));
+			btn_insert.className = "btn-insert";
+			btn_insert.innerText = "Execute Insert";
+			btn_insert.addEventListener('click', async () => {
+				// Send insert command which will append text to the last selected input/textarea
+				const response = await COMMANDER.sendMessageFocus(MessageType.INSERT_TEMPLATE, { content: template.content });
 				LOGGER.debug("Template insert command sent", response);
 			});
 
