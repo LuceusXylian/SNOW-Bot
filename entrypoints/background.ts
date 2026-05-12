@@ -8,6 +8,7 @@ LOGGER.debug("start");
 
 // Initialize shared data from localStorage or use defaults
 async function initializeSharedData(COMMANDER: BotCommander): Promise<SharedData> {
+	await LOGGER.init_background();
 	const stored = await storage.getItem<SharedDataInner>(KEY_SHARED_DATA);
 	if (stored) {
 		try {
@@ -34,6 +35,10 @@ export default defineBackground(() => {
 
 			try {
 				switch (message.type) {
+					case MessageType.GET_LOGS:
+						// Return array of recent logs
+						return success_message(LOGGER.log_array);
+
 					case MessageType.GET_STATE:
 						// Return current shared data
 						return success_message(sharedData.export());

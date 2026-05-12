@@ -2,6 +2,7 @@ import { SharedData, LogFrom, Logger, BotCommander } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
+import { add_spoiler_event } from '@/components/ui';
 
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
@@ -20,16 +21,18 @@ LOGGER.debug("Popup started");
 function init(COMMANDER: BotCommander, shared: SharedData) {
 	// Active Toggler
 	const active_toggler = document.getElementById("active-toggler")!;
+	const active_label = document.getElementById("active-label")!;
 
 	function set_active_toggler_state(_active: boolean) {
 		if (_active) {
 			active_toggler.classList.add("active");
-			active_toggler.title = "Bot is running";
+			active_label.innerText = "running";
 		} else {
 			active_toggler.classList.remove("active");
-			active_toggler.title = "Bot is disabled";
+			active_label.innerText = "disabled";
 		}
-
+		
+		active_toggler.title = "Bot is "+active_label.innerText;
 		LOGGER.debug(shared)
 	}
 
@@ -44,6 +47,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 
 	// Menu
 	const header = document.getElementById("header")!;
+	const title_sub = document.getElementById("title_sub")!;
 	const controller_goback = document.getElementById("controller-goback")!;
 	const menu = document.getElementById("menu")!;
 	const menu_items = <HTMLCollectionOf<HTMLDivElement>>document.getElementsByClassName("menu-item");
@@ -52,6 +56,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 		for (let i = 0; i < menu_items.length; i++) {
 			const item = menu_items[i];
 			const index = i;
+			const menu_item_title = item.querySelector(".menu-item-title") as HTMLElement;
 			
 			item.addEventListener("click", () => {
 				if (menu_item_selected === null) {
@@ -60,6 +65,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 					header.classList.remove("goback-hidden");
 					menu_item_selected = item;
 					storage.setItem(KEY_POPUP_MENU_INDEX, index);
+					title_sub.innerText = menu_item_title.innerText;
 				}
 			});
 
@@ -75,9 +81,13 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 			header.classList.add("goback-hidden");
 			menu_item_selected = null;
 			storage.setItem(KEY_POPUP_MENU_INDEX, null);
+			title_sub.innerHTML = "";
 		}
 	});
 
+	// spoilers
+	const template_form_spoiler = document.getElementById("template_form_spoiler")!;
+	add_spoiler_event(template_form_spoiler);
 
 	// Serialnumbers
 	const serialnumbers_textarea = document.getElementById("serialnumbers-textarea") as HTMLTextAreaElement;
@@ -138,7 +148,11 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 				templateNameInput.value = template.name;
 				templateContentTextarea.value = template.content;
 				templateSaveBtn.textContent = 'Update Template';
-				templateNameInput.focus();
+				template_form_spoiler.classList.add("active");
+				setTimeout(() => {
+					scroll(0, 0);
+					templateNameInput.focus();
+				}, 10);
 			});
 			
 			const btn_delete = td2.appendChild(document.createElement('button'));
@@ -190,6 +204,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 		templateContentTextarea.value = '';
 		templateSaveBtn.textContent = 'Save Template';
 		editingTemplateId = null;
+		template_form_spoiler.classList.remove("active");
 	});
 
 	// Initial render

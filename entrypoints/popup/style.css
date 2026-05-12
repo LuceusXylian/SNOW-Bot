@@ -1,26 +1,26 @@
 html, body { background: #0a3042; color: white; padding: 0; margin: 0; min-width: 320px; }
 * { font: 1rem/1.5 "Segoe UI", Inter, sans-serif; box-sizing: border-box; }
 
-.controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem; font-weight: bold; }
-.controller-goback { display: inline-block; text-align: center; width: 40px; cursor: pointer; }
-.controller-title  { display: inline-block; text-align: center; width: calc(100% - 40px); padding-right: 40px; user-select: none; }
-
+.controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem .6rem 0 .6rem; font-weight: bold; }
+.controller-header > * { display: inline-block; vertical-align: middle; text-align: center; margin-bottom: .6rem; }
+.controller-goback { width: 40px; cursor: pointer; }
+.controller-title  { width: calc(100% - 40px - 40px); padding-right: 40px; user-select: none; position: relative; text-align: center; }
+/* .controller-title-main {  } */
+.controller-title-sub { height: 16px; font-size: 0.7rem; }
 .controller-header.goback-hidden > .controller-goback { display: none; }
-.controller-header.goback-hidden > .controller-title { width: 100%; padding-right: 0; }
-
+.controller-header.goback-hidden > .controller-title { width: calc(100% - 40px); padding-right: 0; }
 .activeState-button {
-    display: block;
     background-color: transparent;
     border: 0;
-    margin: auto;
     padding: 0;
     position: relative;
     user-select: none;
     -webkit-user-select: none;
-    width: 80px;
+    width: 36px;
     cursor: pointer;
+	margin-bottom: 0;
 }
-
+.activeState-label { font-size: 0.6rem; position: absolute; bottom: -4px; width: inherit; text-align: center; }
 .activeState-button > svg > path { fill: red; }
 .activeState-button.active > svg > path { fill: #568df3; }
 
@@ -29,19 +29,20 @@ html, body { background: #0a3042; color: white; padding: 0; margin: 0; min-width
 textarea { width: 100%; resize: vertical; min-height: 50px; }
 .btn-primary { display: block; }
 
-.menu { margin-top: 1rem; }
-.menu-item { padding: 1rem; border: 1px solid white; cursor: pointer; user-select: none; }
-.menu-item:nth-child(2) { border-top: 0; }
-.menu-item:last-child, .menu-item.selected { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+.menu-item { padding: 1rem; cursor: pointer; user-select: none; }
+.menu-item:not(:last-child) { border-bottom: 1px solid white; }
+.menu-item.selected { border: 0; padding: 0; }
 .menu-item-title { font-weight: bold; }
+.menu-item.selected .menu-item-title { display: none; }
 .menu-item-container { display: none; margin-top: 10px; }
 
 .menu.deeper > .menu-item:not(.selected) { display: none; }
 .menu-item.selected { cursor: default; }
-.menu-item.selected .menu-item-container { display: block; }
+.menu-item.selected .menu-item-container { display: block; margin-top: 20px; }
 
 /* Template Styles */
 .template-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.template-form *:not(:last-child) { margin-bottom: 0.5rem; }
 .template-input { padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; }
 .template-textarea { padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; font-family: monospace; }
 .template-input::placeholder, .template-textarea::placeholder { color: #999; }
@@ -57,3 +58,34 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 .btn-edit:hover { background-color: #568df3; }
 .btn-delete:hover { background-color: #d32f2f; }
 .btn-insert:hover { background-color: #388e3c; }
+
+/* .spoiler-container {  } */
+.spoiler-title {
+	font-size: 1rem;
+	border: 1px solid black;
+	padding: 0.5rem;
+	border-radius: 6px;
+	background: white;
+	color: black;
+	cursor: pointer;
+	user-select: none;
+}
+.spoiler-container.active > .spoiler-title {
+	padding-bottom: 2px;
+	background: none;
+	color: white;
+	border: 1px solid white;
+	border-bottom: 0;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+	margin: 8px;
+	margin-bottom: 0;
+	padding: 0.1rem 0.5rem;
+}
+.spoiler-content { display: none; }
+.spoiler-container.active > .spoiler-content {
+	display: block !important;
+	border: 1px solid white;
+	border-radius: 6px;
+	padding: 1rem;
+}

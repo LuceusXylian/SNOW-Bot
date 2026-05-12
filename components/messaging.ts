@@ -6,6 +6,7 @@ export enum MessageType {
 	GET_BOT_ID = 'GET_BOT_ID',
 	SET_TEMPLATE = 'SET_TEMPLATE',
 	INSERT_TEMPLATE = 'INSERT_TEMPLATE',
+	GET_LOGS = 'GET_LOGS',
 }
 
 export interface Message {

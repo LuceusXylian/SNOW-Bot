@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIVE } from "./constants";
+import { DEFAULT_ACTIVE, MAX_LOG_ENTRIES } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
 
 export enum LogFrom {
@@ -39,11 +39,23 @@ export enum BotSelect {
 	ALL = 99,
 }
 
+export interface LogEntry {
+	from: LogFrom,
+	timestamp: number,
+	text: string,
+}
+
 export class Logger {
 	from: LogFrom;
+	log_array: LogEntry[] = [];
 
 	constructor(log_from: LogFrom) {
 		this.from = log_from;
+	}
+	
+	// For LogFrom.background, Logger needs to load old log entries
+	async init_background() {
+		this.log_array = await storage.getItem(LS_KEY_LOGS) || [];
 	}
 
 	// debug only sends to console.log
@@ -56,6 +68,20 @@ export class Logger {
 	log(...params: any[]) {
 		const prefix = "[" + log_from_to_string(this.from) + "]";
 		console.log(prefix, ...params);
+		
+		if (this.from === LogFrom.background) {
+			const text = prefix + " " + String(...params);
+			this.log_array.push({
+				from: this.from,
+				timestamp: new Date().getTime(),
+				text: text,
+			});
+			if (this.log_array.length > MAX_LOG_ENTRIES) {
+				this.log_array.shift();
+			}
+
+			storage.setItem(LS_KEY_LOGS, this.log_array);
+		}
 	}
 }
 
@@ -149,8 +175,7 @@ export class BotCommander {
 	}
 
 	/**
-	 * @returns BotInstance that is not busy
-	 * and sets it to busy, because we exepect it will be busy to prevent that another thread tries to accoupy this bot
+	 * @returns `BotInstance` that is not busy
 	 */
 	private async getBot(): Promise<BotInstance> {
 		for (let z = this.botInstances.length -1; z >= 0; z--) {
@@ -162,8 +187,7 @@ export class BotCommander {
 	}
 
 	/**
-	 * @returns BotInstance that is not busy and focused
-	 * and sets it to busy, because we exepect it will be busy to prevent that another thread tries to accoupy this bot
+	 * @returns `BotInstance` that is not busy and focused
 	 */
 	private async getBotFocus(): Promise<BotInstance> {
 		const [focusedTab] = await browser.tabs.query({
@@ -181,9 +205,7 @@ export class BotCommander {
 				}			
 			}
 		}
-		this.LOGGER.debug("No active tab bot instance found. focusedTab:", focusedTab)
-		this.LOGGER.debug("No active tab bot instance found. focusedTab:", focusedTab_id)
-		this.LOGGER.debug("No active tab bot instance found. this.botInstances:", this.botInstances)
+		this.LOGGER.log("ERROR: No active tab bot instance found. focusedTab:", focusedTab, "botInstances:", this.botInstances)
 		throw new Error("No active tab bot instance found");
 	}
 

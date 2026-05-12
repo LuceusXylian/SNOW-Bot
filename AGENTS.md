@@ -1,56 +1,114 @@
 # SNOW Bot
-is a web browser extension that uses the WXT framework.
-For communication between popup, background and content we use @wxt-dev/runtime.
 
-## Compliance
-- 4 tab size indentation
-- no overwrite all, because we excpect multiple bot threads
+SNOW Bot is a browser extension built with the WXT framework. It uses `@wxt-dev/runtime` for message passing between the popup, background, and content scripts.
+
+## Purpose
+
+This document explains the architecture, component responsibilities, and expected behavior for LLM agents working on this project.
+
+## Key principles for agents
+
+- Keep changes minimal and focused.
+- Respect the extension message flow: popup ↔ background ↔ content.
+- Do not overwrite storage or state globally unless explicitly required.
+- Follow the existing style rules and use 4-space indentation.
 
 ## Project structure
-- components (use for shared fuctions)
-	- basics.ts
-	- client.ts
-	- constants.ts
-	- messaging.ts
-- entry points
-    - popup (the controller UI)
-        - index.html
-        - main.ts
-        - style.css
-    - background.ts
-    - content.ts
 
-## Goals
-- "background.ts" the comstation
-	- save informative logs and provice them to popup
-		- max 100 entries (save 100 in constant.ts)
+- `components/` — shared helper modules
+    - `basics.ts`
+    - `client.ts`
+    - `constants.ts`
+    - `messaging.ts`
+    - `ui.ts`
+- `entrypoints/`
+    - `popup/`
+        - `index.html`
+        - `main.ts`
+        - `style.css`
+    - `background.ts`
+    - `content.ts`
+- `public/`
 
-- "popup/main.ts" the controller UI
+## Architecture overview
 
-- "content.ts" the bot
-	- receive command insert_template
-		- text_template can contain shortcodes, regex: "[(.+)]"
-			1. autosearch on page for any "label" with the "captured inner content", follow span.label-text.innerText
-			2. same parent as elemt of 1. but it is previous element
-			3. at last, if not found/value is null/undefined then prompt user for value
+### `background.ts`
 
-## Already implemented
-- "background.ts" the comstation
-    - it saves data to localStorage
-    - it sets the defaults
-    - it provides/saves data on request from "popup/main.ts" and "content.ts"
-	- create "bot_id" on GET_STATE (ONLY FOR content) and save which tab it is, so we can send commands to it later
-	- BotCommander: abstraction for commands
-	    - sends commands to "background.ts", which will then be relayed to "content.ts"
-    - if "popup/main.ts" uses SharedData update methods then "background.ts" passes these to "content.ts"
-	- text_template UI
-		- create new templates which are plaintext. use textarea
-		- table with actions: edit, delete, execute command insert_template
+The background script is the communication hub and state manager.
 
-- "popup/main.ts" the controller UI
-    - send request to "background.ts" await data
-    - sends commands to "background.ts", which will then be relayed to "content.ts"
+Responsibilities:
+- Store persistent shared state in `localStorage`.
+- Maintain a limited log history for the popup.
+- Relay commands between popup and content scripts.
+- Track the active bot instance with `bot_id` and tab information.
 
-- "content.ts" the bot
-    - lastFocusedElement: remember last focused input/textarea/select
-    - send request to "background.ts" await data
+### `popup/main.ts`
+
+The popup UI controls the bot and displays state.
+
+Responsibilities:
+- Request current state from the background script.
+- Render templates and shared data.
+- Send user actions and command requests to the background.
+
+### `content.ts`
+
+The content script acts as the bot agent on the page.
+
+Responsibilities:
+- Track `lastFocusedElement` (`<input>`, `<textarea>`, `<select>`).
+- Receive command messages from background and execute them in the page context.
+- Query page elements, resolve template values, and insert text.
+
+## Supported workflow
+
+### Template insertion (`insert_template`)
+
+The content bot must:
+1. Parse `text_template` for shortcodes using the regex `/\[(.+?)\]/g`.
+2. For each shortcode:
+    - Search the page for a `<label>` whose text contains the shortcode label.
+    - If found, locate the associated `<span class="label-text">` and extract its `innerText`.
+    - If no matching label is found, check the previous sibling element under the same parent.
+    - If still unresolved, prompt the user for input.
+3. Insert the resolved values into the `lastFocusedElement`.
+
+### Logging and state sync
+
+- Background stores and returns shared state on demand.
+- Popup requests and renders this state.
+- Content uses background requests to get current templates and settings.
+- SharedData updates from popup are forwarded by background to content.
+
+## Current implementation status
+
+### `background.ts`
+
+Implemented:
+- Saves shared data to `localStorage`.
+- Initializes default configuration values.
+- Handles requests from both popup and content.
+- Creates `bot_id` on `GET_STATE` for content and stores the active tab.
+- Provides `BotCommander` send/relay abstraction.
+- Forwards shared data updates from popup to content.
+- Implements text template UI support: create, edit, delete, and execute.
+
+### `popup/main.ts`
+
+Implemented:
+- Requests state from background and waits for data.
+- Sends commands to background for relay to content.
+
+### `content.ts`
+
+Implemented:
+- Tracks the last focused input element.
+- Requests data from background when needed.
+- Responds to `insert_template` commands.
+
+## Notes for agents
+
+- Preserve existing bot flow and message structure.
+- Avoid broad refactors unless they simplify communication and state handling.
+- Use the existing component modules when possible.
+- Keep user-facing behavior stable: logging, template execution, and field insertion are the primary flows.
