@@ -2,10 +2,6 @@
 
 SNOW Bot is a browser extension built with the WXT framework. It uses `@wxt-dev/runtime` for message passing between the popup, background, and content scripts.
 
-## Purpose
-
-This document explains the architecture, component responsibilities, and expected behavior for LLM agents working on this project.
-
 ## Key principles for agents
 
 - Keep changes minimal and focused.
@@ -62,7 +58,7 @@ Responsibilities:
 
 ## Supported workflow
 
-### Template insertion (`insert_template`)
+### TODO: Template insertion (`insert_template`)
 
 The content bot must:
 1. Parse `text_template` for shortcodes using the regex `/\[(.+?)\]/g`.
@@ -105,10 +101,3 @@ Implemented:
 - Tracks the last focused input element.
 - Requests data from background when needed.
 - Responds to `insert_template` commands.
-
-## Notes for agents
-
-- Preserve existing bot flow and message structure.
-- Avoid broad refactors unless they simplify communication and state handling.
-- Use the existing component modules when possible.
-- Keep user-facing behavior stable: logging, template execution, and field insertion are the primary flows.

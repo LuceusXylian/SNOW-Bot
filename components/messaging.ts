@@ -14,9 +14,9 @@ export interface Message {
 	data?: any;
 }
 
-export interface MessageResponse {
+export interface MessageResponse<T> {
 	success: boolean;
-	data?: any;
+	data?: T;
 	error?: string;
 }
 
@@ -25,7 +25,7 @@ export interface MessageResponse {
  * @param message The message object with type and optional data
  * @returns Promise resolving with the response from the handler
  */
-export async function sendMessage(message: Message): Promise<MessageResponse> {
+export async function sendMessage<T>(message: Message): Promise<MessageResponse<T>> {
 	try {
 		const response = await browser.runtime.sendMessage(message);
 		return response || { success: true };
@@ -41,8 +41,8 @@ export async function sendMessage(message: Message): Promise<MessageResponse> {
  * Register a message handler in background or content script
  * @param callback Function that handles incoming messages and returns a response
  */
-export function registerMessageHandler(
-	callback: (message: Message, sender?: any) => Promise<MessageResponse> | MessageResponse
+export function registerMessageHandler<T>(
+	callback: (message: Message, sender?: any) => Promise<MessageResponse<T>> | MessageResponse<T>
 ) {
 	// @ts-ignore noImplicitAny
 	browser.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {

@@ -67,7 +67,7 @@ export class Logger {
 	// log sends to console.log and to "background.ts" to save it permemently in localStorage
 	log(...params: any[]) {
 		const prefix = "[" + log_from_to_string(this.from) + "]";
-		console.log(prefix, ...params);
+		console.log(prefix, "LOG", ...params);
 		
 		if (this.from === LogFrom.background) {
 			const text = prefix + " " + String(...params);
@@ -76,9 +76,12 @@ export class Logger {
 				timestamp: new Date().getTime(),
 				text: text,
 			});
+			console.log("LOGS 1",this.log_array);
+			
 			if (this.log_array.length > MAX_LOG_ENTRIES) {
 				this.log_array.shift();
 			}
+			console.log("LOGS 2",this.log_array);
 
 			storage.setItem(LS_KEY_LOGS, this.log_array);
 		}

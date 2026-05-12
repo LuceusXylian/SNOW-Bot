@@ -14,7 +14,7 @@ async function initializeSharedData(COMMANDER: BotCommander): Promise<SharedData
 		try {
 			return new SharedData(LOGGER, COMMANDER, stored);
 		} catch (error) {
-			LOGGER.debug("Failed to parse stored SharedData, using defaults");
+			LOGGER.log("Failed to parse stored SharedData, using defaults");
 		}
 	}
 
@@ -25,13 +25,13 @@ export default defineBackground(() => {
 	// In-memory storage for active bot instances (reconstructed on start)
 	const COMMANDER = new BotCommander(LOGGER);
 	initializeSharedData(COMMANDER).then(async (sharedData) => {
-		LOGGER.debug("Background script initialized", { id: browser.runtime.id });
+		LOGGER.log("Background script initialized", { id: browser.runtime.id });
 
 		/**
 		 * Message handler for all incoming messages
 		 */
-		async function handleMessage(message: Message, sender?: any): Promise<MessageResponse> {
-			LOGGER.debug(`Received message: ${message.type}`, message, { tabId: sender?.tab?.id });
+		async function handleMessage(message: Message, sender?: any): Promise<MessageResponse<any>> {
+			LOGGER.log(`Received message: ${message.type}`, message, { tabId: sender?.tab?.id });
 
 			try {
 				switch (message.type) {
@@ -66,7 +66,7 @@ export default defineBackground(() => {
 					case MessageType.BOT_READY: {
 						// Content script signals it's ready / no longer busy
 						const bot = COMMANDER.set_busy(message.data.bot_id, false);
-						LOGGER.debug(`Bot is ready: ${bot.bot_id} on tab ${bot.tabId}`);
+						LOGGER.log(`Bot is ready: ${bot.bot_id} on tab ${bot.tabId}`);
 
 						return success_message({ bot_id: bot.bot_id, acknowledged: true });
 					}
@@ -121,7 +121,7 @@ export default defineBackground(() => {
 						return error_message(`Unknown message type: ${message.type}`);
 				}
 			} catch (error) {
-				LOGGER.debug("Error processing message", error);
+				LOGGER.log("Error processing message", error);
 				return error_message(error instanceof Error ? error.message : String(error));
 			}
 		}

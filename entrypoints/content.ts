@@ -9,7 +9,7 @@ let lastFocusedElement: HTMLElement | null = null;
 /**
  * Handler for messages from background script
  */
-async function handleBackgroundMessage(message: Message, shared: SharedData, bot_id: number): Promise<MessageResponse> {
+async function handleBackgroundMessage(message: Message, shared: SharedData, bot_id: number): Promise<MessageResponse<any>> {
 	LOGGER.debug(`Received message: ${message.type}`, message);
 
 	try {
@@ -163,7 +163,7 @@ export default defineContentScript({
 		}, true);
 
 		// Get bot_id from background, which creates a record for this content script instance
-		const get_bot_id_response = await sendMessage({ type: MessageType.GET_BOT_ID });
+		const get_bot_id_response = await sendMessage<any>({ type: MessageType.GET_BOT_ID });
 		const bot_id: number = get_bot_id_response.data?.bot_id;
 		if (!get_bot_id_response.success) {
 			LOGGER.debug("Failed to get bot_id from background", get_bot_id_response);

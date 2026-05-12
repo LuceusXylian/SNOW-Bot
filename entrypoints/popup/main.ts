@@ -1,8 +1,8 @@
-import { SharedData, LogFrom, Logger, BotCommander } from '@/components/basics';
+import { SharedData, LogFrom, Logger, BotCommander, LogEntry } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
-import { add_spoiler_event } from '@/components/ui';
+import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string } from '@/components/ui';
 
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
@@ -58,7 +58,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 			const index = i;
 			const menu_item_title = item.querySelector(".menu-item-title") as HTMLElement;
 			
-			item.addEventListener("click", () => {
+			menu_item_title.addEventListener("click", () => {
 				if (menu_item_selected === null) {
 					menu.classList.add("deeper");
 					item.classList.add("selected");
@@ -69,7 +69,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 				}
 			});
 
-			if(index === stored_index) item.click();
+			if(index === stored_index) menu_item_title.click();
 		}
 	})
 
@@ -116,7 +116,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 	const templateNameInput = document.getElementById("template-name-input") as HTMLInputElement;
 	const templateContentTextarea = document.getElementById("template-content-textarea") as HTMLTextAreaElement;
 	const templateSaveBtn = document.getElementById("template-save-btn")!;
-	const templatesTable = document.getElementById("templates-table")!;
+	const templatesTable = document.getElementById("table")!;
 	const templatesTbody = document.getElementById("templates-tbody")!;
 
 	let editingTemplateId: string | null = null;
@@ -209,4 +209,83 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 
 	// Initial render
 	renderTemplates();
+
+	// Logs
+	const logs_container = document.getElementById("logs")!;
+	const log_menu_title = document.getElementById("logs_title")!;
+	log_menu_title.addEventListener("click", async function() {
+		// Load logs
+		logs_container.innerHTML = "";
+		const response = await sendMessage<LogEntry[]>({
+			type: MessageType.GET_LOGS,
+		});
+
+		LOGGER.debug("GET_LOGS", response)
+		if (response.success && response.data !== undefined) {
+			if (response.data.length === 0) {
+				create_text_element(logs_container, "div", "Logs are empty");
+			} else {
+				const export_button = create_text_element(logs_container, "button", "Export Logs", { class:"btn-edit", style:"margin-left: 0.5rem;" });
+				export_button.addEventListener("click", () => {
+					// Export response.data as file "SNOW_BOT_logs_{current_datetime}.txt"
+					const now = new Date();
+					const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+					const filename = `SNOW_BOT_logs_${dateTime}.txt`;
+					const content = response.data!.map(entry => 
+						`[${new Date(entry.timestamp).toLocaleString()}] ${entry.text}`
+					).join('\n');
+					save_as_file(content, filename)
+				});
+				
+				const table = create_element(logs_container, "table", { style: "width: 100%;" });
+				for (let i = 0; i < response.data.length; i++) {
+					const entry = response.data[i];
+					const row = create_element(table, "tr");
+					const td1 = create_text_element(row, "td", new Date(entry.timestamp).toLocaleString(), { style: "width: 152px;" });
+					const td2 = create_text_element(row, "td", entry.text);
+				}
+			}
+
+		} else {
+			LOGGER.debug("Failed to get logs", response);
+		}
+	});
+
+	// Settings - Export/Import
+	const sharedExportBtn = document.getElementById("shared-export-btn")!;
+	const sharedImportBtn = document.getElementById("shared-import-btn")!;
+	const sharedImportInput = document.getElementById("shared-import-input") as HTMLInputElement;
+
+	sharedExportBtn.addEventListener("click", () => {
+		const exported = JSON.stringify(shared.export(), null, 2);
+		const now = new Date();
+		const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+		const filename = `SNOW_BOT_settings_${dateTime}.json`;
+		save_as_file(exported, filename);
+		LOGGER.debug("Settings exported", filename);
+	});
+
+	sharedImportBtn.addEventListener("click", () => {
+		sharedImportInput.click();
+	});
+
+	sharedImportInput.addEventListener("change", async (event) => {
+		const target = event.target as HTMLInputElement;
+		const files = target.files;
+		if (!files || files.length === 0) return;
+
+		try {
+			const fileContent = await load_file_to_string(files[0]);
+			const imported = JSON.parse(fileContent);
+			await shared.applyStateChange(imported);
+			LOGGER.debug("Settings imported successfully", imported);
+			alert("Settings imported successfully!");
+		} catch (error) {
+			LOGGER.debug("Failed to import settings", error);
+			alert("Failed to import settings. Please check the file format.");
+		} finally {
+			// Reset file input
+			sharedImportInput.value = '';
+		}
+	});
 }

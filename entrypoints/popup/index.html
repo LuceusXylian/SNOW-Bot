@@ -32,7 +32,7 @@
 						<textarea id="template-content-textarea" placeholder="Template content" rows="5" class="template-textarea"></textarea>
 						<button id="template-save-btn" type="button" class="btn-primary">Save Template</button>
 					</div>
-					<table id="templates-table" class="templates-table">
+					<table id="table" class="table">
 						<thead>
 							<tr>
 								<th>Name</th>
@@ -56,8 +56,19 @@
 
 
 		<div class="menu-item">
-			<div class="menu-item-title">Logs</div>
-			<div id="log" class="menu-item-container"></div>
+			<div id="logs_title" class="menu-item-title">Logs</div>
+			<div class="menu-item-container" id="logs"></div>
+		</div>
+
+		<div class="menu-item">
+			<div class="menu-item-title">Settings</div>
+			<div class="menu-item-container">
+				<div style="margin-bottom: 1rem;">
+					<input type="file" id="shared-import-input" accept=".json" style="display: none;" />
+					<button id="shared-export-btn" type="button" class="btn-insert" style="margin-left: .5rem">Export Settings</button>
+					<button id="shared-import-btn" type="button" class="btn-delete" style="margin-left: .5rem">Import Settings</button>
+				</div>
+			</div>
 		</div>
 
 
