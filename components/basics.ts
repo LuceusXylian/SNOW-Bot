@@ -76,12 +76,10 @@ export class Logger {
 				timestamp: new Date().getTime(),
 				text: text,
 			});
-			console.log("LOGS 1",this.log_array);
 			
 			if (this.log_array.length > MAX_LOG_ENTRIES) {
 				this.log_array.shift();
 			}
-			console.log("LOGS 2",this.log_array);
 
 			storage.setItem(LS_KEY_LOGS, this.log_array);
 		}
@@ -333,7 +331,7 @@ export class SharedData {
 			// pass to background
 			await sendMessage({
 				type: MessageType.UPDATE_SHARED_DATA,
-				data: this.data
+				data: update
 			});
 		} else if (this.COMMANDER.LOGGER.from === LogFrom.background) {
 			this.save();

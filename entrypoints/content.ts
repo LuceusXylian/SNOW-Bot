@@ -1,4 +1,4 @@
-import { LogFrom, Logger, SharedData } from "@/components/basics";
+import { LogFrom, Logger, SharedData, error_message, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
 
@@ -28,35 +28,32 @@ async function handleBackgroundMessage(message: Message, shared: SharedData, bot
 			}
 
 			case MessageType.INSERT_TEMPLATE: {
-				// Handle template insertion into last focused element
 				const { content } = message.data || {};
 				if (!content) return error_message("No template content provided");
-				
 				if (!lastFocusedElement) {
 					LOGGER.debug("No focused element to insert template into");
 					return error_message("No element focused");
 				}
 
-				// Insert template content into focused element
+				const resolvedContent = await resolveTemplateContent(content);
+
 				if (lastFocusedElement instanceof HTMLInputElement || lastFocusedElement instanceof HTMLTextAreaElement) {
 					const start = lastFocusedElement.selectionStart || 0;
-					const end = lastFocusedElement.selectionEnd || lastFocusedElement.value.length;
+					const end = lastFocusedElement.selectionEnd ?? lastFocusedElement.value.length;
 
 					lastFocusedElement.value =
 						lastFocusedElement.value.slice(0, start) +
-						content +
+						resolvedContent +
 						lastFocusedElement.value.slice(end);
 
-					// Move caret to end of inserted text
-					const newPos = start + content.length;
+					const newPos = start + resolvedContent.length;
 					lastFocusedElement.setSelectionRange(newPos, newPos);
 
-					// Trigger change/input events
 					lastFocusedElement.dispatchEvent(new Event("input", { bubbles: true }));
 					lastFocusedElement.dispatchEvent(new Event("change", { bubbles: true }));
 
-					LOGGER.debug("Template inserted successfully");
-					return success_message({ inserted: true });
+					LOGGER.debug("Template inserted successfully", { resolvedContent });
+					return success_message({ inserted: true, resolvedContent });
 				}
 
 				return error_message("Unsupported element type for template insertion");
@@ -68,6 +65,96 @@ async function handleBackgroundMessage(message: Message, shared: SharedData, bot
 		LOGGER.debug("Error handling message", error);
 		return error_message(error instanceof Error ? error.message : String(error));
 	}
+}
+
+const SHORTCODE_REGEX = /\[(.+?)\]/g;
+
+async function resolveTemplateContent(template: string): Promise<string> {
+	const matches = Array.from(template.matchAll(SHORTCODE_REGEX));
+	if (matches.length === 0) {
+		return template;
+	}
+
+	const resolved = new Map<string, string>();
+
+	for (const match of matches) {
+		const label = match[1].trim();
+		
+		if (!label) {
+			continue;
+		}
+
+		if (resolved.has(label)) {
+			continue;
+		}
+
+		// last resort: prompt() user for value
+		//TODO: make option in SharedData: "Allow prompt() if value could not be determined"
+		const value = queryLabelValue(label) ?? promptForTemplateValue(label);
+		resolved.set(label, value);
+	}
+
+	return template.replace(SHORTCODE_REGEX, (_full, label) => {
+		const normalized = label.trim();
+		return resolved.get(normalized) ?? "";
+	});
+}
+
+function queryLabelValue(labelName: string): string | null {
+	const normalizedLabel = normalizeText(labelName);
+
+	// Search through all labels for a match.
+	const labels = Array.from(document.querySelectorAll('label')) as HTMLLabelElement[];
+	for (const label of labels) {
+		const labelText = normalizeText(label.textContent || "");
+		if (!labelText) {
+			continue;
+		}
+
+		if (labelText.includes(normalizedLabel) || normalizedLabel.includes(labelText)) {
+			// get formcontrol with attribute ´for´
+			const formcontrol_id = label.getAttribute("for");
+			if (formcontrol_id) {
+				const formcontrol = document.getElementById(formcontrol_id);
+				if (formcontrol) {
+					if (formcontrol instanceof HTMLInputElement) {
+						if (formcontrol.type === "checkbox") {
+							return formcontrol.checked.toString();
+						}
+						if (formcontrol.type === "radio") {
+							return formcontrol.value.trim() || null;
+						}
+						return formcontrol.value.trim() || null;
+					}
+					if (formcontrol instanceof HTMLTextAreaElement || formcontrol instanceof HTMLSelectElement) {
+						return formcontrol.value.trim() || null;
+					}
+					return formcontrol.textContent?.trim() || null;
+				}
+			}
+			break;
+		}
+	}
+
+	// Fallback: try to locate a label-text span directly.
+	const spans = Array.from(document.querySelectorAll('span.label-text')) as HTMLElement[];
+	for (const span of spans) {
+		const spanText = normalizeText(span.textContent || "");
+		if (spanText.includes(normalizedLabel) || normalizedLabel.includes(spanText)) {
+			return span.textContent?.trim() || null;
+		}
+	}
+
+	return null;
+}
+
+function normalizeText(text: string): string {
+	return text.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function promptForTemplateValue(labelName: string): string {
+	const userValue = window.prompt(`Enter value for [${labelName}]`);
+	return userValue?.trim() ?? "";
 }
 
 //** Helpful functions for manuel work*/
@@ -146,7 +233,7 @@ function paste_cleaner(shared_data: SharedData) {
 }
 
 export default defineContentScript({
-	matches: ['*://*.service-now.com/*', "file:///*"],
+	matches: ['https://siam.service-now.com/*', '*://*.service-now.com/*', "file:///*"],
 	async main() {
 		LOGGER.debug('Content script started');
 		const COMMANDER = new BotCommander(LOGGER);
@@ -154,6 +241,26 @@ export default defineContentScript({
 		paste_cleaner(shared);
 
 		// Track focused elements for template insertion
+		document.addEventListener('focus', (event) => {
+			const target = event.target;
+			if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+				lastFocusedElement = target;
+				LOGGER.debug("Focused element tracked", { type: target.constructor.name });
+			}
+		}, true);
+
+		// Tracker 2
+		setTimeout(function () {
+			for (const element of document.querySelectorAll("textarea")) {
+				element.addEventListener('focus', (event) => {
+					const target = event.target;
+					if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+						lastFocusedElement = target;
+						LOGGER.debug("Focused element tracked", { type: target.constructor.name });
+					}
+				}, true);
+			}
+		});
 		document.addEventListener('focus', (event) => {
 			const target = event.target;
 			if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {

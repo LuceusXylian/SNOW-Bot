@@ -58,15 +58,14 @@ Responsibilities:
 
 ## Supported workflow
 
-### TODO: Template insertion (`insert_template`)
+### Template insertion
 
 The content bot must:
 1. Parse `text_template` for shortcodes using the regex `/\[(.+?)\]/g`.
 2. For each shortcode:
-    - Search the page for a `<label>` whose text contains the shortcode label.
-    - If found, locate the associated `<span class="label-text">` and extract its `innerText`.
-    - If no matching label is found, check the previous sibling element under the same parent.
-    - If still unresolved, prompt the user for input.
+    - Search the page for a `<label>` whose text contains the shortcode label. 
+	  Then get the Element which is linked in the label `for` attribute and get its value.
+    - If unresolved, prompt the user for input.
 3. Insert the resolved values into the `lastFocusedElement`.
 
 ### Logging and state sync

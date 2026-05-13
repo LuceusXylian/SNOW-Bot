@@ -40,7 +40,7 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 /* Template Styles */
 .template-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .template-form *:not(:last-child) { margin-bottom: 0.5rem; }
-.template-input { padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; }
+.template-input { width: 100%; padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; }
 .template-textarea { padding: 0.5rem; border: 1px solid #999; background-color: #1a2a3a; color: white; border-radius: 4px; font-family: monospace; }
 .template-input::placeholder, .template-textarea::placeholder { color: #999; }
 .template-input:focus, .template-textarea:focus { outline: none; border-color: #568df3; box-shadow: 0 0 3px #568df3; }
@@ -66,6 +66,7 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 	color: black;
 	cursor: pointer;
 	user-select: none;
+	margin: 4px;
 }
 .spoiler-container.active > .spoiler-title {
 	padding-bottom: 2px;

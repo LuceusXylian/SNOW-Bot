@@ -87,6 +87,8 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 
 	// spoilers
 	const template_form_spoiler = document.getElementById("template_form_spoiler")!;
+	const template_form_spoiler_title = document.getElementById("template_form_spoiler_title")!;
+	const template_form_spoiler_title_default = template_form_spoiler_title.innerText;
 	add_spoiler_event(template_form_spoiler);
 
 	// Serialnumbers
@@ -147,6 +149,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 				editingTemplateId = template.id;
 				templateNameInput.value = template.name;
 				templateContentTextarea.value = template.content;
+				template_form_spoiler_title.innerText = 'Edit Template';
 				templateSaveBtn.textContent = 'Update Template';
 				template_form_spoiler.classList.add("active");
 				setTimeout(() => {
@@ -202,6 +205,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 		// Reset form
 		templateNameInput.value = '';
 		templateContentTextarea.value = '';
+		template_form_spoiler_title.innerText = template_form_spoiler_title_default;
 		templateSaveBtn.textContent = 'Save Template';
 		editingTemplateId = null;
 		template_form_spoiler.classList.remove("active");
