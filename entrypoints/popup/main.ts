@@ -19,6 +19,21 @@ LOGGER.debug("Popup started");
 })();
 
 function init(COMMANDER: BotCommander, shared: SharedData) {
+	// #open_new_tab
+	const query_string = "?is_popup=0";
+	const is_popup = location.search !== query_string;
+	const controller_title_main = document.getElementById("controller_title_main")!;
+	const new_tab_button = document.getElementById("open_new_tab")!;
+	if (is_popup) {
+		new_tab_button.addEventListener("click", () => {
+			window.open(location.href + query_string, '_blank');
+			window.close();
+		});
+	} else {
+		controller_title_main.classList.remove("popup");
+		new_tab_button.style.display = "none";
+	}
+
 	// Active Toggler
 	const active_toggler = document.getElementById("active-toggler")!;
 	const active_label = document.getElementById("active-label")!;

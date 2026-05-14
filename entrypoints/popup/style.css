@@ -7,7 +7,9 @@ svg, svg * { padding: 0; margin: 0; }
 .controller-header > * { display: inline-block; vertical-align: middle; text-align: center; margin-bottom: .6rem; }
 .controller-goback { width: 40px; height: 40px; padding: 0; cursor: pointer; }
 .controller-title  { width: calc(100% - 40px - 40px); padding-right: 40px; user-select: none; position: relative; text-align: center; }
-/* .controller-title-main {  } */
+.controller-title-main.popup { padding-left: 24px; }
+.controller-title-main > * { display: inline-block; vertical-align: middle; }
+#open_new_tab { width: 20px; height: 20px; background: #fff; padding: 0px 2px 2px 2px; border-radius: 6px; margin-left: 4px; cursor: pointer; overflow: hidden; }
 .controller-title-sub { height: 16px; font-size: 0.7rem; }
 .controller-header.goback-hidden > .controller-goback { display: none; }
 .controller-header.goback-hidden > .controller-title { width: calc(100% - 40px); padding-right: 0; }
