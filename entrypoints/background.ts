@@ -90,7 +90,7 @@ export default defineBackground(() => {
 						const { template, action, templateId } = message.data || {};
 
 						if (action === 'delete' && templateId) {
-							const templates = sharedData.getTemplates();
+							const templates = sharedData.data.templates;
 							sharedData.applyStateChange({
 								templates: templates.filter(t => t.id !== templateId),
 							});
@@ -99,7 +99,7 @@ export default defineBackground(() => {
 						}
 
 						if (template) {
-							const templates = sharedData.getTemplates();
+							const templates = sharedData.data.templates;
 							const index = templates.findIndex(t => t.id === template.id);
 
 							if (index >= 0) {
