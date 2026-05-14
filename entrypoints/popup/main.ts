@@ -37,11 +37,11 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 	}
 
 	// Set initial state
-	set_active_toggler_state(shared.getActive());
+	set_active_toggler_state(shared.data.active);
 
 	active_toggler.addEventListener("click", async () => {
-		await shared.applyStateChange({ active: !shared.getActive() });
-		set_active_toggler_state(shared.getActive());
+		await shared.applyStateChange({ active: !shared.data.active });
+		set_active_toggler_state(shared.data.active);
 	});
 
 
@@ -128,7 +128,7 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 	}
 
 	function renderTemplates() {
-		const templates = shared.getTemplates();
+		const templates = shared.data.templates;
 		templatesTbody.innerHTML = '';
 
 		if (templates.length === 0) {
@@ -291,5 +291,25 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 			// Reset file input
 			sharedImportInput.value = '';
 		}
+	});
+
+	// Settings - checkbox settings
+	const checkbox_container = document.getElementById("checkbox_settings")!;
+	const settingsAttributes = [
+		{ key: "allow_prompt" as const, label: "Allow prompt() if value could not be determined" },
+		{ key: "paste_cleaner_enabled" as const, label: "Clean paste input (Ctrl+V)" },
+	];
+
+	settingsAttributes.forEach(({ key, label }) => {
+		const row = create_element(checkbox_container, "div", { class: "checkbox_row" });
+		const id = `checkbox_settings_${key}`;
+		const checkbox = create_element(row, "input", { id, type: "checkbox" }) as HTMLInputElement;
+		checkbox.checked = shared.data[key];
+
+		create_text_element(row, "label", label, { for: id });
+
+		checkbox.addEventListener("change", () => {
+			shared.applyStateChange({ [key]: checkbox.checked });
+		});
 	});
 }

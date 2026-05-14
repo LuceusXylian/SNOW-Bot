@@ -11,7 +11,7 @@ SNOW Bot is a browser extention that gets you notifications and half-automate yo
 - [ ] ? maybe add scripting for custom half automations
 
 ## Devtools requirements
-- nodejs
-- pnpm
+- nodejs: https://nodejs.org/en/download/current
+- pnpm: https://pnpm.io/installation#on-posix-systems
 
 about:debugging#/runtime/this-firefox

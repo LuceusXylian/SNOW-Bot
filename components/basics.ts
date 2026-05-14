@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIVE, MAX_LOG_ENTRIES } from "./constants";
+import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, MAX_LOG_ENTRIES } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
 
 export enum LogFrom {
@@ -96,6 +96,8 @@ export function error_message(error: string) {
 export interface SharedDataInner {
 	//** if false, it acts as a kill switch and stops any proccesses in "content.ts" */
 	active: boolean,
+	allow_prompt: boolean,
+	paste_cleaner_enabled: boolean,
 	templates: TemplateData[],
 }
 
@@ -278,7 +280,8 @@ export class BotCommander {
  * All data mutations go through this class for consistency
  */
 export class SharedData {
-	private data: SharedDataInner;
+	/** @readonly out of SharedData only read operations are permitted. To write use the applyStateChange() method */
+	data: SharedDataInner;
 	LOGGER: Logger;
 	COMMANDER: BotCommander;
 
@@ -287,20 +290,12 @@ export class SharedData {
 		this.COMMANDER = COMMANDER;
 		this.data = {
 			active: data.active ?? DEFAULT_ACTIVE,
+			allow_prompt: data.allow_prompt ?? DEFAULT_ALLOW_PROMPT,
+			paste_cleaner_enabled: data.paste_cleaner_enabled ?? DEFAULT_PASTE_CLEANER_ENABLED,
 			templates: data.templates ?? [],
 		};
 	}
 
-	// Getters
-	getActive(): boolean {
-		return this.data.active;
-	}
-
-	getTemplates(): TemplateData[] {
-		return this.data.templates;
-	}
-
-	// Setters
 	async setTemplate(template: TemplateData): Promise<void> {
 		await sendMessage({
 			type: MessageType.SET_TEMPLATE,
