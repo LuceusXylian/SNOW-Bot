@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, MAX_LOG_ENTRIES } from "./constants";
+import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
 
 export enum LogFrom {
