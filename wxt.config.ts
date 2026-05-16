@@ -2,10 +2,8 @@ import { defineConfig } from 'wxt';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-	suppressWarnings: {
-		firefoxDataCollection: true,
-	}, manifest: {
-		name: "ServiceNow Bot",
+	manifest: {
+		name: "SNOW Bot",
 		permissions: [
 			"activeTab",
 			"dns",
@@ -20,5 +18,13 @@ export default defineConfig({
 			"notifications",
 			"<all_urls>"
 		],
+		browser_specific_settings: {
+			gecko: {
+				"id": "@snow-bot",
+				data_collection_permissions: {
+					required: ["none"]
+				}
+			}
+		}
 	},
 });

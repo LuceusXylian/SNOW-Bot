@@ -1,5 +1,5 @@
 # SNOW-Bot
-SNOW Bot is a browser extention that gets you notifications and half-automate your workflow for service-now.com
+SNOW Bot is a browser extention that gets you notifications and half-automate your workflow for SNOW.com
 
 
 ## Features
