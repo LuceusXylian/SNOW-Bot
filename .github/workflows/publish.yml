@@ -38,7 +38,7 @@ jobs:
         run: pnpm zip
 
       - name: Publish to Chrome Web Store
-        if: secrets.CHROME_CLIENT_ID != '' && secrets.CHROME_CLIENT_SECRET != '' && secrets.CHROME_REFRESH_TOKEN != '' && secrets.CHROME_EXTENSION_ID != ''
+        if: ${{ secrets.CHROME_CLIENT_ID != '' && secrets.CHROME_CLIENT_SECRET != '' && secrets.CHROME_REFRESH_TOKEN != '' && secrets.CHROME_EXTENSION_ID != '' }}
         uses: r0adkll/upload-chrome-extension@v1
         with:
           client_id: ${{ secrets.CHROME_CLIENT_ID }}
@@ -48,7 +48,7 @@ jobs:
           zip: dist/*.zip
 
       - name: Publish to Mozilla Add-ons (AMO)
-        if: secrets.FIREFOX_API_KEY != '' && secrets.FIREFOX_API_SECRET != ''
+        if: ${{ secrets.FIREFOX_API_KEY != '' && secrets.FIREFOX_API_SECRET != '' }}
         env:
           WEB_EXT_API_KEY: ${{ secrets.FIREFOX_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.FIREFOX_API_SECRET }}
