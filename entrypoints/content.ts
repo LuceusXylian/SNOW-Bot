@@ -99,11 +99,11 @@ class BackgroundMessageHandler {
 				continue;
 			}
 	
-			// last resort: prompt() user for value
 			const value = this.queryLabelValue(label);
 			if (value !== null) {
 				resolved.set(label, value);
 			} else if(this.shared.data.allow_prompt) {
+				// last resort: prompt() user for value
 				const value = this.promptForTemplateValue(label);
 				resolved.set(label, value);
 			}
@@ -126,7 +126,7 @@ class BackgroundMessageHandler {
 				continue;
 			}
 	
-			if (labelText.includes(normalizedLabel) || normalizedLabel.includes(labelText)) {
+			if (normalizedLabel === labelText) {
 				// get formcontrol with attribute ´for´
 				const formcontrol_id = label.getAttribute("for");
 				if (formcontrol_id) {
