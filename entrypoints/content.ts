@@ -225,7 +225,7 @@ function paste_cleaner(shared: SharedData) {
 
         // Insert text at caret position
         const start = target.selectionStart || 0;
-        const end = target.selectionEnd || target.value.length;
+        const end = target.selectionEnd || start; // if no selectionEnd use selectionStart
 
         target.value =
             target.value.slice(0, start) +
