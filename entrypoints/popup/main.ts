@@ -107,26 +107,26 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 	add_spoiler_event(template_form_spoiler);
 
 	// Serialnumbers
-	const serialnumbers_textarea = document.getElementById("serialnumbers-textarea") as HTMLTextAreaElement;
-	const serialnumbers_submit = document.getElementById("serialnumbers-submit")!;
+	// const serialnumbers_textarea = document.getElementById("serialnumbers-textarea") as HTMLTextAreaElement;
+	// const serialnumbers_submit = document.getElementById("serialnumbers-submit")!;
 
-	serialnumbers_submit.addEventListener("click", async () => {
-		// Send command to background to execute mass action on serial numbers
-		const serialnumbers = serialnumbers_textarea.value.trim().split('\n').filter((s: string) => s);
-		const response = await sendMessage({
-			type: MessageType.RELAY_COMMAND,
-			data: {
-				action: 'mass_hardware_actions',
-				serialnumbers,
-			}
-		});
+	// serialnumbers_submit.addEventListener("click", async () => {
+	// 	// Send command to background to execute mass action on serial numbers
+	// 	const serialnumbers = serialnumbers_textarea.value.trim().split('\n').filter((s: string) => s);
+	// 	const response = await sendMessage({
+	// 		type: MessageType.RELAY_COMMAND,
+	// 		data: {
+	// 			action: 'mass_hardware_actions',
+	// 			serialnumbers,
+	// 		}
+	// 	});
 
-		if (response.success) {
-			LOGGER.debug("Mass action command sent", response);
-		} else {
-			LOGGER.debug("Failed to send mass action command", response);
-		}
-	});
+	// 	if (response.success) {
+	// 		LOGGER.debug("Mass action command sent", response);
+	// 	} else {
+	// 		LOGGER.debug("Failed to send mass action command", response);
+	// 	}
+	// });
 
 
 	// Templates Management

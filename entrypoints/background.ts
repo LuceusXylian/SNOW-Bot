@@ -66,7 +66,7 @@ export default defineBackground(() => {
 					case MessageType.BOT_READY: {
 						// Content script signals it's ready / no longer busy
 						const bot = COMMANDER.set_busy(message.data.bot_id, false);
-						LOGGER.log(`Bot is ready: ${bot.bot_id} on tab ${bot.tabId}`);
+						LOGGER.log(`Bot is ready: ${bot.bot_id} on tab ${bot.tabId}, href: ${message.data.href}`);
 
 						return success_message({ bot_id: bot.bot_id, acknowledged: true });
 					}

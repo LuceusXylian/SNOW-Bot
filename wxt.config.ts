@@ -18,6 +18,7 @@ export default defineConfig({
 			"notifications",
 			"<all_urls>"
 		],
+		host_permissions: ["<all_urls>"],
 		browser_specific_settings: {
 			gecko: {
 				"id": "@snow-bot",

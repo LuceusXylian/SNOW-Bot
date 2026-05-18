@@ -247,8 +247,9 @@ function paste_cleaner(shared: SharedData) {
 
 export default defineContentScript({
 	matches: ['https://siam.service-now.com/*', '*://*.service-now.com/*', "file:///*"],
+	allFrames: true,
 	async main() {
-		LOGGER.debug('Content script started');
+		LOGGER.debug('Content script started in', window.location.href);
 		const COMMANDER = new BotCommander(LOGGER);
 		const shared = await get_shared_data(LOGGER, COMMANDER);
 		paste_cleaner(shared);
@@ -273,7 +274,7 @@ export default defineContentScript({
 					}
 				}, true);
 			}
-		});
+		}, 100);
 
 		// Get bot_id from background, which creates a record for this content script instance
 		const get_bot_id_response = await sendMessage<any>({ type: MessageType.GET_BOT_ID });
@@ -288,7 +289,12 @@ export default defineContentScript({
 		registerMessageHandler((message) => background_message_handler.handle(message));
 		
 		// SEND BOT_READY, set is_busy=false
-		const response = await sendMessage({ type: MessageType.BOT_READY, data: {bot_id: bot_id} });
+		const response = await sendMessage({ type: MessageType.BOT_READY, data: {bot_id: bot_id, href: location.href} });
 		LOGGER.debug("Content ready signal sent bot_id:", bot_id, "response:", response);
+
+		
+		if (window.top !== window) {
+			console.log("Running inside an iframe");
+		}
 	},
 });
