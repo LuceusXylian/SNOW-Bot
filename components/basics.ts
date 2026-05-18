@@ -340,12 +340,12 @@ export class SharedData {
 	}
 
 	/**
-	 * Save shared data to extention storage
+	 * Save shared data to extension storage
 	 */
 	save() {
 		if(this.COMMANDER.LOGGER.from !== LogFrom.background) throw new Error("save() should only be run in background");
 		
 		storage.setItem(KEY_SHARED_DATA, this.data);
-		this.COMMANDER.LOGGER.debug("SharedData persisted to extention storage");
+		this.COMMANDER.LOGGER.debug("SharedData persisted to extension storage");
 	}
 }
