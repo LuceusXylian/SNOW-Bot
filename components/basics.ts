@@ -349,3 +349,78 @@ export class SharedData {
 		this.COMMANDER.LOGGER.debug("SharedData persisted to extension storage");
 	}
 }
+
+/** document.querySelector(), but goes also through shadow DOMs */
+export function querySelector(selector: string, rootNode=document.body): HTMLElement|null {
+    const traverser = (node: HTMLElement): HTMLElement|null => {
+        // 1. decline all nodes that are not elements
+        if(node.nodeType !== Node.ELEMENT_NODE) {
+            return null;
+        }
+        
+        // 2. add the node to the array, if it matches the selector
+        if(node.matches(selector)) {
+            return node as HTMLElement;
+        }
+        
+        // 3. loop through the children
+        const children = node.children
+        if (children.length) {
+            for(const child of children) {
+                const ret = traverser(child as HTMLElement);
+				if (ret !== null) return ret;
+            }
+        }
+        
+        // 4. check for shadow DOM, and loop through it's children
+        const shadowRoot = node.shadowRoot
+        if (shadowRoot) {
+            const shadowChildren = shadowRoot.children
+            for(const shadowChild of shadowChildren) {
+                const ret = traverser(shadowChild as HTMLElement);
+				if (ret !== null) return ret;
+            }
+        }
+		return null;
+    }
+    
+    return traverser(rootNode);
+}
+
+/** document.querySelectorAll(), but goes also through shadow DOMs */
+export function querySelectorAll(selector: string, rootNode=document.body) {
+    const arr: HTMLElement[] = []
+    
+    const traverser = (node: Element) => {
+        // 1. decline all nodes that are not elements
+        if(node.nodeType !== Node.ELEMENT_NODE) {
+            return
+        }
+        
+        // 2. add the node to the array, if it matches the selector
+        if(node.matches(selector)) {
+            arr.push(node as HTMLElement)
+        }
+        
+        // 3. loop through the children
+        const children = node.children
+        if (children.length) {
+            for(const child of children) {
+                traverser(child)
+            }
+        }
+        
+        // 4. check for shadow DOM, and loop through it's children
+        const shadowRoot = node.shadowRoot
+        if (shadowRoot) {
+            const shadowChildren = shadowRoot.children
+            for(const shadowChild of shadowChildren) {
+                traverser(shadowChild)
+            }
+        }
+    }
+    
+    traverser(rootNode)
+    
+    return arr
+}

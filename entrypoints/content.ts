@@ -1,4 +1,4 @@
-import { LogFrom, Logger, SharedData, error_message, success_message } from "@/components/basics";
+import { LogFrom, Logger, SharedData, error_message, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
 
@@ -119,7 +119,7 @@ class BackgroundMessageHandler {
 		const normalizedLabel = normalizeText(labelName);
 	
 		// Search through all labels for a match.
-		const labels = Array.from(document.querySelectorAll('label')) as HTMLLabelElement[];
+		const labels = Array.from(querySelectorAll('label')) as HTMLLabelElement[];
 		for (const label of labels) {
 			const labelText = normalizeText(label.textContent || "");
 			if (!labelText) {
@@ -152,7 +152,7 @@ class BackgroundMessageHandler {
 		}
 	
 		// Fallback: try to locate a label-text span directly.
-		const spans = Array.from(document.querySelectorAll('span.label-text')) as HTMLElement[];
+		const spans = Array.from(querySelectorAll('span.label-text')) as HTMLElement[];
 		for (const span of spans) {
 			const spanText = normalizeText(span.textContent || "");
 			if (spanText.includes(normalizedLabel) || normalizedLabel.includes(spanText)) {
@@ -240,8 +240,6 @@ function paste_cleaner(shared: SharedData) {
         if (target instanceof HTMLTextAreaElement) {
             target.dispatchEvent(new Event("change", { bubbles: true }));
         }
-		console.log("paste_cleaner shared.__data.active", shared.data.active);
-
     }, true);
 }
 
@@ -265,7 +263,7 @@ export default defineContentScript({
 
 		// Tracker 2
 		setTimeout(function () {
-			for (const element of document.querySelectorAll("textarea")) {
+			for (const element of querySelectorAll("textarea")) {
 				element.addEventListener('focus', (event) => {
 					const target = event.target;
 					if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
