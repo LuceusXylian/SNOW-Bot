@@ -8,5 +8,6 @@ export const DEFAULT_ACTIVE = false;
 export const DEFAULT_ALLOW_PROMPT = true;
 export const DEFAULT_PASTE_CLEANER_ENABLED = true;
 
-// Log
+// Misc
 export const MAX_LOG_ENTRIES: number = 100;
+export const SCRIPTING_VERSION: number = 1;

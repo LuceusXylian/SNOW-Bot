@@ -69,3 +69,93 @@ export function load_file_to_string(file: File): Promise<string> {
     });
 }
 
+
+interface FormcontrolTypeNameMap {
+    "select": HTMLSelectElement;
+    "text": HTMLInputElement;
+    "number": HTMLInputElement;
+    "textarea": HTMLTextAreaElement;
+}
+
+interface FormControlOptionals {
+    options?: { value: string, title: string }[];
+    required?: boolean;
+    disabled?: boolean;
+    autocomplete_off?: boolean;
+    value?: string|number;
+}
+
+let create_formcontrol_i = 0;
+
+export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(parent: HTMLElement, type: K, name: string, placeholder: string|null, optionals: FormControlOptionals): FormcontrolTypeNameMap[K] {
+    const container = create_element(parent, "div", { class: "fc-container" });
+    let input_element: FormcontrolTypeNameMap[K];
+    if (type === "select") {
+        input_element = create_element(container, "select", { class: "fc" }) as FormcontrolTypeNameMap[K];
+        if (placeholder !== null) {
+            const option = create_element(input_element, "option", { value: "", class: "placeholder", style: "display: none" });
+            option.innerText = placeholder;
+        }
+
+        if (optionals.options) {
+            for (const option of optionals.options) {
+                const option_element = create_element(input_element, "option", { value: option.value });
+                option_element.innerText = option.title;
+            }
+        }
+    } else if (type === "textarea") {
+        input_element = create_element(container, "textarea", { class: "fc", style: "resize: none; min-height: 100px;" }) as FormcontrolTypeNameMap[K];
+        // get computed padding top + padding bottom of the textarea
+        const computed_style = window.getComputedStyle(input_element);
+        const padding_top_bottom = parseInt(computed_style.paddingTop, 10) + parseInt(computed_style.paddingBottom, 10);
+
+        // On keydown scale the textarea to fit the content. It should expect the padding of the textarea.
+        const scale = () => {
+            input_element.style.height = "auto"; // Reset height
+            input_element.style.height = (input_element.scrollHeight + padding_top_bottom) + "px"; // Set to scrollHeight
+        };
+
+        scale(); // Initial scale
+        input_element.addEventListener("keydown", scale);
+    } else {
+        input_element = create_element(container, "input", { type: type, class: "fc" }) as FormcontrolTypeNameMap[K];
+    }
+    input_element.id = "formcontrol" + create_formcontrol_i + "_" + name;
+    input_element.name = name;
+    if(optionals.value) input_element.value = optionals.value.toString();
+    if(optionals.required) input_element.required = true;
+    if(optionals.disabled) input_element.disabled = true;
+    if(optionals.autocomplete_off) input_element.autocomplete = "off";
+
+    if (placeholder !== null) {
+        input_element.setAttribute("placeholder", placeholder);
+        const label = create_element(container, "label", { class: "labeled_input" });
+        label.innerText = placeholder;
+        label.setAttribute("for", input_element.id);
+        if (input_element.value === "") {
+            label.style.display = "none";
+        }
+        const toggle_label = () => {
+            if (input_element.value === "") {
+                label.style.display = "none";
+            } else {
+                label.style.display = "";
+            }
+        }
+        input_element.addEventListener("keyup", toggle_label);
+    }
+
+    if (optionals.required) {
+        input_element.addEventListener("change", () => {
+            input_element.value = input_element.value.trim();
+            if (input_element.value === "") {
+                input_element.style.borderColor = "red";
+            } else {
+                input_element.style.borderColor = "";
+            }
+        });
+    }
+    create_formcontrol_i++;
+    return input_element;
+}
+

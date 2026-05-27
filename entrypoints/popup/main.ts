@@ -3,6 +3,7 @@ import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string } from '@/components/ui';
+import { build_script_form } from './scripting_form';
 
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
@@ -327,4 +328,15 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 			shared.applyStateChange({ [key]: checkbox.checked });
 		});
 	});
+
+	// Script builder
+	const script_builder = document.getElementById("script_builder")!;
+	// Create new script form
+	build_script_form(script_builder, shared);
+
+	// TODO: list all scripts with actions: edit, delete, execute
+	
+	// Triggers
+	// TODO: add form to create new Trigger
+	// TODO: list all triggers with actions: edit, delete
 }

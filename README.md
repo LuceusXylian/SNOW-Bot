@@ -24,6 +24,7 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 	- [ ] Half automation for returns
 		- give the bot the serial number and it will guide you through the return process
 - [ ] Chat UI to send commands and receive responses
+- [ ] After all above is implemented, we create a action which executes multiple InsertTemplate actions on diffrent inputs/textareas 
 
 ## Devtools requirements
 - nodejs: https://nodejs.org/en/download/current

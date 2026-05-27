@@ -2,6 +2,57 @@ html, body { background: #0a3042; color: white; padding: 0; margin: 0; min-width
 * { font: 1rem/1.5 "Segoe UI", Inter, sans-serif; box-sizing: border-box; }
 label { user-select: none; padding-left: 4px; }
 svg, svg * { padding: 0; margin: 0; }
+small { font-size: .8rem; }
+
+/* Form Components */
+.fc-container {
+    position: relative;
+	margin: 1rem .4rem 0 .4rem;
+}
+.fc {
+    width: 100%;
+    max-width: -moz-available; max-width: -webkit-fill-available;
+    min-width: 32px;
+    background-color:rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid var(--cbr-border-color);
+    min-height: 28px;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: inherit;
+    color: inherit;
+}
+textarea.fc {
+    min-height: 28px;
+    font-size: inherit;
+    padding: 6px 6px;
+    resize: vertical;
+    height: 56px;
+}
+button.fc { cursor: pointer; box-sizing: border-box; }
+select.fc:not([multiple]) {
+    background: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E") right .75rem center no-repeat;
+    background-size: auto;
+    background-size: 8px 10px;
+    padding: 0.35rem 1.5rem 0.35rem 0.5rem;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+.fc:focus { border: 1px solid var(--cbr-border-color); }
+.fc-reset { background: transparent; padding: 0; margin: 0; border: 0; color: inherit; }
+.fc:disabled, .fc-reset:disabled { background-color: #00000030 !important; color: var(--cbr-color-secondary); }
+button.fc-reset { cursor: pointer; user-select: none; }
+.fc-hover-border { border: 1px solid transparent; }
+.fc-hover-border:hover { border: 1px solid var(--cbr-border-color); border-radius: 6px; }
+.labeled_input { 
+    position: absolute; top: -10px; left: 10px; 
+    font-size: 0.8rem; 
+    background-color: rgba(0,0,0,.5); 
+    border-radius: 6px; 
+    user-select: none;
+    padding: 2px;
+    line-height: 1;
+}
 
 .controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem .6rem 0 .6rem; font-weight: bold; }
 .controller-header > * { display: inline-block; vertical-align: middle; text-align: center; margin-bottom: .6rem; }

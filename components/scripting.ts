@@ -1,4 +1,4 @@
-import { Message } from "@/components/messaging";
+import { Message, MessageType } from "@/components/messaging";
 
 
 export enum ConditionType {
@@ -26,15 +26,43 @@ export interface Condition {
 	static_value: string
 }
 
+export enum ActionKind {
+	/** Run a script. Could be dangerous if a script is calling itself over and over again. */
+	SCRIPT = 0,
+	MESSAGE_TYPE = 1,
+}
+
 export interface ActionType {
-	type: MessageType,
+	name: string,
+	kind: ActionKind,
+	message_type?: MessageType
+	/** Arguments can be predefined by Script or executed by Chat. 
+	 *  If reference is set then we get automaticly a select with data from from SharedData
+	 *  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
+	 */
+	available_arguments: { argument: string, type: "text"|"number", required: boolean, reference?: "scripts"|"templates" }[]
 }
 
 export interface Action {
-	action_type: ActionType,
-	script_id?: number,
-	message?: Message,
+	type: ActionType,
+	arguments: {
+		id?: number
+	},
 }
+
+export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
+	{
+		name: "Script",
+		kind: ActionKind.SCRIPT,
+		available_arguments: [{argument: "id", type: "number", required: true, reference: "scripts"}]
+	},
+	{
+		name: "InsertTemplate",
+		kind: ActionKind.MESSAGE_TYPE,
+		message_type: MessageType.INSERT_TEMPLATE,
+		available_arguments: [{argument: "id", type: "number", required: true, reference: "templates"}]
+	},
+];
 
 export interface ScriptLine {
 	/** empty array means that it has no conditions and it will always execute the actions */
@@ -45,11 +73,24 @@ export interface ScriptLine {
 export interface Script {
 	version: number,
 	id: number,
+	name: string,
 	lines: ScriptLine[],
 }
 
+/** listens on all document.querySelectorAll(element_selector) */
+export interface TriggerEvent {
+	element_selector: string,
+	event_type: string,
+}
+
 export interface Trigger {
-	conditions: Condition[],
+	/** triggers every x nanoseconds using setInterval */
+	events: TriggerEvent[],
 	/** triggers every x nanoseconds using setInterval */
 	every: number|null
+	/** Additinal conditions before executing script */
+	conditions: Condition[],
+	/** Array of actions that will be executed if all conditions are fullfilled */
+	script: Script
 }
+

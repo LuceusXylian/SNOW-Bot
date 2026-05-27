@@ -1,5 +1,6 @@
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
+import { Script, Trigger } from "./scripting";
 
 export enum LogFrom {
 	popup = 0,
@@ -99,6 +100,8 @@ export interface SharedDataInner {
 	allow_prompt: boolean,
 	paste_cleaner_enabled: boolean,
 	templates: TemplateData[],
+	scripts: Script[],
+	triggers: Trigger[],
 }
 
 
@@ -293,6 +296,8 @@ export class SharedData {
 			allow_prompt: data.allow_prompt ?? DEFAULT_ALLOW_PROMPT,
 			paste_cleaner_enabled: data.paste_cleaner_enabled ?? DEFAULT_PASTE_CLEANER_ENABLED,
 			templates: data.templates ?? [],
+			scripts: data.scripts ?? [],
+			triggers: data.triggers ?? [],
 		};
 	}
 
