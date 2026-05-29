@@ -1,14 +1,17 @@
 html, body { background: #0a3042; color: white; padding: 0; margin: 0; min-width: 320px; }
-* { font: 1rem/1.5 "Segoe UI", Inter, sans-serif; box-sizing: border-box; }
+* { 
+	font: 1rem/1.5 "Segoe UI", Inter, sans-serif; box-sizing: border-box; 
+	--cbr-border-color: #80bdff;
+}
 label { user-select: none; padding-left: 4px; }
 svg, svg * { padding: 0; margin: 0; }
-small { font-size: .8rem; }
+small { font-size: .8em; }
+button { cursor: pointer; }
 
 /* Form Components */
-.fc-container {
-    position: relative;
-	margin: 1rem .4rem 0 .4rem;
-}
+.fc-container { position: relative; margin: 1rem .4rem 0 .4rem; }
+.fc-container-2 { display: inline-block; width: calc(50% - .4rem * 2); }
+.fc-container-3 { display: inline-block; width: calc(33.33% - .4rem * 2); }
 .fc {
     width: 100%;
     max-width: -moz-available; max-width: -webkit-fill-available;
@@ -53,6 +56,8 @@ button.fc-reset { cursor: pointer; user-select: none; }
     padding: 2px;
     line-height: 1;
 }
+.fc-b { display: block; width: initial; min-width: none; }
+.fc-small { font-size: .8em; padding: 4px; }
 
 .controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem .6rem 0 .6rem; font-weight: bold; }
 .controller-header > * { display: inline-block; vertical-align: middle; text-align: center; margin-bottom: .6rem; }
@@ -142,3 +147,4 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 	border-radius: 6px;
 	padding: 1rem;
 }
+h5 { border-bottom: 1px solid; margin: 1rem 0 1rem 0; }

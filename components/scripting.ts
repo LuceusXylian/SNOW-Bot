@@ -43,6 +43,11 @@ export interface ActionType {
 	available_arguments: { argument: string, type: "text"|"number", required: boolean, reference?: "scripts"|"templates" }[]
 }
 
+export interface Reference {
+	id: number,
+	name: string,
+}
+
 export interface Action {
 	type: ActionType,
 	arguments: {

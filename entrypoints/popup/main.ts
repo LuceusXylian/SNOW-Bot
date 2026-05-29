@@ -8,19 +8,8 @@ import { build_script_form } from './scripting_form';
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
 
-// Fetch state from background and initialize UI
-(async () => {
-	try {
-		const COMMANDER = new BotCommander(LOGGER);
-		const shared = await get_shared_data(LOGGER, COMMANDER);
-		init(COMMANDER, shared);
-	} catch (error) {
-		LOGGER.debug("Failed to initialize popup", error);
-	}
-})();
-
-function init(COMMANDER: BotCommander, shared: SharedData) {
-	// #open_new_tab
+// #open_new_tab
+(() => {
 	const query_string = "?is_popup=0";
 	const is_popup = location.search !== query_string;
 	const controller_title_main = document.getElementById("controller_title_main")!;
@@ -34,7 +23,20 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 		controller_title_main.classList.remove("popup");
 		new_tab_button.style.display = "none";
 	}
+})();
 
+// Fetch state from background and initialize UI
+(async () => {
+	try {
+		const COMMANDER = new BotCommander(LOGGER);
+		const shared = await get_shared_data(LOGGER, COMMANDER);
+		await init(COMMANDER, shared);
+	} catch (error) {
+		LOGGER.debug("Failed to initialize popup", error);
+	}
+})();
+
+async function init(COMMANDER: BotCommander, shared: SharedData) {
 	// Active Toggler
 	const active_toggler = document.getElementById("active-toggler")!;
 	const active_label = document.getElementById("active-label")!;
@@ -68,26 +70,25 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 	const menu = document.getElementById("menu")!;
 	const menu_items = <HTMLCollectionOf<HTMLDivElement>>document.getElementsByClassName("menu-item");
 	var menu_item_selected: HTMLDivElement | null = null;
-	storage.getItem(KEY_POPUP_MENU_INDEX).then((stored_index) => {
-		for (let i = 0; i < menu_items.length; i++) {
-			const item = menu_items[i];
-			const index = i;
-			const menu_item_title = item.querySelector(".menu-item-title") as HTMLElement;
-			
-			menu_item_title.addEventListener("click", () => {
-				if (menu_item_selected === null) {
-					menu.classList.add("deeper");
-					item.classList.add("selected");
-					header.classList.remove("goback-hidden");
-					menu_item_selected = item;
-					storage.setItem(KEY_POPUP_MENU_INDEX, index);
-					title_sub.innerText = menu_item_title.innerText;
-				}
-			});
+	const stored_index = await storage.getItem(KEY_POPUP_MENU_INDEX);
+	for (let i = 0; i < menu_items.length; i++) {
+		const item = menu_items[i];
+		const index = i;
+		const menu_item_title = item.querySelector(".menu-item-title") as HTMLElement;
+		
+		menu_item_title.addEventListener("click", () => {
+			if (menu_item_selected === null) {
+				menu.classList.add("deeper");
+				item.classList.add("selected");
+				header.classList.remove("goback-hidden");
+				menu_item_selected = item;
+				storage.setItem(KEY_POPUP_MENU_INDEX, index);
+				title_sub.innerText = menu_item_title.innerText;
+			}
+		});
 
-			if(index === stored_index) menu_item_title.click();
-		}
-	})
+		if(index === stored_index) menu_item_title.click();
+	}
 
 
 	controller_goback.addEventListener("click", () => {
@@ -106,29 +107,6 @@ function init(COMMANDER: BotCommander, shared: SharedData) {
 	const template_form_spoiler_title = document.getElementById("template_form_spoiler_title")!;
 	const template_form_spoiler_title_default = template_form_spoiler_title.innerText;
 	add_spoiler_event(template_form_spoiler);
-
-	// Serialnumbers
-	// const serialnumbers_textarea = document.getElementById("serialnumbers-textarea") as HTMLTextAreaElement;
-	// const serialnumbers_submit = document.getElementById("serialnumbers-submit")!;
-
-	// serialnumbers_submit.addEventListener("click", async () => {
-	// 	// Send command to background to execute mass action on serial numbers
-	// 	const serialnumbers = serialnumbers_textarea.value.trim().split('\n').filter((s: string) => s);
-	// 	const response = await sendMessage({
-	// 		type: MessageType.RELAY_COMMAND,
-	// 		data: {
-	// 			action: 'mass_hardware_actions',
-	// 			serialnumbers,
-	// 		}
-	// 	});
-
-	// 	if (response.success) {
-	// 		LOGGER.debug("Mass action command sent", response);
-	// 	} else {
-	// 		LOGGER.debug("Failed to send mass action command", response);
-	// 	}
-	// });
-
 
 	// Templates Management
 	const templateNameInput = document.getElementById("template-name-input") as HTMLInputElement;

@@ -83,6 +83,7 @@ interface FormControlOptionals {
     disabled?: boolean;
     autocomplete_off?: boolean;
     value?: string|number;
+	class?: string;
 }
 
 let create_formcontrol_i = 0;
@@ -155,6 +156,10 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
             }
         });
     }
+
+	if (optionals.class) {
+		container.className += " "+optionals.class;
+	}
     create_formcontrol_i++;
     return input_element;
 }

@@ -1,4 +1,4 @@
-import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES } from "@/components/scripting";
+import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION } from "@/components/constants";
 import { SharedData } from "@/components/basics";
@@ -12,31 +12,34 @@ import { create_formcontrol } from "@/components/ui";
 function build_condition_form(parent: HTMLElement, initial?: Condition) {
 	const container = create_element(parent, "div", { class: "condition-form", style: "border:1px solid #ccc;padding:8px;margin:4px;border-radius:4px" });
 	
-	const targetTypeLabel = create_text_element(container, "label", "Target Type:");
-	const targetTypeSelect = create_element(container, "select") as HTMLSelectElement;
-	create_text_element(targetTypeSelect, "option", "URL", { value: String(ConditionTargetType.URL) });
-	create_text_element(targetTypeSelect, "option", "Domain", { value: String(ConditionTargetType.DOMAIN) });
-	create_text_element(targetTypeSelect, "option", "Element", { value: String(ConditionTargetType.ELEMENT) });
-	targetTypeSelect.value = String(initial?.target.target_type ?? ConditionTargetType.URL);
-	container.appendChild(document.createElement("br"));
+	const targetTypeSelect_container = create_element(container, "div")
+	const targetTypeSelect = create_formcontrol(targetTypeSelect_container, "select", "target_type", "Target Type", { 
+		value: String(initial?.target.target_type ?? ConditionTargetType.URL), 
+		class: "fc-container-3",
+		required: true,
+		options: [
+			{ title: "URL", value: String(ConditionTargetType.URL) },
+			{ title: "Domain", value: String(ConditionTargetType.DOMAIN) },
+			{ title: "Element", value: String(ConditionTargetType.ELEMENT) },
+		]
+	});
+
+	const selectorInput = create_formcontrol(container, "text", "element_selector", "Element Selector", { value: initial?.target.element_selector ?? "", class: "fc-container-3", required: true });
 	
-	const selectorLabel = create_text_element(container, "label", "Element Selector (if needed):");
-	const selectorInput = create_element(container, "input", { value: initial?.target.element_selector ?? "", style: "width:100%" }) as HTMLInputElement;
-	container.appendChild(document.createElement("br"));
+	const typeSelect = create_formcontrol(container, "select", "target_type", "Condition Type", { 
+		value: initial?.type ?? "", 
+		class: "fc-container-3",
+		required: true,
+		options: [
+			{ title: "IS", value: String(ConditionType.IS) },
+			{ title: "IS", value: String(ConditionType.IS_NOT) },
+			{ title: "CONTAINS", value: String(ConditionType.CONTAINS) },
+			{ title: "CONTAINS NOT", value: String(ConditionType.CONTAINS_NOT) },
+		]
+	});
 	
-	const typeLabel = create_text_element(container, "label", "Condition Type:");
-	const typeSelect = create_element(container, "select") as HTMLSelectElement;
-	create_text_element(typeSelect, "option", "IS", { value: String(ConditionType.IS) });
-	create_text_element(typeSelect, "option", "IS NOT", { value: String(ConditionType.IS_NOT) });
-	create_text_element(typeSelect, "option", "CONTAINS", { value: String(ConditionType.CONTAINS) });
-	create_text_element(typeSelect, "option", "CONTAINS NOT", { value: String(ConditionType.CONTAINS_NOT) });
-	typeSelect.value = String(initial?.type ?? ConditionType.IS);
-	container.appendChild(document.createElement("br"));
-	
-	const valueLabel = create_text_element(container, "label", "Value:");
-	const valueInput = create_element(container, "input", { value: initial?.static_value ?? "", style: "width:100%" }) as HTMLInputElement;
-	container.appendChild(document.createElement("br"));
-	
+	const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
+
 	return {
 		get(): Condition {
 			return {
@@ -55,43 +58,77 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
  * Builds a form for editing an Action.
  * Returns an object with get/set methods to read/write the action.
  */
-function build_action_form(parent: HTMLElement, initial?: Action) {
+function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Action) {
 	const container = create_element(parent, "div", { class: "action-form", style: "border:1px solid #ccc;padding:8px;margin:4px;border-radius:4px" });
 	
-	const row = create_element(container, "div");
-	const messageTypeLabel = create_text_element(row, "label", "Action:");
-	const messageTypeSelect = create_element(row, "select");
+	const action_type_options = [];
+	let action_type_value: string = "";
 	for (let index = 0; index < SCRIPTING_ACTIONS_TYPES.length; index++) {
 		const type_name = SCRIPTING_ACTIONS_TYPES[index].name;
-		create_text_element(messageTypeSelect, "option", type_name, { value: index.toString() });
+		action_type_options.push({ title: type_name, value: index.toString() });
 		if (initial && type_name === initial?.type.name) {
-			messageTypeSelect.value = index.toString();
+			action_type_value = index.toString();
 		}
 	}
+	const action_type_select = create_formcontrol(container, "select", "action", "Action", { 
+		value: action_type_value, 
+		class: "fc-container-3",
+		required: true,
+		options: action_type_options
+	});
 	
 	// Auto generate arguments inputs
+	const arguments_fc_array: (HTMLInputElement|HTMLSelectElement)[] = [];
 	const arguments_container = create_element(container, "div");
-	messageTypeSelect.addEventListener("change", () => {
+	const action_type_change_event = () => {
 		arguments_container.innerHTML = "";
-		const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(messageTypeSelect.value)];
+		const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
 		for (let index = 0; index < action_type.available_arguments.length; index++) {
 			const argument = action_type.available_arguments[index];
 			
 			/** //TODO: If reference is set then we get automaticly a select with data from from SharedData
 			*  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
 			*/
-			create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument, {
-				required: argument.required
-			});
+			const referenceKey = argument.reference as keyof SharedDataInner;
+			if (argument.reference && shared.data[referenceKey] !== undefined) {
+				const referenceArray = shared.data[referenceKey] as Reference[];
+				const reference_options: { value: string, title: string }[] = [];
+				let reference_value: string = "";
+				for (let index = 0; index < referenceArray.length; index++) {
+					const reference = referenceArray[index];
+					reference_options.push({ title: reference.name, value: reference.id.toString() });
+				}
+
+				arguments_fc_array.push(
+					create_formcontrol(arguments_container, "select", argument.argument, "Select one of the "+argument.reference, { 
+						value: reference_value, 
+						class: "fc-container-3",
+						required: true,
+						options: reference_options
+					})
+				)
+			} else {
+				arguments_fc_array.push(
+					create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument, {
+						required: argument.required
+					})
+				)
+			}
 		}
-	});
+	};
+	action_type_select.addEventListener("change", action_type_change_event);
+	action_type_change_event();
 	
 	return {
 		get(): Action {
-			const _arguments: Object = {};
+			const _arguments: Record<string, string> = {};
+			for (let index = 0; index < arguments_fc_array.length; index++) {
+				const fc = arguments_fc_array[index];
+				_arguments[fc.name] = fc.value;
+			}
 
 			return {
-				type: SCRIPTING_ACTIONS_TYPES[parseInt(messageTypeSelect.value)],
+				type: SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)],
 				arguments: _arguments,
 			};
 		}
@@ -102,14 +139,13 @@ function build_action_form(parent: HTMLElement, initial?: Action) {
  * Builds a form for editing a ScriptLine with addable/removable conditions and actions.
  * Returns an object with a get() method.
  */
-function build_scriptline_form(parent: HTMLElement, initial?: ScriptLine, onRemove?: () => void) {
-	const container = create_element(parent, "div", { class: "scriptline-form", style: "border:2px solid #333;padding:12px;margin:8px;border-radius:6px;background:#f9f9f9" });
+function build_scriptline_form(parent: HTMLElement, shared: SharedData, initial: ScriptLine|null, onRemove: () => void) {
+	const container = create_element(parent, "div", { class: "scriptline-form", style: "border:2px solid #333;padding:12px;margin:8px;border-radius:6px;background:#39495A" });
 	
 	// Header with remove button
 	const header = create_element(container, "div", { style: "display:flex;justify-content:space-between;margin-bottom:12px" });
-	create_text_element(header, "h4", "Script Line");
 	if (onRemove) {
-		const removeBtn = create_text_element(header, "button", "Remove Line");
+		const removeBtn = create_text_element(header, "button", "Remove Line", {class: "btn-delete fc-b", style: "margin-left: auto;"});
 		(removeBtn as HTMLButtonElement).addEventListener("click", onRemove);
 	}
 	
@@ -123,12 +159,11 @@ function build_scriptline_form(parent: HTMLElement, initial?: ScriptLine, onRemo
 		conditionForms.push(condForm);
 	});
 	
-	const addCondBtn = create_text_element(container, "button", "+ Add Condition");
+	const addCondBtn = create_text_element(container, "button", "+ Add Condition", { class:"fc fc-small", style:"margin-top: 1rem;" });
 	(addCondBtn as HTMLButtonElement).addEventListener("click", () => {
 		const condForm = build_condition_form(conditionsContainer);
 		conditionForms.push(condForm);
 	});
-	container.appendChild(document.createElement("br"));
 	
 	// Actions section
 	create_text_element(container, "h5", "Actions");
@@ -136,16 +171,15 @@ function build_scriptline_form(parent: HTMLElement, initial?: ScriptLine, onRemo
 	const actionForms: ReturnType<typeof build_action_form>[] = [];
 	
 	(initial?.actions ?? []).forEach(act => {
-		const actForm = build_action_form(actionsContainer, act);
+		const actForm = build_action_form(actionsContainer, shared, act);
 		actionForms.push(actForm);
 	});
 	
-	const addActionBtn = create_text_element(container, "button", "+ Add Action");
+	const addActionBtn = create_text_element(container, "button", "+ Add Action", { class:"fc fc-small", style:"margin-top: 1rem;" });
 	(addActionBtn as HTMLButtonElement).addEventListener("click", () => {
-		const actForm = build_action_form(actionsContainer);
+		const actForm = build_action_form(actionsContainer, shared);
 		actionForms.push(actForm);
 	});
-	container.appendChild(document.createElement("br"));
 	
 	return {
 		get(): ScriptLine {
@@ -163,17 +197,17 @@ function build_scriptline_form(parent: HTMLElement, initial?: ScriptLine, onRemo
  * Parsed value is attached to the returned container as `.script`.
  */
 export function build_script_form(container: HTMLElement, shared: SharedData, initial?: Script): HTMLElement {
-	const h3 = create_text_element(container, "h3", "Script Editor ");
-	create_text_element(h3, "small", " v"+SCRIPTING_VERSION);
-	if(initial) create_text_element(h3, "small", " ID: "+initial.id);
+	const title_sub = document.getElementById("title_sub");
+	console.log("title_sub", title_sub);
+	
+	if (title_sub !== null) {
+		title_sub.innerHTML = "Script Editor <small>v"+SCRIPTING_VERSION+"</small>";
+		if(initial) title_sub.innerHTML += " ID: "+initial.id;
+	}
 
-	const nameId = container.id+"_name";
-	const nameLabel = create_text_element(container, "label", "Name:", { for: nameId });
-	const nameInput = create_element(container, "input", { id: nameId, type: "text", value: initial?.name ?? "", class: "template-input" }) as HTMLInputElement;
-
+	const nameInput = create_formcontrol(container, "text", "script_name", "Script Name", { value: initial?.name ?? "", required: true });
 	
 	// ScriptLines section
-	create_text_element(container, "h4", "Script Lines");
 	const linesContainer = create_element(container, "div", { class: "scriptlines-container" });
 	const linesForms: { form: ReturnType<typeof build_scriptline_form>, elem: HTMLElement }[] = [];
 	
@@ -205,7 +239,7 @@ export function build_script_form(container: HTMLElement, shared: SharedData, in
 	
 	(initial?.lines ?? []).forEach(line => {
 		const lineElem = create_element(linesContainer, "div");
-		const form = build_scriptline_form(lineElem, line, () => {
+		const form = build_scriptline_form(lineElem, shared, line, () => {
 			linesForms.splice(linesForms.findIndex(f => f.form === form), 1);
 			renderLines();
 		});
@@ -214,10 +248,10 @@ export function build_script_form(container: HTMLElement, shared: SharedData, in
 	
 	renderLines();
 	
-	const addLineBtn = create_text_element(container, "button", "+ Add Script Line");
+	const addLineBtn = create_text_element(container, "button", "+ Add Script Line", { class: "fc", style: "margin-top: 2rem;" });
 	(addLineBtn as HTMLButtonElement).addEventListener("click", () => {
 		const lineElem = create_element(linesContainer, "div");
-		const form = build_scriptline_form(lineElem, undefined, () => {
+		const form = build_scriptline_form(lineElem, shared, null, () => {
 			linesForms.splice(linesForms.findIndex(f => f.form === form), 1);
 			renderLines();
 		});
@@ -225,11 +259,8 @@ export function build_script_form(container: HTMLElement, shared: SharedData, in
 		renderLines();
 	});
 	
-	container.appendChild(document.createElement("br"));
-	container.appendChild(document.createElement("br"));
-	
 	// Save button
-	const saveBtn = create_text_element(container, "button", "Save Script", { style: "padding:8px 16px;font-weight:bold;background:#0a0;color:#fff;border:none;border-radius:4px;cursor:pointer" });
+	const saveBtn = create_text_element(container, "button", "Save Script", { class: "fc", style: "margin-top: 2rem;" });
 	(saveBtn as HTMLButtonElement).addEventListener("click", () => {
 		const name = nameInput.value.trim();
 		// name should not be empty and not contain any spaces
@@ -261,11 +292,8 @@ export function build_trigger_form(parent: HTMLElement, shared: SharedData, init
 	create_text_element(container, "h3", "Trigger Editor");
 	
 	// Basic properties
-	const everyLabel = create_text_element(container, "label", "Execute every (ms, null for event-based):");
-	const everyInput = create_element(container, "input", { type: "number", value: String(initial?.every ?? ""), style: "width:100%" }) as HTMLInputElement;
-	container.appendChild(document.createElement("br"));
-	container.appendChild(document.createElement("br"));
-	
+	const everyInput = create_formcontrol(container, "number", "every", "Execute every (ms, null for event-based)", { value: initial?.every ?? "", required: false });
+
 	// Conditions section
 	create_text_element(container, "h4", "Trigger Conditions");
 	const conditionsContainer = create_element(container, "div", { class: "trigger-conditions-list" });
@@ -281,8 +309,6 @@ export function build_trigger_form(parent: HTMLElement, shared: SharedData, init
 		const condForm = build_condition_form(conditionsContainer);
 		conditionForms.push(condForm);
 	});
-	container.appendChild(document.createElement("br"));
-	container.appendChild(document.createElement("br"));
 	
 	// Script section
 	create_text_element(container, "h4", "Associated Script");
