@@ -84,7 +84,7 @@ export interface TriggerEvent {
 }
 
 export interface Trigger {
-	/** triggers every x nanoseconds using setInterval */
+	/** triggers on any event */
 	events: TriggerEvent[],
 	/** triggers every x nanoseconds using setInterval */
 	every: number|null
