@@ -86,7 +86,7 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 		for (let index = 0; index < action_type.available_arguments.length; index++) {
 			const argument = action_type.available_arguments[index];
 			
-			/** //TODO: If reference is set then we get automaticly a select with data from from SharedData
+			/** If reference is set then we get automaticly a select with data from from SharedData.data
 			*  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
 			*/
 			const referenceKey = argument.reference as keyof SharedDataInner;
