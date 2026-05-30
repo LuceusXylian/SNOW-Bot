@@ -70,20 +70,28 @@ export class Logger {
 		const prefix = "[" + log_from_to_string(this.from) + "]";
 		console.log(prefix, "LOG", ...params);
 		
+		const new_log: LogEntry = {
+			from: this.from,
+			timestamp: new Date().getTime(),
+			text: prefix + " " + String(...params),
+		};
 		if (this.from === LogFrom.background) {
-			const text = prefix + " " + String(...params);
-			this.log_array.push({
-				from: this.from,
-				timestamp: new Date().getTime(),
-				text: text,
+			this.log_array.push(new_log);
+			this.save();
+		} else {
+			// Send log to background to save it
+			void sendMessage({
+				type: MessageType.SAVE_LOG,
+				data: new_log,
 			});
-			
-			if (this.log_array.length > MAX_LOG_ENTRIES) {
-				this.log_array.shift();
-			}
-
-			storage.setItem(LS_KEY_LOGS, this.log_array);
 		}
+	}
+
+	save() {
+		if (this.log_array.length > MAX_LOG_ENTRIES) {
+			this.log_array.shift();
+		}
+		storage.setItem(LS_KEY_LOGS, this.log_array);
 	}
 }
 
@@ -144,7 +152,7 @@ export class BotCommander {
 						return response;
 					} catch (error) {
 						this.is_busy = false;
-						self.LOGGER.debug(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);
+						self.LOGGER.log(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);
 						return error_message("Failed to send message: "+String(error));
 					}
 				}
@@ -258,7 +266,7 @@ export class BotCommander {
 				type: message_type,
 				data: data,
 			}).catch((error) => {
-				this.LOGGER.debug(`Failed to send message of type:${message_type} to bot ${botInstance.bot_id} on tab ${botInstance.tabId}. data:`, data, "error:", error);
+				this.LOGGER.log(`Failed to send message of type:${message_type} to bot ${botInstance.bot_id} on tab ${botInstance.tabId}. data:`, data, "error:", error);
 			});
 		}
 
@@ -320,6 +328,20 @@ export class SharedData {
 			data: { action: 'delete', templateId }
 		});
 		this.data.templates = this.data.templates.filter(t => t.id !== templateId);
+	}
+
+	async setScript(template: Script) {
+		const index = this.data.scripts.findIndex(t => t.id === template.id);
+		if (index >= 0) {
+			this.data.scripts[index] = template;
+		} else {
+			this.data.scripts.push(template);
+		}
+		return await this.applyStateChange({ scripts: this.data.scripts });
+	}
+
+	async deleteScript(scriptId: number) {
+		return await this.applyStateChange({ scripts: this.data.scripts.filter(t => t.id !== scriptId) });
 	}
 
 	/**
@@ -429,3 +451,16 @@ export function querySelectorAll(selector: string, rootNode=document.body) {
     
     return arr
 }
+
+/** Converts a Date to ISO 8601 string format 'YYYY-MM-DD hh:mm:ss' */
+export function dateToISOString(date: Date): string {
+	const pad = (n: number) => n.toString().padStart(2, '0')
+	const year = date.getFullYear()
+	const month = pad(date.getMonth() + 1)
+	const day = pad(date.getDate())
+	const hours = pad(date.getHours())
+	const minutes = pad(date.getMinutes())
+	const seconds = pad(date.getSeconds())
+	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+

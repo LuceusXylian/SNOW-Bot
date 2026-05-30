@@ -6,7 +6,7 @@ export async function get_shared_data(LOGGER: Logger, COMMANDER: BotCommander): 
 		const response = await sendMessage({ type: MessageType.GET_STATE });
 	
 		if (!response.success || !response.data) {
-			LOGGER.debug("Failed to get state from background", response);
+			LOGGER.log("Failed to get state from background", response);
 			throw new Error("Failed to get state from background", {cause: response });
 		}
 	

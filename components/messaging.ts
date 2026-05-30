@@ -7,6 +7,8 @@ export enum MessageType {
 	SET_TEMPLATE = 'SET_TEMPLATE',
 	INSERT_TEMPLATE = 'INSERT_TEMPLATE',
 	GET_LOGS = 'GET_LOGS',
+	SAVE_LOG = 'SAVE_LOG',
+	SET_SCRIPT = "SET_SCRIPT",
 }
 
 export interface Message {

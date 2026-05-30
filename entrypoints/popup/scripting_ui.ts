@@ -5,6 +5,39 @@ import { SharedData } from "@/components/basics";
 import { create_formcontrol } from "@/components/ui";
 
 
+/** TODO: list all scripts with actions: edit, delete, execute */
+export function build_scripting_list(parent: HTMLElement, shared: SharedData) {
+	console.log("parent", parent, shared);
+	
+	const spoiler = create_element(parent, "div", { class:"spoiler-container" });
+	const spoiler_title = create_text_element(spoiler, "div", "Create new Script", { class:"spoiler-title" });
+	const spoiler_content = create_element(spoiler, "div", { class:"spoiler-content" });
+	add_spoiler_event(spoiler);
+	build_script_form(spoiler_content, shared, () => render_script_list());
+
+	// Table List all scripts
+	const table = create_element(parent, "table", { class:"table" });
+	const thead = create_element(table, "thead");
+	const thead_tr = create_element(thead, "tr");
+	create_text_element(thead_tr, "th", "ID");
+	create_text_element(thead_tr, "th", "Name");
+	create_text_element(thead_tr, "th", "Actions");
+	
+	const tbody = create_element(table, "tbody");
+	function render_script_list() {
+		tbody.innerHTML = "";
+		for (let index = 0; index < shared.data.scripts.length; index++) {
+			const script = shared.data.scripts[index];
+			const tr = create_element(tbody, "tr");
+			create_text_element(tr, "td", script.id.toString());
+			create_text_element(tr, "td", script.name);
+			const actions = create_element(tr, "td");
+		}
+	}
+	render_script_list();
+}
+
+
 /**
  * Builds a form for editing a Condition.
  * Returns an object with get/set methods to read/write the condition.
@@ -196,7 +229,7 @@ function build_scriptline_form(parent: HTMLElement, shared: SharedData, initial:
  * The form includes a list of addable/removable/movable ScriptLines.
  * Parsed value is attached to the returned container as `.script`.
  */
-export function build_script_form(container: HTMLElement, shared: SharedData, initial?: Script): HTMLElement {
+export function build_script_form(container: HTMLElement, shared: SharedData, on_set: ()=>void, initial?: Script) {
 	const title_sub = document.getElementById("title_sub");
 	console.log("title_sub", title_sub);
 	
@@ -263,23 +296,21 @@ export function build_script_form(container: HTMLElement, shared: SharedData, in
 	const saveBtn = create_text_element(container, "button", "Save Script", { class: "fc", style: "margin-top: 2rem;" });
 	(saveBtn as HTMLButtonElement).addEventListener("click", () => {
 		const name = nameInput.value.trim();
-		// name should not be empty and not contain any spaces
-		if (name.length === 0 || name.includes(" ")) {
+		if (name.length === 0 || name.includes(" ") || shared.data.scripts.findIndex((s) => s.name === name) !== -1) {
 			nameInput.style.borderColor = "red";
+			alert("Script name should not be empty, not contain any spaces and not already be in use");
 			return;
 		}
 		nameInput.style.borderColor = "";
 		
-		const script: Script = {
+		shared.setScript({
 			version: SCRIPTING_VERSION,
-			id: initial?.id ?? shared.data.scripts.length +1,
+			id: initial?.id ?? new Date().getTime(),
 			name: name,
 			lines: linesForms.map(f => f.form.get())
-		};
-		(container as any).script = script;
+		});
+		on_set();
 	});
-	
-	return container;
 }
 
 /**

@@ -1,9 +1,9 @@
-import { SharedData, LogFrom, Logger, BotCommander, LogEntry } from '@/components/basics';
+import { SharedData, LogFrom, Logger, BotCommander, LogEntry, dateToISOString } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string } from '@/components/ui';
-import { build_script_form } from './scripting_form';
+import { build_script_form, build_scripting_list } from './scripting_ui';
 
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
@@ -32,7 +32,7 @@ LOGGER.debug("Popup started");
 		const shared = await get_shared_data(LOGGER, COMMANDER);
 		await init(COMMANDER, shared);
 	} catch (error) {
-		LOGGER.debug("Failed to initialize popup", error);
+		LOGGER.log("Failed to initialize popup", error);
 	}
 })();
 
@@ -87,7 +87,11 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			}
 		});
 
-		if(index === stored_index) menu_item_title.click();
+		if(index === stored_index) {
+			setTimeout(() => {
+				menu_item_title.click();
+			}, 10);
+		}
 	}
 
 
@@ -118,7 +122,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	let editingTemplateId: string | null = null;
 
 	function generateTemplateId(): string {
-		return `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		return `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 	}
 
 	function renderTemplates() {
@@ -230,7 +234,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 					const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
 					const filename = `SNOW_BOT_logs_${dateTime}.txt`;
 					const content = response.data!.map(entry => 
-						`[${new Date(entry.timestamp).toLocaleString()}] ${entry.text}`
+						`[${dateToISOString(new Date(entry.timestamp))}] ${entry.text}`
 					).join('\n');
 					save_as_file(content, filename)
 				});
@@ -239,13 +243,13 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				for (let i = 0; i < response.data.length; i++) {
 					const entry = response.data[i];
 					const row = create_element(table, "tr");
-					const td1 = create_text_element(row, "td", new Date(entry.timestamp).toLocaleString(), { style: "width: 152px;" });
+					const td1 = create_text_element(row, "td", dateToISOString(new Date(entry.timestamp)), { style: "width: 160px;" });
 					const td2 = create_text_element(row, "td", entry.text);
 				}
 			}
 
 		} else {
-			LOGGER.debug("Failed to get logs", response);
+			LOGGER.log("Failed to get logs", response);
 		}
 	});
 
@@ -279,7 +283,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			LOGGER.debug("Settings imported successfully", imported);
 			alert("Settings imported successfully!");
 		} catch (error) {
-			LOGGER.debug("Failed to import settings", error);
+			LOGGER.log("Failed to import settings", error);
 			alert("Failed to import settings. Please check the file format.");
 		} finally {
 			// Reset file input
@@ -307,12 +311,13 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		});
 	});
 
-	// Script builder
-	const script_builder = document.getElementById("script_builder")!;
-	// Create new script form
-	build_script_form(script_builder, shared);
-
-	// TODO: list all scripts with actions: edit, delete, execute
+	// Scripting
+	const scripting = document.getElementById("scripting")!;
+	const scripting_title = document.getElementById("scripting_title")!;
+	scripting_title.addEventListener("click", () => {
+		scripting.innerHTML = "";
+		build_scripting_list(scripting, shared);
+	});
 	
 	// Triggers
 	// TODO: add form to create new Trigger

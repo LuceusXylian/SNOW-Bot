@@ -75,7 +75,7 @@ class BackgroundMessageHandler {
 				default: return error_message(`Unknown message type: ${message.type}`);
 			}
 		} catch (error) {
-			LOGGER.debug("Error handling message", error);
+			LOGGER.log("Error handling message", error);
 			return error_message(error instanceof Error ? error.message : String(error));
 		}
 	}
@@ -278,7 +278,7 @@ export default defineContentScript({
 		const get_bot_id_response = await sendMessage<any>({ type: MessageType.GET_BOT_ID });
 		const bot_id: number = get_bot_id_response.data?.bot_id;
 		if (!get_bot_id_response.success) {
-			LOGGER.debug("Failed to get bot_id from background", get_bot_id_response);
+			LOGGER.log("Failed to get bot_id from background", get_bot_id_response);
 			return;
 		}
 

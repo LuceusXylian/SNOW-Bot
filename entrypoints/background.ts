@@ -31,13 +31,19 @@ export default defineBackground(() => {
 		 * Message handler for all incoming messages
 		 */
 		async function handleMessage(message: Message, sender?: any): Promise<MessageResponse<any>> {
-			LOGGER.log(`Received message: ${message.type}`, message, { tabId: sender?.tab?.id });
+			LOGGER.debug(`Received message: ${message.type}`, message, { tabId: sender?.tab?.id });
 
 			try {
 				switch (message.type) {
 					case MessageType.GET_LOGS:
 						// Return array of recent logs
 						return success_message(LOGGER.log_array);
+					
+					case MessageType.SAVE_LOG:
+						// Save a log entry from popup or background
+						LOGGER.log_array.push(message.data);
+						LOGGER.save();
+						return success_message({});
 
 					case MessageType.GET_STATE:
 						// Return current shared data
