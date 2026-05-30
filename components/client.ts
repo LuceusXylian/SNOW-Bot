@@ -3,7 +3,7 @@ import { BotCommander, Logger, SharedData } from "@/components/basics";
 
 export async function get_shared_data(LOGGER: Logger, COMMANDER: BotCommander): Promise<SharedData> {
 	try {
-		const response = await sendMessage({ type: MessageType.GET_STATE });
+		const response = await sendMessage(LOGGER, { type: MessageType.GET_STATE });
 	
 		if (!response.success || !response.data) {
 			LOGGER.log("Failed to get state from background", response);

@@ -1,19 +1,23 @@
 import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION } from "@/components/constants";
-import { SharedData } from "@/components/basics";
+import { BotCommander, SharedData } from "@/components/basics";
 import { create_formcontrol } from "@/components/ui";
 
 
-/** TODO: list all scripts with actions: edit, delete, execute */
-export function build_scripting_list(parent: HTMLElement, shared: SharedData) {
+/** list all scripts with actions: edit, delete, execute */
+export function build_scripting_list(parent: HTMLElement, shared: SharedData, COMMANDER: BotCommander) {
 	console.log("parent", parent, shared);
 	
-	const spoiler = create_element(parent, "div", { class:"spoiler-container" });
-	const spoiler_title = create_text_element(spoiler, "div", "Create new Script", { class:"spoiler-title" });
-	const spoiler_content = create_element(spoiler, "div", { class:"spoiler-content" });
-	add_spoiler_event(spoiler);
-	build_script_form(spoiler_content, shared, () => render_script_list());
+	const new_spoiler = create_element(parent, "div", { class:"spoiler-container" });
+	const new_spoiler_title = create_text_element(new_spoiler, "div", "Create new Script", { class:"spoiler-title" });
+	const new_spoiler_content = create_element(new_spoiler, "div", { class:"spoiler-content" });
+	add_spoiler_event(new_spoiler);
+	build_script_form(new_spoiler_content, shared, () => render_script_list());
+	
+	const edit_spoiler = create_element(parent, "div", { class:"spoiler-container active", style: "display: none;" });
+	const edit_spoiler_title = create_text_element(edit_spoiler, "div", "Edit Script", { class:"spoiler-title" });
+	const edit_spoiler_content = create_element(edit_spoiler, "div", { class:"spoiler-content" });
 
 	// Table List all scripts
 	const table = create_element(parent, "table", { class:"table" });
@@ -21,7 +25,7 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData) {
 	const thead_tr = create_element(thead, "tr");
 	create_text_element(thead_tr, "th", "ID");
 	create_text_element(thead_tr, "th", "Name");
-	create_text_element(thead_tr, "th", "Actions");
+	create_text_element(thead_tr, "th", "Actions", { style:"width: 204px;" });
 	
 	const tbody = create_element(table, "tbody");
 	function render_script_list() {
@@ -32,6 +36,24 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData) {
 			create_text_element(tr, "td", script.id.toString());
 			create_text_element(tr, "td", script.name);
 			const actions = create_element(tr, "td");
+			create_text_element(actions, "button", "Edit", { class:"btn-edit" }).addEventListener("click", () => {
+				new_spoiler.style.display = "none";
+				edit_spoiler.style.display = "";
+				edit_spoiler_content.innerHTML = "";
+				build_script_form(edit_spoiler_content, shared, () => {
+					new_spoiler.style.display = "";
+					edit_spoiler.style.display = "none";
+					render_script_list()
+				}, script);
+				scroll(0, 0);
+			});
+			create_text_element(actions, "button", "Delete", { class:"btn-delete" }).addEventListener("click", async () => {
+				await shared.deleteScript(script.id);
+				render_script_list();
+			});
+			create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
+				COMMANDER.sendMessageFocus(MessageType.EXECUTE_SCRIPT, { id: script.id });
+			});
 		}
 	}
 	render_script_list();

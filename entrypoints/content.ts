@@ -275,7 +275,7 @@ export default defineContentScript({
 		}, 100);
 
 		// Get bot_id from background, which creates a record for this content script instance
-		const get_bot_id_response = await sendMessage<any>({ type: MessageType.GET_BOT_ID });
+		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID });
 		const bot_id: number = get_bot_id_response.data?.bot_id;
 		if (!get_bot_id_response.success) {
 			LOGGER.log("Failed to get bot_id from background", get_bot_id_response);
@@ -287,7 +287,7 @@ export default defineContentScript({
 		registerMessageHandler((message) => background_message_handler.handle(message));
 		
 		// SEND BOT_READY, set is_busy=false
-		const response = await sendMessage({ type: MessageType.BOT_READY, data: {bot_id: bot_id, href: location.href} });
+		const response = await sendMessage(LOGGER, { type: MessageType.BOT_READY, data: {bot_id: bot_id, href: location.href} });
 		LOGGER.debug("Content ready signal sent bot_id:", bot_id, "response:", response);
 
 		

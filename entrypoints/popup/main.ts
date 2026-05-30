@@ -218,7 +218,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	log_menu_title.addEventListener("click", async function() {
 		// Load logs
 		logs_container.innerHTML = "";
-		const response = await sendMessage<LogEntry[]>({
+		const response = await sendMessage<LogEntry[]>(LOGGER, {
 			type: MessageType.GET_LOGS,
 		});
 
@@ -316,7 +316,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const scripting_title = document.getElementById("scripting_title")!;
 	scripting_title.addEventListener("click", () => {
 		scripting.innerHTML = "";
-		build_scripting_list(scripting, shared);
+		build_scripting_list(scripting, shared, COMMANDER);
 	});
 	
 	// Triggers

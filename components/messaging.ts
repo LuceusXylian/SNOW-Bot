@@ -1,3 +1,5 @@
+import { Logger } from "@/components/basics";
+
 export enum MessageType {
 	GET_STATE = 'GET_STATE',
 	BOT_READY = 'BOT_READY',
@@ -8,7 +10,7 @@ export enum MessageType {
 	INSERT_TEMPLATE = 'INSERT_TEMPLATE',
 	GET_LOGS = 'GET_LOGS',
 	SAVE_LOG = 'SAVE_LOG',
-	SET_SCRIPT = "SET_SCRIPT",
+	EXECUTE_SCRIPT = "EXECUTE_SCRIPT",
 }
 
 export interface Message {
@@ -27,11 +29,12 @@ export interface MessageResponse<T> {
  * @param message The message object with type and optional data
  * @returns Promise resolving with the response from the handler
  */
-export async function sendMessage<T>(message: Message): Promise<MessageResponse<T>> {
+export async function sendMessage<T>(LOGGER: Logger, message: Message): Promise<MessageResponse<T>> {
 	try {
 		const response = await browser.runtime.sendMessage(message);
 		return response || { success: true };
 	} catch (error) {
+		LOGGER.log(error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : String(error),

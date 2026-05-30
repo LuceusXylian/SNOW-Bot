@@ -80,9 +80,9 @@ export class Logger {
 			this.save();
 		} else {
 			// Send log to background to save it
-			void sendMessage({
+			browser.runtime.sendMessage({
 				type: MessageType.SAVE_LOG,
-				data: new_log,
+				data: new_log
 			});
 		}
 	}
@@ -173,7 +173,7 @@ export class BotCommander {
 	async sendMessage(bot_id: number, message_type: MessageType, data: Object) {
 		if (this.LOGGER.from === LogFrom.popup) {
 			// pass to background
-			return await sendMessage({
+			return await sendMessage(this.LOGGER, {
 				type: MessageType.RELAY_COMMAND,
 				data: {
 					bot_select: BotSelect.BOT_ID,
@@ -229,7 +229,7 @@ export class BotCommander {
 	async sendMessageFocus(message_type: MessageType, data: Object) {
 		if (this.LOGGER.from === LogFrom.popup) {
 			// pass to background
-			return await sendMessage({
+			return await sendMessage(this.LOGGER, {
 				type: MessageType.RELAY_COMMAND,
 				data: {
 					bot_select: BotSelect.ACTIVE_TAB,
@@ -247,7 +247,7 @@ export class BotCommander {
 	async sendMessageAll(message_type: MessageType, data: Object) {
 		if (this.LOGGER.from === LogFrom.popup) {
 			// pass to background
-			return await sendMessage({
+			return await sendMessage(this.LOGGER, {
 				type: MessageType.RELAY_COMMAND,
 				data: {
 					bot_select: BotSelect.ALL,
@@ -310,7 +310,7 @@ export class SharedData {
 	}
 
 	async setTemplate(template: TemplateData): Promise<void> {
-		await sendMessage({
+		await sendMessage(this.LOGGER, {
 			type: MessageType.SET_TEMPLATE,
 			data: { template }
 		});
@@ -323,7 +323,7 @@ export class SharedData {
 	}
 
 	async deleteTemplate(templateId: string): Promise<void> {
-		await sendMessage({
+		await sendMessage(this.LOGGER, {
 			type: MessageType.SET_TEMPLATE,
 			data: { action: 'delete', templateId }
 		});
@@ -351,7 +351,7 @@ export class SharedData {
 		Object.assign(this.data, update);
 		if (this.COMMANDER.LOGGER.from === LogFrom.popup) {
 			// pass to background
-			await sendMessage({
+			await sendMessage(this.LOGGER, {
 				type: MessageType.UPDATE_SHARED_DATA,
 				data: update
 			});

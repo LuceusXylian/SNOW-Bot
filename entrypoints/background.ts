@@ -123,7 +123,23 @@ export default defineBackground(() => {
 						return error_message("Invalid template data");
 					}
 
+					case MessageType.EXECUTE_SCRIPT: {
+						// Handle template creation/update/deletion
+						const { id } = message.data || {};
+
+						if (id) {
+							const script = sharedData.data.scripts.find((s) => s.id === id);
+							if (script) {
+								// TODO: start script thread
+								// TODO: create function to send progress reports
+								return success_message({});
+							}
+						}
+						return error_message("Invalid script with id "+id);
+					}
+
 					default:
+						LOGGER.log(`Unknown message type: ${message.type}`);
 						return error_message(`Unknown message type: ${message.type}`);
 				}
 			} catch (error) {
