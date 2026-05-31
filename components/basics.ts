@@ -203,7 +203,7 @@ export class BotCommander {
 	/**
 	 * @returns `BotInstance` that is not busy and focused
 	 */
-	private async getBotFocus(): Promise<BotInstance> {
+	async getBotFocus(): Promise<BotInstance> {
 		const [focusedTab] = await browser.tabs.query({
 			active: true,
 			lastFocusedWindow: true,

@@ -5,6 +5,10 @@ import { BotCommander, SharedData } from "@/components/basics";
 import { create_formcontrol } from "@/components/ui";
 
 
+// SESSION_ID to know which controller should be notified for progress reports
+const SESSION_ID: number = new Date().getTime();
+
+
 /** list all scripts with actions: edit, delete, execute */
 export function build_scripting_list(parent: HTMLElement, shared: SharedData, COMMANDER: BotCommander) {
 	console.log("parent", parent, shared);
@@ -52,7 +56,7 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData, CO
 				render_script_list();
 			});
 			create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
-				COMMANDER.sendMessageFocus(MessageType.EXECUTE_SCRIPT, { id: script.id });
+				COMMANDER.sendMessageFocus(MessageType.EXECUTE_SCRIPT, { session_id: SESSION_ID, script_id: script.id });
 			});
 		}
 	}
@@ -86,8 +90,9 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
 		class: "fc-container-3",
 		required: true,
 		options: [
+			{ title: "EXISTS", value: String(ConditionType.EXISTS) },
 			{ title: "IS", value: String(ConditionType.IS) },
-			{ title: "IS", value: String(ConditionType.IS_NOT) },
+			{ title: "IS_NOT", value: String(ConditionType.IS_NOT) },
 			{ title: "CONTAINS", value: String(ConditionType.CONTAINS) },
 			{ title: "CONTAINS NOT", value: String(ConditionType.CONTAINS_NOT) },
 		]

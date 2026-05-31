@@ -125,17 +125,20 @@ export default defineBackground(() => {
 
 					case MessageType.EXECUTE_SCRIPT: {
 						// Handle template creation/update/deletion
-						const { id } = message.data || {};
+						const { session_id, script_id } = message.data || {};
 
-						if (id) {
-							const script = sharedData.data.scripts.find((s) => s.id === id);
+						if (typeof session_id !== "number") {
+							return error_message("Invalid session_id "+session_id);
+						}
+
+						if (script_id) {
+							const script = sharedData.data.scripts.find((s) => s.id === script_id);
 							if (script) {
-								// TODO: start script thread
-								// TODO: create function to send progress reports
+								script_worker(session_id, script);
 								return success_message({});
 							}
 						}
-						return error_message("Invalid script with id "+id);
+						return error_message("Invalid script with id "+script_id);
 					}
 
 					default:
@@ -151,4 +154,31 @@ export default defineBackground(() => {
 		// Register the message handler
 		registerMessageHandler(handleMessage);
 	})
+
+
+	// create function to send progress reports
+	async function progress_report(session_id: number, message: string) {
+		sendMessage(LOGGER, {
+			type: MessageType.PROGRESS_REPORT,
+			data: { session_id, message }
+		})
+	}
+
+	async function script_worker(session_id: number, script: Script) {
+		const bot = await COMMANDER.getBotFocus();
+		progress_report(session_id, "Script `"+script.name+"` started");
+
+		for (let index = 0; index < script.lines.length; index++) {
+			const script_line = script.lines[index];
+			// Send conditions to bot
+			const { result } = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
+			if(!result) {
+				progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
+				return;
+			}
+			progress_report(session_id, "Script `"+script.name+"`: All conditions are true.");
+
+			// TODO: execute actions
+		}
+	}
 });

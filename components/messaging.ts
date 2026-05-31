@@ -11,6 +11,8 @@ export enum MessageType {
 	GET_LOGS = 'GET_LOGS',
 	SAVE_LOG = 'SAVE_LOG',
 	EXECUTE_SCRIPT = "EXECUTE_SCRIPT",
+	PROGRESS_REPORT = "PROGRESS_REPORT",
+	CHECK_CONDITIONS = "CHECK_CONDITIONS",
 }
 
 export interface Message {

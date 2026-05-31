@@ -6,6 +6,7 @@ export enum ConditionType {
 	IS_NOT = 1,
 	CONTAINS = 2,
 	CONTAINS_NOT = 3,
+	EXISTS = 4,
 }
 
 export enum ConditionTargetType {

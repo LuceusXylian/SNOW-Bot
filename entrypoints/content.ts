@@ -1,6 +1,7 @@
 import { LogFrom, Logger, SharedData, error_message, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
+import { Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
@@ -72,6 +73,19 @@ class BackgroundMessageHandler {
 					return error_message("Unsupported element type for template insertion");
 				}
 				
+				case MessageType.CHECK_CONDITIONS: {
+					// All conditions need to be true
+					const conditions = message.data as Condition[];
+					for (let c = 0; c < conditions.length; c++) {
+						const condition = conditions[c];
+						const value1 = this.get_condition_target_value(condition.target);
+						if(value1 === null) return success_message({ result: false });
+						const result = this.test_condition(condition.type, value1, condition.static_value);
+						if(!result) return success_message({ result: false });
+					}
+					return success_message({ result: true });
+				}
+
 				default: return error_message(`Unknown message type: ${message.type}`);
 			}
 		} catch (error) {
@@ -166,6 +180,31 @@ class BackgroundMessageHandler {
 	promptForTemplateValue(labelName: string): string {
 		const userValue = window.prompt(`Enter value for [${labelName}]`);
 		return userValue?.trim() ?? "";
+	}
+
+	get_condition_target_value(target: ConditionTarget): string|null {
+		switch (target.target_type) {
+			case ConditionTargetType.DOMAIN: return location.hostname;
+			case ConditionTargetType.URL: return location.href;
+			case ConditionTargetType.ELEMENT: {
+				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT needs element_selector");
+				const element = document.querySelector(target.element_selector);
+				if(element === null) return null;
+				return element.outerHTML;
+			}
+		}
+		throw new Error("Unknown ConditionTargetType:"+target.target_type);
+	}
+
+	test_condition(type: ConditionType, value1: string, value2: string): boolean {
+		switch (type) {
+			case ConditionType.EXISTS: return true;
+			case ConditionType.IS: return value1 === value2;
+			case ConditionType.IS_NOT: return value1 !== value2;
+			case ConditionType.CONTAINS: return value1.includes(value2);
+			case ConditionType.CONTAINS_NOT: return !value1.includes(value2);
+		}
+		throw new Error("Unknown ConditionType:"+type);
 	}
 }
 
