@@ -1,4 +1,4 @@
-import { LogFrom, Logger, SharedData, error_message, querySelectorAll, success_message } from "@/components/basics";
+import { LogFrom, Logger, SharedData, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
 import { Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
@@ -42,29 +42,35 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content } = message.data || {};
+					const { content, target_selector } = message.data || {};
 					if (!content) return error_message("No template content provided");
-					if (!lastFocusedElement) {
+					let target_element: HTMLElement;
+					if (target_selector) {
+						target_element = querySelector(target_selector)!;
+						if(target_element === null) return error_message("target_element is null, because the target_selector is unable to find the element");
+					} else if (lastFocusedElement) {
+						target_element = lastFocusedElement;
+					} else {
 						LOGGER.debug("No focused element to insert template into");
 						return error_message("No element focused");
 					}
 	
 					const resolvedContent = await this.resolveTemplateContent(content);
 	
-					if (lastFocusedElement instanceof HTMLInputElement || lastFocusedElement instanceof HTMLTextAreaElement) {
-						const start = lastFocusedElement.selectionStart || 0;
-						const end = lastFocusedElement.selectionEnd ?? lastFocusedElement.value.length;
+					if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement) {
+						const start = target_element.selectionStart || 0;
+						const end = target_element.selectionEnd ?? target_element.value.length;
 	
-						lastFocusedElement.value =
-							lastFocusedElement.value.slice(0, start) +
+						target_element.value =
+							target_element.value.slice(0, start) +
 							resolvedContent +
-							lastFocusedElement.value.slice(end);
+							target_element.value.slice(end);
 	
 						const newPos = start + resolvedContent.length;
-						lastFocusedElement.setSelectionRange(newPos, newPos);
+						target_element.setSelectionRange(newPos, newPos);
 	
-						lastFocusedElement.dispatchEvent(new Event("input", { bubbles: true }));
-						lastFocusedElement.dispatchEvent(new Event("change", { bubbles: true }));
+						target_element.dispatchEvent(new Event("input", { bubbles: true }));
+						target_element.dispatchEvent(new Event("change", { bubbles: true }));
 	
 						LOGGER.debug("Template inserted successfully", { resolvedContent });
 						return success_message({ inserted: true, resolvedContent });

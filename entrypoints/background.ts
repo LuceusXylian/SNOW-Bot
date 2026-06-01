@@ -2,6 +2,7 @@ import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { KEY_SHARED_DATA } from "@/components/constants";
 import { storage } from '#imports';
+import { ActionKind, Script } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
@@ -24,7 +25,7 @@ async function initializeSharedData(COMMANDER: BotCommander): Promise<SharedData
 export default defineBackground(() => {
 	// In-memory storage for active bot instances (reconstructed on start)
 	const COMMANDER = new BotCommander(LOGGER);
-	initializeSharedData(COMMANDER).then(async (sharedData) => {
+	initializeSharedData(COMMANDER).then(async (shared) => {
 		LOGGER.log("Background script initialized", { id: browser.runtime.id });
 
 		/**
@@ -47,13 +48,13 @@ export default defineBackground(() => {
 
 					case MessageType.GET_STATE:
 						// Return current shared data
-						return success_message(sharedData.export());
+						return success_message(shared.export());
 
 					case MessageType.UPDATE_SHARED_DATA: {
 						// Update active state
 						const data = message.data;
 						if (data) {
-							return await sharedData.applyStateChange(data);
+							return await shared.applyStateChange(data);
 						}
 						return error_message("Invalid new sharedData");
 					}
@@ -96,8 +97,8 @@ export default defineBackground(() => {
 						const { template, action, templateId } = message.data || {};
 
 						if (action === 'delete' && templateId) {
-							const templates = sharedData.data.templates;
-							sharedData.applyStateChange({
+							const templates = shared.data.templates;
+							shared.applyStateChange({
 								templates: templates.filter(t => t.id !== templateId),
 							});
 							LOGGER.debug(`Template deleted: ${templateId}`);
@@ -105,7 +106,7 @@ export default defineBackground(() => {
 						}
 
 						if (template) {
-							const templates = sharedData.data.templates;
+							const templates = shared.data.templates;
 							const index = templates.findIndex(t => t.id === template.id);
 
 							if (index >= 0) {
@@ -114,7 +115,7 @@ export default defineBackground(() => {
 								templates.push(template);
 							}
 
-							sharedData.applyStateChange({ templates });
+							shared.applyStateChange({ templates });
 							LOGGER.debug(`Template saved: ${template.id}`);
 
 							return success_message({});
@@ -132,7 +133,7 @@ export default defineBackground(() => {
 						}
 
 						if (script_id) {
-							const script = sharedData.data.scripts.find((s) => s.id === script_id);
+							const script = shared.get_script(script_id);
 							if (script) {
 								script_worker(session_id, script);
 								return success_message({});
@@ -153,32 +154,72 @@ export default defineBackground(() => {
 
 		// Register the message handler
 		registerMessageHandler(handleMessage);
-	})
 
-
-	// create function to send progress reports
-	async function progress_report(session_id: number, message: string) {
-		sendMessage(LOGGER, {
-			type: MessageType.PROGRESS_REPORT,
-			data: { session_id, message }
-		})
-	}
-
-	async function script_worker(session_id: number, script: Script) {
-		const bot = await COMMANDER.getBotFocus();
-		progress_report(session_id, "Script `"+script.name+"` started");
-
-		for (let index = 0; index < script.lines.length; index++) {
-			const script_line = script.lines[index];
-			// Send conditions to bot
-			const { result } = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
-			if(!result) {
-				progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
-				return;
-			}
-			progress_report(session_id, "Script `"+script.name+"`: All conditions are true.");
-
-			// TODO: execute actions
+		// create function to send progress reports
+		async function progress_report(session_id: number, message: string) {
+			sendMessage(LOGGER, {
+				type: MessageType.PROGRESS_REPORT,
+				data: { session_id, message }
+			})
 		}
-	}
+
+		async function script_worker(session_id: number, script: Script, _bot?: BotInstance) {
+			if (shared) {
+				
+			}
+			const bot = _bot?? await COMMANDER.getBotFocus();
+			progress_report(session_id, "Script `"+script.name+"` started");
+
+			for (let index = 0; index < script.lines.length; index++) {
+				const script_line = script.lines[index];
+				// Send conditions to bot
+				const { result } = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
+				if(!result) {
+					progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
+					return;
+				}
+				progress_report(session_id, "Script `"+script.name+"`: All conditions are true.");
+
+				// execute actions
+				for (let index = 0; index < script_line.actions.length; index++) {
+					const action = script_line.actions[index];
+					switch (action.type.kind) {
+						case ActionKind.SCRIPT: {
+							if(!action.arguments.id) throw new Error("Error in script#"+script.id+": script_id is invalid");
+							
+							const action_script = shared.get_script(action.arguments.id);
+							progress_report(session_id, "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+							await script_worker(session_id, action_script, bot);
+							progress_report(session_id, "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+							break;
+						}
+					
+						case ActionKind.MESSAGE_TYPE: {
+							if(!action.type.message_type) throw new Error("Error in script#"+script.id+": action.type.message_type is invalid");
+							progress_report(session_id, "START Action: "+action.type.name);
+
+							switch (action.type.message_type) {
+								case MessageType.INSERT_TEMPLATE: {
+									if(!action.arguments.id) throw new Error("Error in script#"+script.id+": id is invalid");
+									if(!action.arguments.target_selector) throw new Error("Error in script#"+script.id+": target_selector is invalid");
+									const template = shared.get_template(action.arguments.id);
+									await bot.sendMessage(action.type.message_type, { content: template.content, target_selector: action.arguments.target_selector });
+									break;
+								}
+							
+								default: throw new Error("ActionKind.MESSAGE_TYPE:"+action.type.message_type+" is not supported");
+							}
+							progress_report(session_id, "DONE  Action: "+action.type.name);
+							break;
+						}
+					
+						default:
+							break;
+					}
+				}
+			}
+
+			if(_bot === undefined) progress_report(session_id, "Script `"+script.name+"` completed. All actions ended successfully.");
+		}
+	});
 });

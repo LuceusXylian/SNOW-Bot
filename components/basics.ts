@@ -375,6 +375,18 @@ export class SharedData {
 		storage.setItem(KEY_SHARED_DATA, this.data);
 		this.COMMANDER.LOGGER.debug("SharedData persisted to extension storage");
 	}
+
+	get_template(id: string|number) {
+		const template = this.data.templates.find((s) => s.id === id);
+		if(!template) throw new Error("Template with ID:"+id+" does not exist");
+		return template;
+	}
+
+	get_script(id: string|number) {
+		const script = this.data.scripts.find((s) => s.id === id);
+		if(!script) throw new Error("Script with ID:"+id+" does not exist");
+		return script;
+	}
 }
 
 /** document.querySelector(), but goes also through shadow DOMs */

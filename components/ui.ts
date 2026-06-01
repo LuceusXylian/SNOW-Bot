@@ -144,6 +144,7 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
             }
         }
         input_element.addEventListener("keyup", toggle_label);
+        input_element.addEventListener("change", toggle_label);
     }
 
     if (optionals.required) {

@@ -71,8 +71,7 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData, CO
 function build_condition_form(parent: HTMLElement, initial?: Condition) {
 	const container = create_element(parent, "div", { class: "condition-form", style: "border:1px solid #ccc;padding:8px;margin:4px;border-radius:4px" });
 	
-	const targetTypeSelect_container = create_element(container, "div")
-	const targetTypeSelect = create_formcontrol(targetTypeSelect_container, "select", "target_type", "Target Type", { 
+	const targetTypeSelect = create_formcontrol(container, "select", "target_type", "Target Type", { 
 		value: String(initial?.target.target_type ?? ConditionTargetType.URL), 
 		class: "fc-container-3",
 		required: true,
@@ -83,8 +82,6 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
 		]
 	});
 
-	const selectorInput = create_formcontrol(container, "text", "element_selector", "Element Selector", { value: initial?.target.element_selector ?? "", class: "fc-container-3", required: true });
-	
 	const typeSelect = create_formcontrol(container, "select", "target_type", "Condition Type", { 
 		value: initial?.type ?? "", 
 		class: "fc-container-3",
@@ -99,6 +96,17 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
 	});
 	
 	const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
+	const selectorInput = create_formcontrol(container, "text", "element_selector", "Element Selector", { value: initial?.target.element_selector ?? "", class: "fc-container-3", required: true });
+
+	const targetTypeSelect_change = () => {
+		if (targetTypeSelect.value === String(ConditionTargetType.ELEMENT)) {
+			selectorInput.parentElement!.style.display = ""
+		} else {
+			selectorInput.parentElement!.style.display = "none"
+		}
+	};
+	targetTypeSelect.addEventListener("change", targetTypeSelect_change);
+	targetTypeSelect_change();
 
 	return {
 		get(): Condition {
@@ -200,7 +208,7 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
  * Returns an object with a get() method.
  */
 function build_scriptline_form(parent: HTMLElement, shared: SharedData, initial: ScriptLine|null, onRemove: () => void) {
-	const container = create_element(parent, "div", { class: "scriptline-form", style: "border:2px solid #333;padding:12px;margin:8px;border-radius:6px;background:#39495A" });
+	const container = create_element(parent, "div", { class: "scriptline-form", style: "border:2px solid #333;padding:12px;margin:8px 0;border-radius:6px;background:#39495A" });
 	
 	// Header with remove button
 	const header = create_element(container, "div", { style: "display:flex;justify-content:space-between;margin-bottom:12px" });
@@ -268,7 +276,7 @@ export function build_script_form(container: HTMLElement, shared: SharedData, on
 	const nameInput = create_formcontrol(container, "text", "script_name", "Script Name", { value: initial?.name ?? "", required: true });
 	
 	// ScriptLines section
-	const linesContainer = create_element(container, "div", { class: "scriptlines-container" });
+	const linesContainer = create_element(container, "div", { class: "scriptlines-container", style: "padding: 8px;" });
 	const linesForms: { form: ReturnType<typeof build_scriptline_form>, elem: HTMLElement }[] = [];
 	
 	const renderLines = () => {
@@ -278,7 +286,7 @@ export function build_script_form(container: HTMLElement, shared: SharedData, on
 			const controls = create_element(wrapper, "div", { style: "display:flex;gap:4px;margin-bottom:8px" });
 			
 			if (idx > 0) {
-				const upBtn = create_text_element(controls, "button", "↑");
+				const upBtn = create_text_element(controls, "button", "↑", {class:"fc fc-small", style: "width: auto;"});
 				(upBtn as HTMLButtonElement).addEventListener("click", () => {
 					[linesForms[idx], linesForms[idx - 1]] = [linesForms[idx - 1], linesForms[idx]];
 					renderLines();
@@ -286,7 +294,7 @@ export function build_script_form(container: HTMLElement, shared: SharedData, on
 			}
 			
 			if (idx < linesForms.length - 1) {
-				const downBtn = create_text_element(controls, "button", "↓");
+				const downBtn = create_text_element(controls, "button", "↓", {class:"fc fc-small", style: "width: auto;"});
 				(downBtn as HTMLButtonElement).addEventListener("click", () => {
 					[linesForms[idx], linesForms[idx + 1]] = [linesForms[idx + 1], linesForms[idx]];
 					renderLines();
