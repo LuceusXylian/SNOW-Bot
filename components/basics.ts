@@ -68,7 +68,7 @@ export class Logger {
 	// log sends to console.log and to "background.ts" to save it permemently in localStorage
 	log(...params: any[]) {
 		const prefix = "[" + log_from_to_string(this.from) + "]";
-		console.log(prefix, "LOG", ...params);
+		console.log(prefix, ...params);
 		
 		const new_log: LogEntry = {
 			from: this.from,

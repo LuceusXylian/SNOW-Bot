@@ -282,6 +282,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			await shared.applyStateChange(imported);
 			LOGGER.debug("Settings imported successfully", imported);
 			alert("Settings imported successfully!");
+			location.reload();
 		} catch (error) {
 			LOGGER.log("Failed to import settings", error);
 			alert("Failed to import settings. Please check the file format.");
@@ -316,7 +317,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const scripting_title = document.getElementById("scripting_title")!;
 	scripting_title.addEventListener("click", () => {
 		scripting.innerHTML = "";
-		build_scripting_list(scripting, shared, COMMANDER);
+		build_scripting_list(scripting, shared, LOGGER);
 	});
 	
 	// Triggers

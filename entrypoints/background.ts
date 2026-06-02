@@ -157,28 +157,31 @@ export default defineBackground(() => {
 
 		// create function to send progress reports
 		async function progress_report(session_id: number, message: string) {
-			sendMessage(LOGGER, {
-				type: MessageType.PROGRESS_REPORT,
-				data: { session_id, message }
-			})
+			try {
+				await browser.runtime.sendMessage({
+					type: MessageType.PROGRESS_REPORT,
+					data: { session_id, message }
+				});
+			} catch (error) {
+				LOGGER.log("PROGRESS_REPORT", error);
+			}
 		}
 
 		async function script_worker(session_id: number, script: Script, _bot?: BotInstance) {
-			if (shared) {
-				
-			}
 			const bot = _bot?? await COMMANDER.getBotFocus();
 			progress_report(session_id, "Script `"+script.name+"` started");
 
 			for (let index = 0; index < script.lines.length; index++) {
 				const script_line = script.lines[index];
-				// Send conditions to bot
-				const { result } = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
-				if(!result) {
-					progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
-					return;
+				if (script_line.conditions.length) {
+					// Send conditions to bot (if it has some)
+					const { result } = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
+					if(!result) {
+						progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
+						return;
+					}
+					progress_report(session_id, "Script `"+script.name+"`: All conditions are true.");
 				}
-				progress_report(session_id, "Script `"+script.name+"`: All conditions are true.");
 
 				// execute actions
 				for (let index = 0; index < script_line.actions.length; index++) {

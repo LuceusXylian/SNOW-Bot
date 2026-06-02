@@ -1,7 +1,7 @@
 import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION } from "@/components/constants";
-import { BotCommander, SharedData } from "@/components/basics";
+import { Logger, SharedData } from "@/components/basics";
 import { create_formcontrol } from "@/components/ui";
 
 
@@ -10,7 +10,7 @@ const SESSION_ID: number = new Date().getTime();
 
 
 /** list all scripts with actions: edit, delete, execute */
-export function build_scripting_list(parent: HTMLElement, shared: SharedData, COMMANDER: BotCommander) {
+export function build_scripting_list(parent: HTMLElement, shared: SharedData, LOGGER: Logger) {
 	console.log("parent", parent, shared);
 	
 	const new_spoiler = create_element(parent, "div", { class:"spoiler-container" });
@@ -46,6 +46,7 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData, CO
 				edit_spoiler_content.innerHTML = "";
 				build_script_form(edit_spoiler_content, shared, () => {
 					new_spoiler.style.display = "";
+					new_spoiler.classList.remove("active");
 					edit_spoiler.style.display = "none";
 					render_script_list()
 				}, script);
@@ -56,7 +57,9 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData, CO
 				render_script_list();
 			});
 			create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
-				COMMANDER.sendMessageFocus(MessageType.EXECUTE_SCRIPT, { session_id: SESSION_ID, script_id: script.id });
+				sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
+					session_id: SESSION_ID, script_id: script.id
+				}});
 			});
 		}
 	}
@@ -96,13 +99,14 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
 	});
 	
 	const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
-	const selectorInput = create_formcontrol(container, "text", "element_selector", "Element Selector", { value: initial?.target.element_selector ?? "", class: "fc-container-3", required: true });
+	const element_selector_input = create_formcontrol(container, "text", "element_selector", "Element Selector", { value: initial?.target.element_selector ?? "", class: "fc-container-3", required: true });
+	// TODO: button to start select by clicking the element in the content
 
 	const targetTypeSelect_change = () => {
 		if (targetTypeSelect.value === String(ConditionTargetType.ELEMENT)) {
-			selectorInput.parentElement!.style.display = ""
+			element_selector_input.parentElement!.style.display = ""
 		} else {
-			selectorInput.parentElement!.style.display = "none"
+			element_selector_input.parentElement!.style.display = "none"
 		}
 	};
 	targetTypeSelect.addEventListener("change", targetTypeSelect_change);
@@ -113,7 +117,7 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
 			return {
 				target: {
 					target_type: parseInt(targetTypeSelect.value),
-					element_selector: selectorInput.value || undefined
+					element_selector: element_selector_input.value || undefined
 				},
 				type: parseInt(typeSelect.value),
 				static_value: valueInput.value
@@ -150,9 +154,21 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 	const arguments_container = create_element(container, "div");
 	const action_type_change_event = () => {
 		arguments_container.innerHTML = "";
+		if(action_type_select.value === "") return;
 		const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
+		console.log("action_type_select", action_type_select);
+		console.log("action_type_select.value", action_type_select.value);
+		console.log("action_type", action_type);
+		
+
 		for (let index = 0; index < action_type.available_arguments.length; index++) {
 			const argument = action_type.available_arguments[index];
+			let argument_value: string;
+			if (initial) {
+				argument_value = (initial.arguments as any)[argument.argument as any]?? "";
+			} else {
+				argument_value = "";
+			}
 			
 			/** If reference is set then we get automaticly a select with data from from SharedData.data
 			*  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
@@ -161,15 +177,16 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 			if (argument.reference && shared.data[referenceKey] !== undefined) {
 				const referenceArray = shared.data[referenceKey] as Reference[];
 				const reference_options: { value: string, title: string }[] = [];
-				let reference_value: string = "";
 				for (let index = 0; index < referenceArray.length; index++) {
 					const reference = referenceArray[index];
 					reference_options.push({ title: reference.name, value: reference.id.toString() });
 				}
 
+				let placeholder: string = argument.reference;
+				if(placeholder.endsWith("s")) placeholder = placeholder.substring(0, placeholder.length -1);
 				arguments_fc_array.push(
-					create_formcontrol(arguments_container, "select", argument.argument, "Select one of the "+argument.reference, { 
-						value: reference_value, 
+					create_formcontrol(arguments_container, "select", argument.argument, "Select "+placeholder, { 
+						value: argument_value, 
 						class: "fc-container-3",
 						required: true,
 						options: reference_options
@@ -178,7 +195,9 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 			} else {
 				arguments_fc_array.push(
 					create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument, {
-						required: argument.required
+						value: argument_value,
+						class: "fc-container-3",
+						required: argument.required,
 					})
 				)
 			}
@@ -194,6 +213,8 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 				const fc = arguments_fc_array[index];
 				_arguments[fc.name] = fc.value;
 			}
+			console.log("_arguments", _arguments);
+			
 
 			return {
 				type: SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)],
@@ -329,9 +350,10 @@ export function build_script_form(container: HTMLElement, shared: SharedData, on
 	
 	// Save button
 	const saveBtn = create_text_element(container, "button", "Save Script", { class: "fc", style: "margin-top: 2rem;" });
-	(saveBtn as HTMLButtonElement).addEventListener("click", () => {
+	saveBtn.addEventListener("click", () => {
 		const name = nameInput.value.trim();
-		if (name.length === 0 || name.includes(" ") || shared.data.scripts.findIndex((s) => s.name === name) !== -1) {
+		if (name.length === 0 || name.includes(" ") 
+			|| ( initial?.name !== name && shared.data.scripts.findIndex((s) => s.name === name) !== -1) ) {
 			nameInput.style.borderColor = "red";
 			alert("Script name should not be empty, not contain any spaces and not already be in use");
 			return;
@@ -388,7 +410,7 @@ export function build_trigger_form(parent: HTMLElement, shared: SharedData, init
 	
 	// Save button
 	const saveBtn = create_text_element(container, "button", "Save Trigger", { style: "padding:8px 16px;font-weight:bold;background:#00a;color:#fff;border:none;border-radius:4px;cursor:pointer" });
-	(saveBtn as HTMLButtonElement).addEventListener("click", () => {
+	saveBtn.addEventListener("click", () => {
 		if (script_select.value === "") {
 			script_select.style.borderColor = "red";
 			return;
