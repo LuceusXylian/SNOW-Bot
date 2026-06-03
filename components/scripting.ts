@@ -38,8 +38,8 @@ export interface ActionType {
 	kind: ActionKind,
 	message_type?: MessageType
 	/** Arguments can be predefined by Script or executed by Chat. 
-	 *  If reference is set then we get automaticly a select with data from from SharedData
-	 *  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
+	 *  If reference is set then we get automaticly a select with data from SharedData
+	 *  we expect that the object has the `id` and `name` attributes. The expected value to return of the select is the argument.
 	 */
 	available_arguments: { argument: string, type: "text"|"number", required: boolean, reference?: "scripts"|"templates" }[]
 }
