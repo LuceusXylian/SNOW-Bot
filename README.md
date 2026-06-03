@@ -11,12 +11,14 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 	- Script
 		- executed on background, sends commands to content
 		- reports progress to popup
-		- [ ] Conditions
-			- [ ] IS, IS NOT, CONTAINS, CONTAINS NOT
-			- [ ] domain/URL checks
-			- [ ] Element exists checks by using
+		- Conditions
+			- IS, IS NOT, CONTAINS, CONTAINS NOT
+			- domain/URL checks
+			- Element exists checks by using
 		- [ ] Actions
+			- Templates: execute insert
 			- [ ] Send notifications
+			- [ ] Wait
 	- [ ] Triggers
 		- On Conditions met notify background
 		- [ ] execute Script on user interactions
@@ -24,6 +26,9 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 	- [ ] Half automation for returns
 		- give the bot the serial number and it will guide you through the return process
 - [ ] Chat UI to send commands and receive responses
+- [ ] Popup section: Button Grid
+- [ ] Popup navigation with location.hash
+	- if empty it uses persistant stored value
 - [ ] After all above is implemented, we create a action which executes multiple InsertTemplate actions on diffrent inputs/textareas 
 
 ## Devtools requirements
