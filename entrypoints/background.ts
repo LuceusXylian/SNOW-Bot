@@ -157,6 +157,8 @@ export default defineBackground(() => {
 
 		// create function to send progress reports
 		async function progress_report(session_id: number, message: string) {
+			LOGGER.log("PROGRESS_REPORT", message);
+
 			try {
 				await browser.runtime.sendMessage({
 					type: MessageType.PROGRESS_REPORT,
@@ -175,8 +177,8 @@ export default defineBackground(() => {
 				const script_line = script.lines[index];
 				if (script_line.conditions.length) {
 					// Send conditions to bot (if it has some)
-					const { result } = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
-					if(!result) {
+					const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
+					if(!result.success) {
 						progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
 						return;
 					}

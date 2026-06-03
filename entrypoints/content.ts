@@ -81,13 +81,13 @@ class BackgroundMessageHandler {
 				
 				case MessageType.CHECK_CONDITIONS: {
 					// All conditions need to be true
-					const conditions = message.data as Condition[];
+					const conditions = message.data.conditions as Condition[];
 					for (let c = 0; c < conditions.length; c++) {
 						const condition = conditions[c];
 						const value1 = this.get_condition_target_value(condition.target);
-						if(value1 === null) return success_message({ result: false });
+						if(value1 === null) return error_message("Unable to get value1, abort");
 						const result = this.test_condition(condition.type, value1, condition.static_value);
-						if(!result) return success_message({ result: false });
+						if(!result) return error_message("Condition is false, abort");
 					}
 					return success_message({ result: true });
 				}
@@ -203,6 +203,8 @@ class BackgroundMessageHandler {
 	}
 
 	test_condition(type: ConditionType, value1: string, value2: string): boolean {
+		LOGGER.log("test_condition", type, "value1", value1, "value2", value2, "RESULT:", value1.includes(value2))
+
 		switch (type) {
 			case ConditionType.EXISTS: return true;
 			case ConditionType.IS: return value1 === value2;
