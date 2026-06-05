@@ -5,18 +5,19 @@ import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string } from '@/components/ui';
 import { ScriptingUI } from './scripting_ui';
 
+
+const IS_POPUP_QUERY_STRING = "?is_popup=0";
+export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
 
 // #open_new_tab
 (() => {
-	const query_string = "?is_popup=0";
-	const is_popup = location.search !== query_string;
 	const controller_title_main = document.getElementById("controller_title_main")!;
 	const new_tab_button = document.getElementById("open_new_tab")!;
-	if (is_popup) {
+	if (IS_POPUP) {
 		new_tab_button.addEventListener("click", () => {
-			window.open(location.href + query_string, '_blank');
+			window.open(location.href + IS_POPUP_QUERY_STRING + location.hash, '_blank');
 			window.close();
 		});
 	} else {
@@ -68,9 +69,11 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const title_sub = document.getElementById("title_sub")!;
 	const controller_goback = document.getElementById("controller-goback")!;
 	const menu = document.getElementById("menu")!;
-	const menu_items = <HTMLCollectionOf<HTMLDivElement>>document.getElementsByClassName("menu-item");
-	var menu_item_selected: HTMLDivElement | null = null;
-	const stored_index = await storage.getItem(KEY_POPUP_MENU_INDEX);
+	const menu_items = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("menu-item");
+	var menu_item_selected: HTMLElement | null = null;
+	const hashId = location.hash.slice(1);
+	const stored_index = hashId.length || !IS_POPUP? -1 : await storage.getItem(KEY_POPUP_MENU_INDEX);
+
 	for (let i = 0; i < menu_items.length; i++) {
 		const item = menu_items[i];
 		const index = i;
@@ -84,10 +87,11 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				menu_item_selected = item;
 				storage.setItem(KEY_POPUP_MENU_INDEX, index);
 				title_sub.innerText = menu_item_title.innerText;
+				location.hash = menu_item_title.id;
 			}
 		});
 
-		if(index === stored_index) {
+		if(menu_item_title.id === hashId || index === stored_index) {
 			setTimeout(() => {
 				menu_item_title.click();
 			}, 10);
@@ -213,8 +217,8 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	renderTemplates();
 
 	// Logs
-	const logs_container = document.getElementById("logs")!;
-	const log_menu_title = document.getElementById("logs_title")!;
+	const log_menu_title = document.getElementById("logs")!;
+	const logs_container = document.getElementById("logs_container")!;
 	log_menu_title.addEventListener("click", async function() {
 		// Load logs
 		logs_container.innerHTML = "";
@@ -313,11 +317,16 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	});
 
 	// Scripting
-	const scripting = document.getElementById("scripting")!;
-	const scripting_title = document.getElementById("scripting_title")!;
+	const scripting_title = document.getElementById("scripting")!;
+	const scripting_container = document.getElementById("scripting_container")!;
 	scripting_title.addEventListener("click", () => {
-		scripting.innerHTML = "";
-		new ScriptingUI(shared, LOGGER, COMMANDER).build_scripting_list(scripting);
+		if (IS_POPUP) {
+			// TODO: Script Editor should only be used in a free window
+			window.open(location.href + "#" + scripting_title.id, '_blank');
+			window.close();
+		}
+		scripting_container.innerHTML = "";
+		new ScriptingUI(shared, LOGGER, COMMANDER).build_scripting_list(scripting_container);
 	});
 	
 	// Triggers

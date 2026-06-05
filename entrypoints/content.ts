@@ -15,6 +15,7 @@ const SHORTCODE_REGEX = /\[(.+?)\]/g;
 class BackgroundMessageHandler {
 	shared: SharedData;
 	bot_id: number;
+	element_selector_abort_controller: AbortController[] = [];
 
 	constructor(shared: SharedData, bot_id: number) {
 		this.shared = shared;
@@ -93,10 +94,22 @@ class BackgroundMessageHandler {
 				}
 				
 				case MessageType.ELEMENT_SELECTOR: {
-					// TODO: select a element
-					console.log("MessageType.ELEMENT_SELECTOR");
-					
-					return success_message({ result: true });
+					const { session_id, active } = message.data || {};
+
+					if (active) {
+						const selector = await this.startElementSelector();
+						if (selector) {
+							alert_modal("Element selected: "+selector);
+							return success_message({ selector: selector });
+						}
+						return error_message("No element selected");
+					} else {
+						// a element has been selected from another content. we abort here
+						for (let index = 0; index < this.element_selector_abort_controller.length; index++) {
+							this.element_selector_abort_controller[index].abort();
+						}
+						return success_message({});
+					}
 				}
 
 				default: return error_message(`Unknown message type: ${message.type}`);
@@ -220,6 +233,134 @@ class BackgroundMessageHandler {
 			case ConditionType.CONTAINS_NOT: return !value1.includes(value2);
 		}
 		throw new Error("Unknown ConditionType:"+type);
+	}
+
+	async startElementSelector(): Promise<string | null> {
+		const controller = new AbortController();
+		const signal = controller.signal;
+
+		const future = new Promise<string | null>((resolve) => {
+			let previousElements: HTMLElement[] = [];
+			const originalStyles = new WeakMap<HTMLElement, string>();
+			let finished = false;
+
+			const safeResolve = (value: string | null) => {
+				if (finished) return;
+				finished = true;
+				try { resolve(value); } catch (e) { /* ignore */ }
+			};
+
+			const revertStyles = () => {
+				for (let index = 0; index < previousElements.length; index++) {
+					const element = previousElements[index];
+					const originalStyle = originalStyles.get(element);
+					if (originalStyle !== undefined) {
+						element.style.cssText = originalStyle;
+					} else {
+						element.style.border = '';
+					}
+				}
+			}
+
+			const handleMouseOver = (event: MouseEvent) => {
+				const target = event.target as HTMLElement;
+				revertStyles();
+
+				// Apply red border to current element
+				originalStyles.set(target, target.style.cssText);
+				target.style.border = '4px solid red';
+				previousElements.push(target);
+			};
+
+			const handleClick = (event: MouseEvent) => {
+				event.preventDefault();
+				event.stopPropagation();
+
+				const target = event.target as HTMLElement;
+				previousElements.push(target);
+				revertStyles();
+				
+				// Generate CSS selector for the element
+				const selector = this.generateSelector(target);
+				
+				// Clean up
+				cleanup();
+				
+				LOGGER.debug(`Element selected: ${selector}`);
+				safeResolve(selector);
+			};
+
+			const handleEscape = (event: KeyboardEvent) => {
+				if (event.key === 'Escape') {
+					cleanup();
+					safeResolve(null);
+				}
+			};
+
+			const onAbort = () => {
+				cleanup();
+				safeResolve(null);
+			};
+
+			const cleanup = () => {
+				document.removeEventListener('mouseover', handleMouseOver, true);
+				document.removeEventListener('click', handleClick, true);
+				document.removeEventListener('keydown', handleEscape, true);
+				signal.removeEventListener('abort', onAbort);
+				revertStyles();
+				
+				// remove controller from array
+				const idx = this.element_selector_abort_controller.indexOf(controller);
+				if (idx !== -1) this.element_selector_abort_controller.splice(idx, 1);
+			};
+
+			// Enable selection mode
+			document.addEventListener('mouseover', handleMouseOver, true);
+			document.addEventListener('click', handleClick, true);
+			document.addEventListener('keydown', handleEscape, true);
+			signal.addEventListener('abort', onAbort);
+			
+			LOGGER.debug('Element selector mode started. Click an element to select, or press Escape to cancel.');
+		});
+
+		// we save the controller so we can abort it later
+		this.element_selector_abort_controller.push(controller);
+		return future;
+	}
+
+	generateSelector(element: HTMLElement): string {
+		// Generate a CSS selector for the element
+		const parts: string[] = [];
+		let el: HTMLElement | null = element;
+
+		while (el && el.nodeType === Node.ELEMENT_NODE) {
+			let part = el.nodeName.toLowerCase();
+
+			if (el.id) {
+				part += `#${el.id}`;
+				parts.unshift(part);
+				break;
+			}
+
+			if (el.className) {
+				const classes = Array.from(el.classList).join('.');
+				part += `.${classes}`;
+			}
+
+			const siblings = Array.from(el.parentNode?.childNodes || []).filter(
+				(node) => node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).nodeName === el!.nodeName
+			) as HTMLElement[];
+
+			if (siblings.length > 1) {
+				const index = siblings.indexOf(el) + 1;
+				part += `:nth-of-type(${index})`;
+			}
+
+			parts.unshift(part);
+			el = el.parentElement;
+		}
+
+		return parts.join(' > ');
 	}
 }
 

@@ -2,7 +2,8 @@ import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetT
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
-import { create_formcontrol } from "@/components/ui";
+import { alert_modal, create_formcontrol } from "@/components/ui";
+import { IS_POPUP } from "./main";
 
 
 export class ScriptingUI {
@@ -82,18 +83,18 @@ export class ScriptingUI {
 	create_element_selector_fc(parent: HTMLElement, element_selector: string) {
 		const element_selector_container = create_element(parent, "div", { class: "fc-container fc-container-3" });
 		const element_selector_input = create_formcontrol(element_selector_container, "text", "element_selector", "Element Selector", { value: element_selector, class: "", required: true });
-		const element_selector_btn = create_text_element(element_selector_container!, "button", ">", { class: "fc fc-small fc-container", style: "width: 32px; margin: 0 0 0 0.5rem;" });
-		element_selector_input.parentElement!.style.width = "calc(100% - "+element_selector_btn.style.width+" - 0.5rem)";
-		element_selector_input.parentElement!.style.display = "inline-block";
-		element_selector_input.parentElement!.style.margin = "0";
-		// TODO: button to start select by clicking the element in the content
-		element_selector_btn.addEventListener("click", () => {
-			this.LOGGER.debug("MessageType.ELEMENT_SELECTOR");
-			// We send the signal to all content that we want to select a element.
-			this.COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR, { session_id: this.SESSION_ID, active: true });
-			// After selection we turn the ELEMENT_SELECTOR off
-			// this.COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR, { session_id: this.SESSION_ID, active: false });
-		});
+		if(!IS_POPUP) {
+			const element_selector_btn = create_text_element(element_selector_container!, "button", ">", { class: "fc fc-small fc-container", style: "width: 32px; margin: 0 0 0 0.5rem;" });
+			element_selector_input.parentElement!.style.width = "calc(100% - "+element_selector_btn.style.width+" - 0.5rem)";
+			element_selector_input.parentElement!.style.display = "inline-block";
+			element_selector_input.parentElement!.style.margin = "0";
+			element_selector_btn.addEventListener("click", async () => {
+				alert_modal("Go to the window and click on a element");
+				// We send the signal to all content that we want to select a element.
+				const result = await sendMessage<any>(this.LOGGER, { type: MessageType.ELEMENT_SELECTOR, data: {} });
+				element_selector_input.value = result.data!.selector;
+			});
+		}
 		return {element_selector_container, element_selector_input};
 	}
 	
@@ -131,7 +132,6 @@ export class ScriptingUI {
 		const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
 		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
 		
-	
 		const targetTypeSelect_change = () => {
 			if (targetTypeSelect.value === String(ConditionTargetType.ELEMENT)) {
 				element_selector_container.style.display = ""
@@ -141,6 +141,16 @@ export class ScriptingUI {
 		};
 		targetTypeSelect.addEventListener("change", targetTypeSelect_change);
 		targetTypeSelect_change();
+		
+		const typeSelect_change = () => {
+			if (typeSelect.value === String(ConditionType.EXISTS)) {
+				valueInput.parentElement!.style.display = "none";
+			} else {
+				valueInput.parentElement!.style.display = "";
+			}
+		};
+		typeSelect.addEventListener("change", typeSelect_change);
+		typeSelect_change();
 	
 		return {
 			get(): Condition {

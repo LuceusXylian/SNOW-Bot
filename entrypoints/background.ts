@@ -25,6 +25,16 @@ async function initializeSharedData(COMMANDER: BotCommander): Promise<SharedData
 export default defineBackground(() => {
 	// In-memory storage for active bot instances (reconstructed on start)
 	const COMMANDER = new BotCommander(LOGGER);
+
+	browser.tabs.onActivated.addListener((activeInfo) => {
+		LOGGER.debug("Tab activated", activeInfo.tabId);
+		COMMANDER.trackFocusedTab(activeInfo.tabId);
+	});
+
+	browser.tabs.onRemoved.addListener((tabId) => {
+		COMMANDER.forgetTab(tabId);
+	});
+
 	initializeSharedData(COMMANDER).then(async (shared) => {
 		LOGGER.log("Background script initialized", { id: browser.runtime.id });
 
@@ -76,6 +86,36 @@ export default defineBackground(() => {
 						LOGGER.log(`Bot is ready: ${bot.bot_id} on tab ${bot.tabId}, href: ${message.data.href}`);
 
 						return success_message({ bot_id: bot.bot_id, acknowledged: true });
+					}
+
+					case MessageType.ELEMENT_SELECTOR: {
+						// Broadcast start signal to all bots and wait for first successful selector reply
+						const { session_id } = message.data || {};
+						const promises: Promise<{ bot: BotInstance, selector: string }>[] = [];
+						for (const botInstance of (COMMANDER as any).botInstances) {
+							const p = botInstance.sendMessage(MessageType.ELEMENT_SELECTOR, { session_id, active: true })
+								.then((resp: any) => {
+									if (resp && resp.success && resp.data?.selector) {
+										return { bot: botInstance, selector: resp.data.selector };
+									}
+									// treat non-selector replies as rejection so Promise.any will ignore them
+									return Promise.reject(resp);
+								})
+								.catch((err: any) => Promise.reject(err));
+							promises.push(p);
+						}
+
+						try {
+							// Wait for the first bot that returns a selector
+							const winner = await Promise.any(promises);
+							// Tell all bots to stop selection mode (abort others)
+							await COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR, { session_id, active: false });
+							return success_message({ selector: winner.selector, bot_id: winner.bot.bot_id });
+						} catch (error) {
+							// No bot returned a selector — ensure all are aborted
+							await COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR, { session_id, active: false });
+							return error_message('No element selected');
+						}
 					}
 
 					case MessageType.RELAY_COMMAND: {

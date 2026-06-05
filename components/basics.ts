@@ -122,6 +122,7 @@ export interface SharedDataInner {
 export class BotCommander {
 	// Key is bot_id (number), value is BotInstance
 	private botInstances: BotInstance[] = [];
+	private recentTabIds: number[] = [];
 	LOGGER: Logger;
 
 	constructor(LOGGER: Logger) {
@@ -161,7 +162,25 @@ export class BotCommander {
 			this.LOGGER.debug(`New bot assigned: ${bot_id} on tab ${tabId}`);
 		}
 
+		this.trackFocusedTab(tabId);
 		return botInstance;
+	}
+
+	// @internal only for background
+	trackFocusedTab(tabId: number) {
+		const existingIndex = this.recentTabIds.indexOf(tabId);
+		if (existingIndex !== -1) {
+			this.recentTabIds.splice(existingIndex, 1);
+		}
+		this.recentTabIds.unshift(tabId);
+		if (this.recentTabIds.length > 6) {
+			this.recentTabIds.splice(6);
+		}
+	}
+
+	// @internal only for background
+	forgetTab(tabId: number) {
+		this.recentTabIds = this.recentTabIds.filter(id => id !== tabId);
 	}
 
 	// @internal only for background
@@ -204,23 +223,39 @@ export class BotCommander {
 	 * @returns `BotInstance` that is not busy and focused
 	 */
 	async getBotFocus(): Promise<BotInstance> {
-		const [focusedTab] = await browser.tabs.query({
-			active: true,
-			lastFocusedWindow: true,
-		});
-		const focusedTab_id = focusedTab.id;
-		
-		for (let z = this.botInstances.length -1; z >= 0; z--) {
-			if (this.botInstances[z].tabId === focusedTab_id) {
-				if (this.botInstances[z].is_busy) {
-					throw new Error("Found bot in focused tab:"+focusedTab.id+", but it is busy");
-				} else {
-					return this.botInstances[z];
-				}			
+		let focusedTabId: number|null = null;
+		try {
+			const focusedTabs = await browser.tabs.query({
+				active: true,
+				lastFocusedWindow: true,
+			});
+			if(focusedTabs[0].id !== undefined) focusedTabId = focusedTabs[0].id;
+		} catch (error) {
+			this.LOGGER.debug("Unable to query focused tab", error);
+		}
+
+		if (focusedTabId != null) {
+			for (let z = this.botInstances.length -1; z >= 0; z--) {
+				const botInstance = this.botInstances[z];
+				if (botInstance?.tabId === focusedTabId) {
+					if (botInstance.is_busy) {
+						throw new Error("Found bot in focused tab:"+focusedTabId+", but it is busy");
+					} else {
+						return botInstance;
+					}
+				}
 			}
 		}
-		this.LOGGER.log("ERROR: No active tab bot instance found. focusedTab:", focusedTab, "botInstances:", this.botInstances)
-		throw new Error("No active tab bot instance found");
+
+		for (const tabId of this.recentTabIds) {
+			const botInstance = this.botInstances.find(b => b?.tabId === tabId && !b.is_busy);
+			if (botInstance) {
+				return botInstance;
+			}
+		}
+
+		this.LOGGER.log("ERROR: No active tab bot instance found. focusedTabId:", focusedTabId, "botInstances:", this.botInstances, "recentTabIds:", this.recentTabIds)
+		throw new Error("ERROR: No active tab bot instance found");
 	}
 
 	/**

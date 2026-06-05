@@ -60,6 +60,59 @@ export function save_as_file(content: string, filename: string) {
 	URL.revokeObjectURL(url);
 }
 
+export function alert_modal(message: string) {
+	const modal = document.createElement('div');
+	modal.style.position = 'fixed';
+	modal.style.top = '0';
+	modal.style.left = '0';
+	modal.style.width = '100vw';
+	modal.style.height = '100vh';
+	modal.style.display = 'flex';
+	modal.style.alignItems = 'center';
+	modal.style.justifyContent = 'center';
+	modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+	modal.style.opacity = '0';
+	modal.style.transition = 'opacity 0.25s ease';
+	modal.style.zIndex = '9999';
+
+	const alertBox = document.createElement('div');
+	alertBox.style.backgroundColor = '#fff';
+	alertBox.style.color = '#000';
+	alertBox.style.padding = '16px 24px';
+	alertBox.style.borderRadius = '8px';
+	alertBox.style.maxWidth = '90%';
+	alertBox.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.2)';
+	alertBox.style.textAlign = 'center';
+	alertBox.style.fontSize = '1rem';
+	alertBox.innerText = message;
+
+	modal.appendChild(alertBox);
+	document.body.appendChild(modal);
+
+	const fadeIn = () => {
+		requestAnimationFrame(() => {
+			modal.style.opacity = '1';
+		});
+	};
+
+	const fadeOut = (): Promise<void> => {
+		return new Promise((resolve) => {
+			modal.style.opacity = '0';
+			modal.addEventListener('transitionend', () => {
+				if (modal.parentElement) {
+					modal.parentElement.removeChild(modal);
+				}
+				resolve();
+			}, { once: true });
+		});
+	};
+
+	fadeIn();
+	setTimeout(() => {
+		fadeOut();
+	}, 2250);
+}
+
 export function load_file_to_string(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
