@@ -321,7 +321,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const scripting_container = document.getElementById("scripting_container")!;
 	scripting_title.addEventListener("click", () => {
 		if (IS_POPUP) {
-			// TODO: Script Editor should only be used in a free window
+			// Script Editor should only be used in a free window
 			window.open(location.href + "#" + scripting_title.id, '_blank');
 			window.close();
 		}
