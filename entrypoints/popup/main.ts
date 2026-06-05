@@ -122,7 +122,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	let editingTemplateId: string | null = null;
 
 	function generateTemplateId(): string {
-		return `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+		return `TPL${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 	}
 
 	function renderTemplates() {

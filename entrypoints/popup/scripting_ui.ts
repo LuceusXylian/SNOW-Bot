@@ -17,7 +17,10 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData, LO
 	const new_spoiler_title = create_text_element(new_spoiler, "div", "Create new Script", { class:"spoiler-title" });
 	const new_spoiler_content = create_element(new_spoiler, "div", { class:"spoiler-content" });
 	add_spoiler_event(new_spoiler);
-	build_script_form(new_spoiler_content, shared, () => render_script_list());
+	build_script_form(new_spoiler_content, shared, () => {
+		render_script_list();
+		new_spoiler.classList.remove("active");
+	});
 	
 	const edit_spoiler = create_element(parent, "div", { class:"spoiler-container active", style: "display: none;" });
 	const edit_spoiler_title = create_text_element(edit_spoiler, "div", "Edit Script", { class:"spoiler-title" });
@@ -66,6 +69,17 @@ export function build_scripting_list(parent: HTMLElement, shared: SharedData, LO
 	render_script_list();
 }
 
+function create_element_selector_fc(parent: HTMLElement, element_selector: string) {
+	const element_selector_container = create_element(parent, "div", { class: "fc-container fc-container-3" });
+	const element_selector_input = create_formcontrol(element_selector_container, "text", "element_selector", "Element Selector", { value: element_selector, class: "", required: true });
+	const element_selector_btn = create_text_element(element_selector_container!, "button", ">", { class: "fc fc-small fc-container", style: "width: 32px; margin: 0 0 0 0.5rem;" });
+	element_selector_input.parentElement!.style.width = "calc(100% - "+element_selector_btn.style.width+" - 0.5rem)";
+	element_selector_input.parentElement!.style.display = "inline-block";
+	element_selector_input.parentElement!.style.margin = "0";
+	// TODO: button to start select by clicking the element in the content
+	console.log("element_selector_btn", element_selector_btn);
+	return {element_selector_container, element_selector_input};
+}
 
 /**
  * Builds a form for editing a Condition.
@@ -99,14 +113,14 @@ function build_condition_form(parent: HTMLElement, initial?: Condition) {
 	});
 	
 	const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
-	const element_selector_input = create_formcontrol(container, "text", "element_selector", "Element Selector", { value: initial?.target.element_selector ?? "", class: "fc-container-3", required: true });
-	// TODO: button to start select by clicking the element in the content
+	const {element_selector_container, element_selector_input} = create_element_selector_fc(container, initial?.target.element_selector ?? "");
+	
 
 	const targetTypeSelect_change = () => {
 		if (targetTypeSelect.value === String(ConditionTargetType.ELEMENT)) {
-			element_selector_input.parentElement!.style.display = ""
+			element_selector_container.style.display = ""
 		} else {
-			element_selector_input.parentElement!.style.display = "none"
+			element_selector_container.style.display = "none"
 		}
 	};
 	targetTypeSelect.addEventListener("change", targetTypeSelect_change);
@@ -156,9 +170,9 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 		arguments_container.innerHTML = "";
 		if(action_type_select.value === "") return;
 		const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
-		console.log("action_type_select", action_type_select);
-		console.log("action_type_select.value", action_type_select.value);
-		console.log("action_type", action_type);
+		console.debug("action_type_select", action_type_select);
+		console.debug("action_type_select.value", action_type_select.value);
+		console.debug("action_type", action_type);
 		
 
 		for (let index = 0; index < action_type.available_arguments.length; index++) {
@@ -174,7 +188,10 @@ function build_action_form(parent: HTMLElement, shared: SharedData, initial?: Ac
 			*  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
 			*/
 			const referenceKey = argument.reference as keyof SharedDataInner;
-			if (argument.reference && shared.data[referenceKey] !== undefined) {
+			if (argument.argument === "element_selector") {
+				const {element_selector_container, element_selector_input} = create_element_selector_fc(arguments_container, argument_value);
+				arguments_fc_array.push(element_selector_input);
+			} else if (argument.reference && shared.data[referenceKey] !== undefined) {
 				const referenceArray = shared.data[referenceKey] as Reference[];
 				const reference_options: { value: string, title: string }[] = [];
 				for (let index = 0; index < referenceArray.length; index++) {

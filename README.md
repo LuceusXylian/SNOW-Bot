@@ -14,7 +14,7 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 		- Conditions
 			- IS, IS NOT, CONTAINS, CONTAINS NOT
 			- domain/URL checks
-			- Element exists checks by using
+			- Element exists checks
 		- [ ] Actions
 			- Templates: execute insert
 			- [ ] Send notifications

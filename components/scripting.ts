@@ -52,7 +52,7 @@ export interface Reference {
 export interface Action {
 	type: ActionType,
 	arguments: {
-		target_selector?: string;
+		element_selector?: string;
 		id?: number|string
 	},
 }
@@ -67,7 +67,7 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		name: "InsertTemplate",
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.INSERT_TEMPLATE,
-		available_arguments: [{argument: "id", type: "text", required: true, reference: "templates"}, { argument: "target_selector", type: "text", required: true }]
+		available_arguments: [{argument: "id", type: "text", required: true, reference: "templates"}, { argument: "element_selector", type: "text", required: true }]
 	},
 ];
 

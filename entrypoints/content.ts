@@ -42,12 +42,12 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content, target_selector } = message.data || {};
+					const { content, element_selector } = message.data || {};
 					if (!content) return error_message("No template content provided");
 					let target_element: HTMLElement;
-					if (target_selector) {
-						target_element = querySelector(target_selector)!;
-						if(target_element === null) return error_message("target_element is null, because the target_selector is unable to find the element");
+					if (element_selector) {
+						target_element = querySelector(element_selector)!;
+						if(target_element === null) return error_message("target_element is null, because the element_selector is unable to find the element");
 					} else if (lastFocusedElement) {
 						target_element = lastFocusedElement;
 					} else {

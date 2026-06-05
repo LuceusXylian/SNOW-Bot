@@ -206,9 +206,9 @@ export default defineBackground(() => {
 							switch (action.type.message_type) {
 								case MessageType.INSERT_TEMPLATE: {
 									if(!action.arguments.id) throw new Error("Error in script#"+script.id+": id is invalid");
-									if(!action.arguments.target_selector) throw new Error("Error in script#"+script.id+": target_selector is invalid");
+									if(!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 									const template = shared.get_template(action.arguments.id);
-									await bot.sendMessage(action.type.message_type, { content: template.content, target_selector: action.arguments.target_selector });
+									await bot.sendMessage(action.type.message_type, { content: template.content, element_selector: action.arguments.element_selector });
 									break;
 								}
 							
