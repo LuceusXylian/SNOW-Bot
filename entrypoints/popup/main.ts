@@ -3,7 +3,7 @@ import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string } from '@/components/ui';
-import { build_script_form, build_scripting_list } from './scripting_ui';
+import { ScriptingUI } from './scripting_ui';
 
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
@@ -317,7 +317,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const scripting_title = document.getElementById("scripting_title")!;
 	scripting_title.addEventListener("click", () => {
 		scripting.innerHTML = "";
-		build_scripting_list(scripting, shared, LOGGER);
+		new ScriptingUI(shared, LOGGER, COMMANDER).build_scripting_list(scripting);
 	});
 	
 	// Triggers

@@ -91,6 +91,13 @@ class BackgroundMessageHandler {
 					}
 					return success_message({ result: true });
 				}
+				
+				case MessageType.ELEMENT_SELECTOR: {
+					// TODO: select a element
+					console.log("MessageType.ELEMENT_SELECTOR");
+					
+					return success_message({ result: true });
+				}
 
 				default: return error_message(`Unknown message type: ${message.type}`);
 			}
