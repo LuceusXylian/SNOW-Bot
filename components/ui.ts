@@ -60,22 +60,25 @@ export function save_as_file(content: string, filename: string) {
 	URL.revokeObjectURL(url);
 }
 
-export function alert_modal(message: string) {
-	const modal = document.createElement('div');
-	modal.style.position = 'fixed';
-	modal.style.top = '0';
-	modal.style.left = '0';
-	modal.style.width = '100vw';
-	modal.style.height = '100vh';
-	modal.style.display = 'flex';
-	modal.style.alignItems = 'center';
-	modal.style.justifyContent = 'center';
-	modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-	modal.style.opacity = '0';
-	modal.style.transition = 'opacity 0.25s ease';
-	modal.style.zIndex = '9999';
+function fadeIn(element: HTMLElement) {
+	requestAnimationFrame(() => {
+		element.style.opacity = '1';
+	});
+};
 
-	const alertBox = document.createElement('div');
+function fadeOutAndRemove(element: HTMLElement): Promise<void> {
+	return new Promise((resolve) => {
+		element.style.opacity = '0';
+		element.addEventListener('transitionend', () => {
+			element.remove();
+			resolve();
+		}, { once: true });
+	});
+};
+
+export function alert_modal(message: string) {
+	const modal = create_element(document.body, "div", { class: "modal" });
+	const alertBox = create_text_element(modal, "div", message);
 	alertBox.style.backgroundColor = '#fff';
 	alertBox.style.color = '#000';
 	alertBox.style.padding = '16px 24px';
@@ -84,33 +87,72 @@ export function alert_modal(message: string) {
 	alertBox.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.2)';
 	alertBox.style.textAlign = 'center';
 	alertBox.style.fontSize = '1rem';
-	alertBox.innerText = message;
 
-	modal.appendChild(alertBox);
-	document.body.appendChild(modal);
-
-	const fadeIn = () => {
-		requestAnimationFrame(() => {
-			modal.style.opacity = '1';
-		});
-	};
-
-	const fadeOut = (): Promise<void> => {
-		return new Promise((resolve) => {
-			modal.style.opacity = '0';
-			modal.addEventListener('transitionend', () => {
-				if (modal.parentElement) {
-					modal.parentElement.removeChild(modal);
-				}
-				resolve();
-			}, { once: true });
-		});
-	};
-
-	fadeIn();
+	fadeIn(modal);
 	setTimeout(() => {
-		fadeOut();
+		fadeOutAndRemove(modal);
 	}, 2250);
+}
+
+export function create_modal(onCreate: (container: HTMLElement) => void): Promise<Record<string, string>> {
+	return new Promise((resolve, reject) => {
+		const modal = create_element(document.body, "div", { class: "modal" });
+		const content = create_element(modal, 'div');
+		content.style.color = '#fff';
+		content.style.backgroundColor = '#0a3042';
+		content.style.borderRadius = '10px';
+		content.style.maxWidth = '90%';
+		content.style.maxHeight = '90%';
+		content.style.overflow = 'auto';
+		content.style.padding = '16px';
+		content.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.2)';
+		content.style.position = 'relative';
+
+		const closeButton = create_text_element(content, 'button', '×', { type: 'button', style: "color: white;" });
+		closeButton.style.position = 'absolute';
+		closeButton.style.top = '4px';
+		closeButton.style.right = '4px';
+		closeButton.style.border = 'none';
+		closeButton.style.background = 'transparent';
+		closeButton.style.fontSize = '1.5rem';
+		closeButton.style.cursor = 'pointer';
+		closeButton.style.lineHeight = '1';
+
+		const container = create_element(content, 'div', { style: "display: flex; flex-direction: column; gap: 12px;" });
+		const buttonContainer = create_element(content, 'div');
+		buttonContainer.style.display = 'flex';
+		buttonContainer.style.justifyContent = 'flex-end';
+		buttonContainer.style.gap = '8px';
+		buttonContainer.style.marginTop = '12px';
+
+		const submitButton = create_text_element(buttonContainer, 'button', 'Submit', { type: 'button', style: "" });
+		submitButton.style.padding = '8px 16px';
+		submitButton.style.border = 'none';
+		submitButton.style.borderRadius = '6px';
+		submitButton.style.backgroundColor = '#2563eb';
+		submitButton.style.color = '#fff';
+		submitButton.style.cursor = 'pointer';
+
+		closeButton.addEventListener('click', () => {
+			fadeOutAndRemove(modal);
+			reject('Modal closed');
+		});
+
+		submitButton.addEventListener('click', () => {
+			const results: Record<string, string> = {};
+			const controls = container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input[name], textarea[name], select[name]');
+			controls.forEach((control) => {
+				if (control.name) {
+					results[control.name] = control.value;
+				}
+			});
+			fadeOutAndRemove(modal);
+			resolve(results);
+		});
+
+		onCreate(container);
+		fadeIn(modal);
+	});
 }
 
 export function load_file_to_string(file: File): Promise<string> {

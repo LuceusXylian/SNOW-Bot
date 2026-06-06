@@ -104,7 +104,12 @@ export function error_message(error: string) {
 
 export interface ButtonGrid {
 	title: string,
-	buttons: { text?: string, script: Script }[]
+	buttons: ButtonGridButton[]
+}
+
+export interface ButtonGridButton {
+	text: string,
+	script: Script|null
 }
 
 export interface SharedDataInner {

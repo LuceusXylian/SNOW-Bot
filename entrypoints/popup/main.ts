@@ -2,8 +2,9 @@ import { SharedData, LogFrom, Logger, BotCommander, LogEntry, dateToISOString } 
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
-import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string } from '@/components/ui';
+import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal } from '@/components/ui';
 import { ScriptingUI } from './scripting_ui';
+import { buttongrid_ui } from './buttongrid_ui';
 
 
 const IS_POPUP_QUERY_STRING = "?is_popup=0";
@@ -337,52 +338,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const buttongrid_title = document.getElementById("buttongrid")!;
 	const buttongrid_container = document.getElementById("buttongrid_container")!;
 	buttongrid_title.addEventListener("click", () => {
-		buttongrid_container.innerHTML = "";
-		const options: { value: string, title: string }[] = [{ title: "New Grid", value: "new" }, { title: "All Scripts", value: "-1" }];
-		for (let index = 0; index < shared.data.button_grids.length; index++) {
-			const grid = shared.data.button_grids[index];
-			options.push({ value: index.toString(), title: grid.title });
-		}
-		const buttongrid_select = create_formcontrol(buttongrid_container, "select", "buttongrid_select", "Profile", {options: options, value: shared.data.button_grid_index });
-		buttongrid_select.parentElement!.style = "margin: 0";
-		const buttons_container = create_element(buttongrid_container, "div", { style:"margin-top: 20px;" });
-
-		const create_buttons = () => {
-			if (buttongrid_select.value === "new") {
-				// TODO: start modal to prompt for ButtonGrid title and Script
-			}
-
-			const button_grid_index = parseInt(buttongrid_select.value);
-			shared.applyStateChange({ button_grid_index: button_grid_index });
-			buttons_container.innerHTML = "";
-
-			if (button_grid_index === -1) {
-				// Get all scripts as buttons
-				for (let b = 0; b < shared.data.scripts.length; b++) {
-					const script = shared.data.scripts[b];
-					const button = create_text_element(buttons_container, "button", script.name, { class: "fc fc-margin fc-container-4" });
-					button.addEventListener("click", () => {
-						sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-							script_id: script.id
-						}});
-					});
-				}
-			} else {
-				// Custom Grid
-				const grid = shared.data.button_grids[button_grid_index];
-				for (let b = 0; b < grid.buttons.length; b++) {
-					const entry = grid.buttons[b];
-					const button = create_text_element(buttons_container, "button", entry.text??entry.script.name, { class: "fc fc-margin fc-container-4" });
-					button.addEventListener("click", () => {
-						sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-							script_id: entry.script.id
-						}});
-					});
-				}
-			}
-		};
-		buttongrid_select.addEventListener("change", create_buttons);
-		create_buttons();
+		buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
 	});
 
 	// Chat
