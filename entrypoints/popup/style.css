@@ -10,8 +10,6 @@ button { cursor: pointer; }
 
 /* Form Components */
 .fc-container { position: relative; margin: 1rem .4rem 0 .4rem; }
-.fc-container-2 { display: inline-block; width: calc(50% - .4rem * 2); }
-.fc-container-3 { display: inline-block; width: calc(33.33% - .4rem * 2); }
 .fc {
     width: 100%;
     max-width: -moz-available; max-width: -webkit-fill-available;
@@ -58,6 +56,10 @@ button.fc-reset { cursor: pointer; user-select: none; }
 }
 .fc-b { display: block; width: initial; min-width: none; }
 .fc-small { font-size: .8em; padding: 4px; }
+.fc-container-margin { margin: .4rem; }
+.fc-container-2 { display: inline-block; width: calc(50% - .4rem * 2); }
+.fc-container-3 { display: inline-block; width: calc(33.33% - .4rem * 2); }
+.fc-container-4 { display: inline-block; width: calc(25% - .4rem * 2); }
 
 .controller-header { background-color: #39495e; font-size: .9rem; padding: .6rem .6rem 0 .6rem; font-weight: bold; }
 .controller-header > * { display: inline-block; vertical-align: middle; text-align: center; margin-bottom: .6rem; }

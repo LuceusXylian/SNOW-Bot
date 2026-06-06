@@ -102,6 +102,11 @@ export function error_message(error: string) {
 	return { success: false, error: error };
 }
 
+export interface ButtonGrid {
+	title: string,
+	buttons: { text?: string, script: Script }[]
+}
+
 export interface SharedDataInner {
 	//** if false, it acts as a kill switch and stops any proccesses in "content.ts" */
 	active: boolean,
@@ -110,6 +115,8 @@ export interface SharedDataInner {
 	templates: TemplateData[],
 	scripts: Script[],
 	triggers: Trigger[],
+	button_grids: ButtonGrid[],
+	button_grid_index: number,
 }
 
 
@@ -341,6 +348,8 @@ export class SharedData {
 			templates: data.templates ?? [],
 			scripts: data.scripts ?? [],
 			triggers: data.triggers ?? [],
+			button_grids: data.button_grids ?? [],
+			button_grid_index: data.button_grid_index ?? -1,
 		};
 	}
 
