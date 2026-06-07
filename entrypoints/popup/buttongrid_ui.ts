@@ -16,7 +16,18 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 		options.push({ value: index.toString(), title: grid.title });
 	}
 	const buttongrid_select = create_formcontrol(buttongrid_container, "select", "buttongrid_select", "Profile", {options: options, value: shared.data.button_grid_index });
-	buttongrid_select.parentElement!.style = "margin: 0";
+	buttongrid_select.parentElement!.style = "margin: 0 6px 0 0; display: inline-block; vertical-align: top; width: calc(100% - 50px - 6px);";
+	const edit_mode_toggler_text = "Edit";
+	const edit_mode_toggler = create_text_element(buttongrid_container, "button", edit_mode_toggler_text, { class: "fc fc-small" });
+	edit_mode_toggler.style.cssText = "display: inline-block; vertical-align: top; width: 50px; line-height: 1.1; height: "+buttongrid_select.parentElement!.clientHeight+"px";
+	edit_mode_toggler.addEventListener("click", () => {
+		button_edit_mode = !button_edit_mode;
+		if (button_edit_mode) {
+			edit_mode_toggler.innerText = edit_mode_toggler_text + " (active)";
+		} else {
+			edit_mode_toggler.innerText = edit_mode_toggler_text;
+		}
+	});
 	const buttons_container = create_element(buttongrid_container, "div", { style:"margin-top: 20px;" });
 
 	const create_buttons = async () => {
@@ -28,7 +39,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 				
 				const new_buttons: ButtonGridButton[] = [];
 				for (let a = 0; a < 16; a++) {
-					new_buttons.push({ text: "", script: null })
+					new_buttons.push({ text: "", script_id: null })
 				}
 				shared.data.button_grids.push({ title: result.title, buttons: new_buttons });
 				shared.applyStateChange({
@@ -64,16 +75,27 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			const grid = shared.data.button_grids[button_grid_index];
 			
 			for (let b = 0; b < grid.buttons.length; b++) {
+				const index = b;
 				const entry = grid.buttons[b];
 				const button = create_text_element(buttons_container, "button", entry.text, { class: "fc fc-margin fc-container-4" });
-				button.addEventListener("click", () => {
+				button.addEventListener("click", async () => {
 					if (button_edit_mode) {
-						// TODO: start modal to prompt for ButtonGrid title and Script
-						// create_formcontrol(container, "text", "title", "Button text (optional)", {});
-						// create_formcontrol(container, "select", "script_index", "Script", {});
-					} else if(entry.script !== null) {
+						// start modal to prompt for ButtonGrid title and Script
+						const result = await create_modal((container) => {
+							create_formcontrol(container, "text", "text", "Button text", { value: entry.text });
+							const script_options: { value: string, title: string }[] = [];
+							for (const script of shared.data.scripts) {
+								script_options.push({ value: script.id.toString(), title: script.name });
+							}
+							create_formcontrol(container, "select", "script_id", "Script", { value: entry.script_id?.toString()??"", options: script_options });
+						});
+						shared.data.button_grids[button_grid_index].buttons[index].text = result.text;
+						shared.data.button_grids[button_grid_index].buttons[index].script_id = result.script_id;
+						await shared.applyStateChange({ button_grids: shared.data.button_grids });
+						buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
+					} else if(entry.script_id !== null) {
 						sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-							script_id: entry.script.id
+							script_id: entry.script_id
 						}});
 					}
 				});

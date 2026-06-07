@@ -138,7 +138,7 @@ export function create_modal(onCreate: (container: HTMLElement) => void): Promis
 			reject('Modal closed');
 		});
 
-		submitButton.addEventListener('click', () => {
+		const submit_fn = () => {
 			const results: Record<string, string> = {};
 			const controls = container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input[name], textarea[name], select[name]');
 			controls.forEach((control) => {
@@ -148,9 +148,23 @@ export function create_modal(onCreate: (container: HTMLElement) => void): Promis
 			});
 			fadeOutAndRemove(modal);
 			resolve(results);
-		});
+		};
+		submitButton.addEventListener('click', submit_fn);
 
 		onCreate(container);
+		// After the caller populates `container`, attach Enter handling
+		// to the last input so Enter submits the modal.
+		const controlsAfter = container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input[name], textarea[name], select[name]');
+		if (controlsAfter.length > 0) {
+			const lastControl = controlsAfter[controlsAfter.length - 1];
+			if (lastControl instanceof HTMLInputElement) {
+				lastControl.addEventListener('keyup', (ev: KeyboardEvent) => {
+					if (ev.key === 'Enter') {
+						submit_fn();
+					}
+				});
+			}
+		}
 		fadeIn(modal);
 	});
 }

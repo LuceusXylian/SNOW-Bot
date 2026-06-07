@@ -109,7 +109,7 @@ export interface ButtonGrid {
 
 export interface ButtonGridButton {
 	text: string,
-	script: Script|null
+	script_id: string|null
 }
 
 export interface SharedDataInner {
