@@ -1,6 +1,6 @@
 import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect } from "@/components/basics";
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
-import { KEY_SHARED_DATA } from "@/components/constants";
+import { KEY_SHARED_DATA, APP_NAME } from "@/components/constants";
 import { storage } from '#imports';
 import { ActionKind, Script } from "@/components/scripting";
 
@@ -42,7 +42,7 @@ export default defineBackground(() => {
 		 * Message handler for all incoming messages
 		 */
 		async function handleMessage(message: Message, sender?: any): Promise<MessageResponse<any>> {
-			LOGGER.debug(`Received message: ${message.type}`, message, { tabId: sender?.tab?.id });
+			LOGGER.debug(`Received message: ${message.type}`, message);
 
 			try {
 				switch (message.type) {
@@ -165,12 +165,8 @@ export default defineBackground(() => {
 					}
 
 					case MessageType.EXECUTE_SCRIPT: {
-						// Handle template creation/update/deletion
-						const { session_id, script_id } = message.data || {};
-
-						if (typeof session_id !== "number") {
-							return error_message("Invalid session_id "+session_id);
-						}
+						let { session_id, script_id } = message.data || {};
+						if (typeof session_id !== "number") session_id = null;
 
 						if (script_id) {
 							const script = shared.get_script(script_id);
@@ -196,8 +192,9 @@ export default defineBackground(() => {
 		registerMessageHandler(handleMessage);
 
 		// create function to send progress reports
-		async function progress_report(session_id: number, message: string) {
+		async function progress_report(session_id: number|null, message: string) {
 			LOGGER.log("PROGRESS_REPORT", message);
+			if(session_id === null) return;
 
 			try {
 				await browser.runtime.sendMessage({
@@ -209,7 +206,7 @@ export default defineBackground(() => {
 			}
 		}
 
-		async function script_worker(session_id: number, script: Script, _bot?: BotInstance) {
+		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance) {
 			const bot = _bot?? await COMMANDER.getBotFocus();
 			progress_report(session_id, "Script `"+script.name+"` started");
 
@@ -255,6 +252,31 @@ export default defineBackground(() => {
 								default: throw new Error("ActionKind.MESSAGE_TYPE:"+action.type.message_type+" is not supported");
 							}
 							progress_report(session_id, "DONE  Action: "+action.type.name);
+							break;
+						}
+					
+						case ActionKind.NOTIFY: {
+							if(!action.arguments.text) throw new Error("Error in script#"+script.id+": action.arguments.text is invalid");
+							progress_report(session_id, "NOTIFY: "+action.arguments.text);
+							// create a simple browser notification
+							try {
+								await browser.notifications.create('notify-'+Date.now(), {
+									type: 'basic',
+									title: APP_NAME,
+									message: action.arguments.text,
+									iconUrl: browser.runtime.getURL('/icon-48.png')
+								});
+							} catch (err) {
+								LOGGER.log('Notification error', err);
+							}
+							if(shared.data.allow_alert_notify) COMMANDER.sendMessageFocus(MessageType.ALERT, { text: action.arguments.text });
+							break;
+						}
+					
+						case ActionKind.WAIT: {
+							if(!action.arguments.seconds) throw new Error("Error in script#"+script.id+": action.arguments.seconds is invalid");
+							progress_report(session_id, "WAIT: "+action.arguments.seconds+" seconds");
+							await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
 							break;
 						}
 					

@@ -11,10 +11,9 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 	];
 	for (let index = 0; index < shared.data.button_grids.length; index++) {
 		const grid = shared.data.button_grids[index];
-		console.log("gridgridgrid", grid);
-		
 		options.push({ value: index.toString(), title: grid.title });
 	}
+
 	const buttongrid_select = create_formcontrol(buttongrid_container, "select", "buttongrid_select", "Profile", {options: options, value: shared.data.button_grid_index });
 	buttongrid_select.parentElement!.style = "margin: 0 6px 0 0; display: inline-block; vertical-align: top; width: calc(100% - 50px - 6px);";
 	const edit_mode_toggler_text = "Edit";
@@ -55,7 +54,8 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			return;
 		}
 
-		const button_grid_index = parseInt(buttongrid_select.value);
+		let button_grid_index = parseInt(buttongrid_select.value);
+		if(Number.isNaN(button_grid_index)) button_grid_index = -1;
 		shared.applyStateChange({ button_grid_index: button_grid_index });
 		buttons_container.innerHTML = "";
 

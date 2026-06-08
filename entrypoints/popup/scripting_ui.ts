@@ -1,10 +1,11 @@
 import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
-import { SCRIPTING_VERSION } from "@/components/constants";
+import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { alert_modal, create_formcontrol } from "@/components/ui";
-import { IS_POPUP } from "./main";
 
+
+export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
 
 export class ScriptingUI {
 	shared: SharedData;
@@ -415,7 +416,7 @@ export class ScriptingUI {
 			
 			shared.setScript({
 				version: SCRIPTING_VERSION,
-				id: initial?.id ?? new Date().getTime(),
+				id: initial?.id ?? "SCRIPT"+new Date().getTime(),
 				name: name,
 				lines: linesForms.map(f => f.form.get())
 			});

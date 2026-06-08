@@ -14,6 +14,7 @@ export enum MessageType {
 	PROGRESS_REPORT = "PROGRESS_REPORT",
 	CHECK_CONDITIONS = "CHECK_CONDITIONS",
 	ELEMENT_SELECTOR = "ELEMENT_SELECTOR",
+	ALERT = "ALERT",
 }
 
 export interface Message {

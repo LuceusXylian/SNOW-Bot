@@ -33,6 +33,8 @@ export enum ActionKind {
 	/** Run a script. Could be dangerous if a script is calling itself over and over again. */
 	SCRIPT = 0,
 	MESSAGE_TYPE = 1,
+	NOTIFY = 2,
+	WAIT = 3,
 }
 
 export interface ActionType {
@@ -47,15 +49,17 @@ export interface ActionType {
 }
 
 export interface Reference {
-	id: number,
+	id: string,
 	name: string,
 }
 
 export interface Action {
 	type: ActionType,
 	arguments: {
-		element_selector?: string;
-		id?: number|string
+		element_selector?: string,
+		id?: string,
+		text?: string,
+		seconds?: number,
 	},
 }
 
@@ -71,6 +75,16 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		message_type: MessageType.INSERT_TEMPLATE,
 		available_arguments: [{argument: "id", type: "text", required: true, reference: "templates"}, { argument: "element_selector", type: "text", required: true }]
 	},
+	{
+		name: "Notification",
+		kind: ActionKind.NOTIFY,
+		available_arguments: [{argument: "text", type: "text", required: true}]
+	},
+	{
+		name: "Wait",
+		kind: ActionKind.WAIT,
+		available_arguments: [{argument: "seconds", type: "number", required: true}]
+	},
 ];
 
 export interface ScriptLine {
@@ -81,7 +95,7 @@ export interface ScriptLine {
 
 export interface Script {
 	version: number,
-	id: number,
+	id: string,
 	name: string,
 	lines: ScriptLine[],
 }

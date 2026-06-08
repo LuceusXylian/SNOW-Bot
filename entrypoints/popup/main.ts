@@ -1,24 +1,27 @@
 import { SharedData, LogFrom, Logger, BotCommander, LogEntry, dateToISOString } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
-import { KEY_POPUP_MENU_INDEX } from '@/components/constants';
+import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal } from '@/components/ui';
 import { ScriptingUI } from './scripting_ui';
 import { buttongrid_ui } from './buttongrid_ui';
 
 
-const IS_POPUP_QUERY_STRING = "?is_popup=0";
-export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
 const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
 
 // #open_new_tab
+export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
+
+function open_new_tab(hash: string) {
+	window.open(location.protocol+"//"+location.host+location.pathname + IS_POPUP_QUERY_STRING + hash, '_blank');
+}
 (() => {
 	const controller_title_main = document.getElementById("controller_title_main")!;
 	const new_tab_button = document.getElementById("open_new_tab")!;
 	if (IS_POPUP) {
 		new_tab_button.addEventListener("click", () => {
-			window.open(location.protocol+"//"+location.host+location.pathname + IS_POPUP_QUERY_STRING + location.hash, '_blank');
+			open_new_tab(location.hash);
 			window.close();
 		});
 	} else {
@@ -39,6 +42,12 @@ LOGGER.debug("Popup started");
 })();
 
 async function init(COMMANDER: BotCommander, shared: SharedData) {
+	if (document.body.dataset.is_init) {
+		alert("WHY is init executed multiple times?")
+		return;
+	}
+	document.body.dataset.is_init = "1";
+
 	// Active Toggler
 	const active_toggler = document.getElementById("active-toggler")!;
 	const active_label = document.getElementById("active-label")!;
@@ -302,6 +311,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const settingsAttributes = [
 		{ key: "allow_prompt" as const, label: "Allow prompt() if value could not be determined" },
 		{ key: "paste_cleaner_enabled" as const, label: "Clean paste input (Ctrl+V)" },
+		{ key: "allow_alert_notify" as const, label: "Allow alert() for notifications" },
 	];
 
 	settingsAttributes.forEach(({ key, label }) => {
@@ -323,7 +333,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	scripting_title.addEventListener("click", () => {
 		if (IS_POPUP) {
 			// Script Editor should only be used in a free window
-			window.open(location.href + "#" + scripting_title.id, '_blank');
+			open_new_tab("#"+scripting_title.id);
 			window.close();
 		}
 		scripting_container.innerHTML = "";

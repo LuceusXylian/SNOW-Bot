@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES } from "./constants";
+import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
 import { Script, Trigger } from "./scripting";
 
@@ -117,6 +117,7 @@ export interface SharedDataInner {
 	active: boolean,
 	allow_prompt: boolean,
 	paste_cleaner_enabled: boolean,
+	allow_alert_notify: boolean,
 	templates: TemplateData[],
 	scripts: Script[],
 	triggers: Trigger[],
@@ -350,6 +351,7 @@ export class SharedData {
 			active: data.active ?? DEFAULT_ACTIVE,
 			allow_prompt: data.allow_prompt ?? DEFAULT_ALLOW_PROMPT,
 			paste_cleaner_enabled: data.paste_cleaner_enabled ?? DEFAULT_PASTE_CLEANER_ENABLED,
+			allow_alert_notify: data.allow_alert_notify ?? DEFAULT_ALLOW_ALERT_NOTIFY,
 			templates: data.templates ?? [],
 			scripts: data.scripts ?? [],
 			triggers: data.triggers ?? [],
@@ -389,7 +391,7 @@ export class SharedData {
 		return await this.applyStateChange({ scripts: this.data.scripts });
 	}
 
-	async deleteScript(scriptId: number) {
+	async deleteScript(scriptId: string) {
 		return await this.applyStateChange({ scripts: this.data.scripts.filter(t => t.id !== scriptId) });
 	}
 
@@ -425,13 +427,13 @@ export class SharedData {
 		this.COMMANDER.LOGGER.debug("SharedData persisted to extension storage");
 	}
 
-	get_template(id: string|number) {
+	get_template(id: string) {
 		const template = this.data.templates.find((s) => s.id === id);
 		if(!template) throw new Error("Template with ID:"+id+" does not exist");
 		return template;
 	}
 
-	get_script(id: string|number) {
+	get_script(id: string) {
 		const script = this.data.scripts.find((s) => s.id === id);
 		if(!script) throw new Error("Script with ID:"+id+" does not exist");
 		return script;

@@ -111,6 +111,11 @@ class BackgroundMessageHandler {
 						return success_message({});
 					}
 				}
+				
+				case MessageType.ALERT: {
+					const { text } = message.data || {};
+					alert(text);
+				}
 
 				default: return error_message(`Unknown message type: ${message.type}`);
 			}
