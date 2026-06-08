@@ -218,6 +218,13 @@ class BackgroundMessageHandler {
 				if(element === null) return null;
 				return element.outerHTML;
 			}
+			case ConditionTargetType.ELEMENT_ATTRIBUTE: {
+				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs element_selector");
+				if(!target.attribute) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs attribute");
+				const element = document.querySelector(target.element_selector);
+				if(element === null) return null;
+				return element.getAttribute(target.attribute);
+			}
 		}
 		throw new Error("Unknown ConditionTargetType:"+target.target_type);
 	}

@@ -113,6 +113,7 @@ export class ScriptingUI {
 				{ title: "URL", value: String(ConditionTargetType.URL) },
 				{ title: "Domain", value: String(ConditionTargetType.DOMAIN) },
 				{ title: "Element", value: String(ConditionTargetType.ELEMENT) },
+				{ title: "Element Attribute", value: String(ConditionTargetType.ELEMENT_ATTRIBUTE) },
 			]
 		});
 	
@@ -131,12 +132,19 @@ export class ScriptingUI {
 		
 		const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
 		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
+		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "", class: "fc-container-3" });
 		
 		const targetTypeSelect_change = () => {
-			if (targetTypeSelect.value === String(ConditionTargetType.ELEMENT)) {
-				element_selector_container.style.display = ""
+			const type = parseInt(targetTypeSelect.value);
+			if (type === ConditionTargetType.ELEMENT || type === ConditionTargetType.ELEMENT_ATTRIBUTE) {
+				element_selector_container.style.display = "";
 			} else {
-				element_selector_container.style.display = "none"
+				element_selector_container.style.display = "none";
+			}
+			if (type === ConditionTargetType.ELEMENT_ATTRIBUTE) {
+				attribiteInput.parentElement!.style.display = "";
+			} else {
+				attribiteInput.parentElement!.style.display = "none";
 			}
 		};
 		targetTypeSelect.addEventListener("change", targetTypeSelect_change);
@@ -157,7 +165,8 @@ export class ScriptingUI {
 				return {
 					target: {
 						target_type: parseInt(targetTypeSelect.value),
-						element_selector: element_selector_input.value || undefined
+						element_selector: element_selector_input.value || undefined,
+						attribute: attribiteInput.value || undefined
 					},
 					type: parseInt(typeSelect.value),
 					static_value: valueInput.value

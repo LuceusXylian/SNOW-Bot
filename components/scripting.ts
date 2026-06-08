@@ -14,11 +14,13 @@ export enum ConditionTargetType {
 	DOMAIN = 1,
 	/** Element must exist for the `Condition` to succeed */
 	ELEMENT = 2,
+	ELEMENT_ATTRIBUTE = 3,
 }
 
 export interface ConditionTarget {
 	target_type: ConditionTargetType,
 	element_selector?: string
+	attribute?: string
 }
 
 export interface Condition {
