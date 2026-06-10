@@ -223,11 +223,14 @@ export class BotCommander {
 	/**
 	 * @returns `BotInstance` that is not busy
 	 */
-	private async getBot(): Promise<BotInstance> {
+	async getBot(id: number): Promise<BotInstance> {
 		for (let z = this.botInstances.length -1; z >= 0; z--) {
-			if (!this.botInstances[z].is_busy) {
-				return this.botInstances[z];
-			}			
+			if (this.botInstances[z].bot_id === id) {
+				if (!this.botInstances[z].is_busy) {
+					return this.botInstances[z];
+				}
+				break;			
+			}
 		}
 		throw new Error("No active bot instance found");
 	}
@@ -437,6 +440,12 @@ export class SharedData {
 		const script = this.data.scripts.find((s) => s.id === id);
 		if(!script) throw new Error("Script with ID:"+id+" does not exist");
 		return script;
+	}
+
+	get_trigger(id: string) {
+		const trigger = this.data.triggers.find((s) => s.id === id);
+		if(!trigger) throw new Error("Trigger with ID:"+id+" does not exist");
+		return trigger;
 	}
 }
 

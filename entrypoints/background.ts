@@ -1,6 +1,6 @@
 import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect } from "@/components/basics";
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
-import { KEY_SHARED_DATA, APP_NAME } from "@/components/constants";
+import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
 import { storage } from '#imports';
 import { ActionKind, Script } from "@/components/scripting";
 
@@ -176,6 +176,25 @@ export default defineBackground(() => {
 							}
 						}
 						return error_message("Invalid script with id "+script_id);
+					}
+					
+					case MessageType.TRIGGER_FIRED: {
+						let { session_id, focus_bot, bot_id, trigger_id } = message.data || {};
+						if (typeof session_id !== "number") session_id = null;
+						const bot = focus_bot? await COMMANDER.getBotFocus() : await COMMANDER.getBot(bot_id);
+						if(!trigger_id) return error_message("Invalid trigger with id "+trigger_id);
+						const trigger = shared.get_trigger(trigger_id);
+						const script = shared.get_script(trigger.script_id);
+
+						if (trigger.conditions.length) {
+							// Send conditions to bot (if it has some)
+							const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: trigger.conditions });
+							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed");
+						}
+
+						progress_report(session_id, "Trigger `"+trigger.name+"` conditions fulfilled.");
+						script_worker(session_id, script, bot);
+						return success_message({});
 					}
 
 					default:

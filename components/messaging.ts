@@ -13,6 +13,7 @@ export enum MessageType {
 	EXECUTE_SCRIPT = "EXECUTE_SCRIPT",
 	PROGRESS_REPORT = "PROGRESS_REPORT",
 	CHECK_CONDITIONS = "CHECK_CONDITIONS",
+	TRIGGER_FIRED = "TRIGGER_FIRED",
 	ELEMENT_SELECTOR = "ELEMENT_SELECTOR",
 	ALERT = "ALERT",
 }
@@ -34,6 +35,7 @@ export interface MessageResponse<T> {
  * @returns Promise resolving with the response from the handler
  */
 export async function sendMessage<T>(LOGGER: Logger, message: Message): Promise<MessageResponse<T>> {
+	LOGGER.debug(message);
 	try {
 		const response = await browser.runtime.sendMessage(message);
 		return response || { success: true };

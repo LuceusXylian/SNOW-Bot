@@ -162,6 +162,7 @@ export class ScriptingUI {
 		typeSelect_change();
 	
 		return {
+			elem: container,
 			get(): Condition {
 				return {
 					target: {
@@ -454,12 +455,12 @@ export class ScriptingUI {
 		
 		// Script section
 		create_text_element(container, "h4", "Associated Script");
-		const script_select = create_element(container, "select");
+		const script_select = create_element(container, "select") as HTMLSelectElement;
 		create_text_element(container, "option", "select a Script..", { value: "", style: "display: none;" });
-		for (let index = 0; index < shared.data.scripts.length; index++) {
-			const script = shared.data.scripts[index];
-			const script_option = create_text_element(container, "option", script.name, { value: index.toString() });
+		for (const script of shared.data.scripts) {
+			create_text_element(container, "option", script.name, { value: script.id });
 		}
+		script_select.value = initial?.script_id ?? "";
 		
 		
 		// Save button
@@ -470,13 +471,19 @@ export class ScriptingUI {
 				return;
 			}
 			script_select.style.borderColor = "";
-			const script = shared.data.scripts[parseInt(script_select.value)];
-	
+			const script = shared.data.scripts.find((item) => item.id === script_select.value);
+			if (!script) {
+				script_select.style.borderColor = "red";
+				return;
+			}
+
 			const trigger: Trigger = {
+				id: initial?.id ?? `TRG${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+				name: initial?.name ?? "",
+				script_id: script.id,
 				events: initial?.events ?? [],
 				every: everyInput.value ? parseInt(everyInput.value) : null,
 				conditions: conditionForms.map(f => f.get()),
-				script: script
 			};
 			(container as any).trigger = trigger;
 		});

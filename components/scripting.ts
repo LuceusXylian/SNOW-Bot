@@ -107,13 +107,14 @@ export interface TriggerEvent {
 }
 
 export interface Trigger {
+	id: string,
+	name: string,
+	script_id: string,
 	/** triggers on any event */
 	events: TriggerEvent[],
-	/** triggers every x nanoseconds using setInterval */
-	every: number|null
+	/** triggers every x seconds using setInterval */
+	every: number|null,
 	/** Additinal conditions before executing script */
 	conditions: Condition[],
-	/** Array of actions that will be executed if all conditions are fullfilled */
-	script: Script
 }
 

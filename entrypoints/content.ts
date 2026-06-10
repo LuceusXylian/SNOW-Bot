@@ -1,7 +1,7 @@
 import { LogFrom, Logger, SharedData, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
-import { Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
+import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
@@ -16,6 +16,8 @@ class BackgroundMessageHandler {
 	shared: SharedData;
 	bot_id: number;
 	element_selector_abort_controller: AbortController[] = [];
+	trigger_watchers: Array<() => void> = [];
+	trigger_timestamp: number = 0;
 
 	constructor(shared: SharedData, bot_id: number) {
 		this.shared = shared;
@@ -55,31 +57,30 @@ class BackgroundMessageHandler {
 						LOGGER.debug("No focused element to insert template into");
 						return error_message("No element focused");
 					}
-	
+
 					const resolvedContent = await this.resolveTemplateContent(content);
-	
 					if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement) {
 						const start = target_element.selectionStart || 0;
 						const end = target_element.selectionEnd ?? target_element.value.length;
-	
+
 						target_element.value =
 							target_element.value.slice(0, start) +
 							resolvedContent +
 							target_element.value.slice(end);
-	
+
 						const newPos = start + resolvedContent.length;
 						target_element.setSelectionRange(newPos, newPos);
-	
+
 						target_element.dispatchEvent(new Event("input", { bubbles: true }));
 						target_element.dispatchEvent(new Event("change", { bubbles: true }));
-	
+
 						LOGGER.debug("Template inserted successfully", { resolvedContent });
 						return success_message({ inserted: true, resolvedContent });
 					}
-	
+
 					return error_message("Unsupported element type for template insertion");
 				}
-				
+
 				case MessageType.CHECK_CONDITIONS: {
 					// All conditions need to be true
 					const conditions = message.data.conditions as Condition[];
@@ -122,6 +123,66 @@ class BackgroundMessageHandler {
 		} catch (error) {
 			LOGGER.log("Error handling message", error);
 			return error_message(error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	dispose_trigger_watchers() {
+		for (const dispose of this.trigger_watchers) {
+			dispose();
+		}
+		this.trigger_watchers = [];
+	}
+
+	setup_trigger_watchers() {
+		console.log("setup_trigger_watchers", this.shared.data.triggers);
+		
+		this.dispose_trigger_watchers();
+		if (!Array.isArray(this.shared.data.triggers)) return;
+		console.log("setup_trigger_watchers RUN", this.shared.data.triggers);
+
+		for (const trigger of this.shared.data.triggers) {
+			if (trigger.every && trigger.every > 0 && window.top === window) {
+				const intervalId = window.setInterval(() => {
+					this.evaluate_trigger(trigger);
+				}, trigger.every * 1000);
+				this.trigger_watchers.push(() => window.clearInterval(intervalId));
+			}
+
+			for (const event of trigger.events) {
+				if (!event.event_type || !event.element_selector) continue;
+				const listener = async (ev: Event) => {
+					console.log("listener");
+					const target = ev.target;
+					if (!(target instanceof Element)) return;
+					if (target.closest(event.element_selector)) {
+						await this.evaluate_trigger(trigger);
+					}
+				};
+				document.addEventListener(event.event_type, listener, true);
+				this.trigger_watchers.push(() => document.removeEventListener(event.event_type, listener, true));
+				
+				// Deep tracker
+				for (const element of querySelectorAll(event.element_selector)) {
+					element.addEventListener(event.event_type, listener, true);
+					element.addEventListener("click", listener, true);
+					console.log("setup_trigger_watchers element EVENT", element);
+					console.log("event.event_type", event.event_type);
+
+					this.trigger_watchers.push(() => element.removeEventListener(event.event_type, listener, true));
+				}
+			}
+		}
+	}
+
+	async evaluate_trigger(trigger: Trigger) {
+		if (!this.shared.data.active) return;
+		if (!trigger.script_id) return;
+
+		const timestamp_now = new Date().getTime();		
+		if (timestamp_now - this.trigger_timestamp > TRIGGER_COOLDOWN) {
+			this.trigger_timestamp = timestamp_now;
+			await sendMessage(LOGGER, { type: MessageType.TRIGGER_FIRED, data: { bot_id: this.bot_id, trigger_id: trigger.id } });
+			return;
 		}
 	}
 
@@ -492,6 +553,7 @@ export default defineContentScript({
 		// Register message handler with bot_id context
 		const background_message_handler = new BackgroundMessageHandler(shared, bot_id);
 		registerMessageHandler((message) => background_message_handler.handle(message));
+		background_message_handler.setup_trigger_watchers();
 		
 		// SEND BOT_READY, set is_busy=false
 		const response = await sendMessage(LOGGER, { type: MessageType.BOT_READY, data: {bot_id: bot_id, href: location.href} });

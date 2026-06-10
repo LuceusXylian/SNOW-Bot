@@ -4,6 +4,7 @@ import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal } from '@/components/ui';
 import { ScriptingUI } from './scripting_ui';
+import { TriggersUI } from './triggers_ui';
 import { buttongrid_ui } from './buttongrid_ui';
 
 
@@ -339,10 +340,18 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		scripting_container.innerHTML = "";
 		new ScriptingUI(shared, LOGGER, COMMANDER).build_scripting_list(scripting_container);
 	});
-	
+
 	// Triggers
-	// TODO: add form to create new Trigger
-	// TODO: list all triggers with actions: edit, delete
+	const triggers_title = document.getElementById("triggers")!;
+	const triggers_container = document.getElementById("triggers_container")!;
+	triggers_title.addEventListener("click", () => {
+		if (IS_POPUP) {
+			open_new_tab("#"+triggers_title.id);
+			window.close();
+		}
+		triggers_container.innerHTML = "";
+		new TriggersUI(shared, LOGGER, COMMANDER).build_triggers_list(triggers_container);
+	});
 
 	// ButtonGrid
 	const buttongrid_title = document.getElementById("buttongrid")!;
