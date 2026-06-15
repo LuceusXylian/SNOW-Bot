@@ -63,7 +63,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			// Get all scripts as buttons
 			for (let b = 0; b < shared.data.scripts.length; b++) {
 				const script = shared.data.scripts[b];
-				const button = create_text_element(buttons_container, "button", script.name, { class: "fc fc-margin fc-container-4" });
+				const button = create_text_element(buttons_container, "button", script.name, { class: "fc fc-margin fc-container-4", style: "min-width: min-content;" });
 				button.addEventListener("click", () => {
 					sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
 						script_id: script.id
@@ -77,7 +77,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			for (let b = 0; b < grid.buttons.length; b++) {
 				const index = b;
 				const entry = grid.buttons[b];
-				const button = create_text_element(buttons_container, "button", entry.text, { class: "fc fc-margin fc-container-4" });
+				const button = create_text_element(buttons_container, "button", entry.text, { class: "fc fc-margin fc-container-4", style: "min-width: min-content;" });
 				button.addEventListener("click", async () => {
 					if (button_edit_mode) {
 						// start modal to prompt for ButtonGrid title and Script
