@@ -45,12 +45,12 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content, element_selector } = message.data || {};
+					const { content, element_selector, delete_insert } = message.data || {};
 					if (!content) return error_message("No template content provided");
 					let target_element: HTMLElement;
 					if (element_selector) {
 						target_element = querySelector(element_selector)!;
-						if(target_element === null) return error_message("target_element is null, because the element_selector is unable to find the element");
+						if(target_element === null) return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					} else if (lastFocusedElement) {
 						target_element = lastFocusedElement;
 					} else {
@@ -60,16 +60,20 @@ class BackgroundMessageHandler {
 
 					const resolvedContent = await this.resolveTemplateContent(content);
 					if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement) {
-						const start = target_element.selectionStart || 0;
-						const end = target_element.selectionEnd ?? target_element.value.length;
-
-						target_element.value =
-							target_element.value.slice(0, start) +
-							resolvedContent +
-							target_element.value.slice(end);
-
-						const newPos = start + resolvedContent.length;
-						target_element.setSelectionRange(newPos, newPos);
+						if (delete_insert) {
+							target_element.value = resolvedContent;
+						} else {
+							const start = target_element.selectionStart || 0;
+							const end = target_element.selectionEnd ?? target_element.value.length;
+	
+							target_element.value =
+								target_element.value.slice(0, start) +
+								resolvedContent +
+								target_element.value.slice(end);
+	
+							const newPos = start + resolvedContent.length;
+							target_element.setSelectionRange(newPos, newPos);
+						}
 
 						target_element.dispatchEvent(new Event("input", { bubbles: true }));
 						target_element.dispatchEvent(new Event("change", { bubbles: true }));
@@ -512,7 +516,7 @@ function paste_cleaner(shared: SharedData) {
 }
 
 export default defineContentScript({
-	matches: ['https://siam.service-now.com/*', '*://*.service-now.com/*', "file:///*"],
+	matches: ["<all_urls>", 'https://siam.service-now.com/*', '*://*.service-now.com/*', "file:///*"],
 	allFrames: true,
 	async main() {
 		LOGGER.debug('Content script started in', window.location.href);

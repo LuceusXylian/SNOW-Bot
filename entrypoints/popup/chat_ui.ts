@@ -37,8 +37,7 @@ export class ChatUI extends ScriptingUI {
 				const instance = ChatUI.activeInstance;
 				if (instance && message.data && message.data.session_id === instance.SESSION_ID && message.data.message) {
 					console.log("message.data", message.data);
-					
-					instance.appendHistory("progress", "Progress", message.data.message, String(message.data.meta ?? ""));
+					instance.appendHistory(message.data.kind, message.data.kind, message.data.message, String(message.data.meta ?? ""));
 				}
 			}
 			return { success: true };

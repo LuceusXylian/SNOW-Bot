@@ -69,11 +69,21 @@ export class Logger {
 	log(...params: any[]) {
 		const prefix = "[" + log_from_to_string(this.from) + "]";
 		console.log(prefix, ...params);
+
+		let text = prefix;
+		for (const param of params) {
+			text += " ";
+			if (typeof param === "object") {
+				text += JSON.stringify(params);
+			} else {
+				text += String(param);
+			}
+		}
 		
 		const new_log: LogEntry = {
 			from: this.from,
 			timestamp: new Date().getTime(),
-			text: prefix + " " + String(...params),
+			text,
 		};
 		if (this.from === LogFrom.background) {
 			this.log_array.push(new_log);
@@ -158,12 +168,39 @@ export class BotCommander {
 					this.is_busy = true;
 					
 					try {
-						const response = await browser.tabs.sendMessage(this.tabId, {
+						// First we try the main frame
+						const mf_response = await browser.tabs.sendMessage(this.tabId, {
 							type: message_type,
 							data: data,
 						});
+
+						// we iterate all frames until we get success
+						if (!mf_response.success) {
+							const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
+							if (frames) {
+								// start at 1 to skip main frame
+								for (let f = 1; f < frames.length; f++) {
+									console.log("sendMessage frame "+f, frames[f].url);
+									
+									try {
+										const response = await browser.tabs.sendMessage(this.tabId, {
+											type: message_type,
+											data: data,
+										}, { frameId: frames[f].frameId });
+		
+										console.log("sendMessage response", response);
+										if (response.success) {
+											this.is_busy = false;
+											return response;
+										}
+									} catch (error) {
+										self.LOGGER.log("sendMessage(", message_type, ", ", data, ") failed for tabId:"+this.tabId+" frameId:"+frames[f].frameId);
+									}
+								}
+							}
+						}
 						this.is_busy = false;
-						return response;
+						return mf_response;
 					} catch (error) {
 						this.is_busy = false;
 						self.LOGGER.log(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);

@@ -365,10 +365,6 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const chat_title = document.getElementById("chat")!;
 	const chat_container = document.getElementById("chat_container")!;
 	chat_title.addEventListener("click", () => {
-		if (IS_POPUP) {
-			open_new_tab("#" + chat_title.id);
-			window.close();
-		}
 		chat_container.innerHTML = "";
 		new ChatUI(shared, LOGGER, COMMANDER).build(chat_container);
 	});

@@ -171,9 +171,10 @@ export default defineBackground(() => {
 						if (script_id) {
 							const script = shared.get_script(script_id);
 							if (script) {
-								script_worker(session_id, script);
+								void script_worker(session_id, script);
 								return success_message({});
 							}
+							await progress_report(session_id, { name: String(script_id) } as Script, "error", "Invalid script with id " + script_id);
 						}
 						return error_message("Invalid script with id "+script_id);
 					}
@@ -184,16 +185,24 @@ export default defineBackground(() => {
 						const bot = focus_bot? await COMMANDER.getBotFocus() : await COMMANDER.getBot(bot_id);
 						if(!trigger_id) return error_message("Invalid trigger with id "+trigger_id);
 						const trigger = shared.get_trigger(trigger_id);
+						if (!trigger) {
+							await progress_report(session_id, { name: String(trigger_id) } as Script, "error", "Invalid trigger with id " + trigger_id);
+							return error_message("Invalid trigger with id "+trigger_id);
+						}
 						const script = shared.get_script(trigger.script_id);
+						if (!script) {
+							await progress_report(session_id, { name: trigger.name } as Script, "error", "Trigger `"+trigger.name+"` references missing script `"+trigger.script_id+"`.");
+							return error_message("Trigger #"+trigger_id+" references missing script");
+						}
 
 						if (trigger.conditions.length) {
 							// Send conditions to bot (if it has some)
 							const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: trigger.conditions });
-							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed");
+							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
-						progress_report(session_id, script, "Trigger `"+trigger.name+"` conditions fulfilled.");
-						script_worker(session_id, script, bot);
+						await progress_report(session_id, script, "info", "Trigger `"+trigger.name+"` conditions fulfilled.");
+						void script_worker(session_id, script, bot);
 						return success_message({});
 					}
 
@@ -211,101 +220,129 @@ export default defineBackground(() => {
 		registerMessageHandler(handleMessage);
 
 		// create function to send progress reports
-		async function progress_report(session_id: number|null, script: Script, message: string) {
+		async function progress_report(session_id: number|null, script: Script, kind: "progress" | "error" | "info", message: string) {
 			LOGGER.log("PROGRESS_REPORT", message);
 			if(session_id === null) return;
 
 			try {
 				await browser.runtime.sendMessage({
 					type: MessageType.PROGRESS_REPORT,
-					data: { session_id, meta: script.name, message }
+					data: { session_id, kind, message, meta: script.name }
 				});
 			} catch (error) {
 				LOGGER.log("PROGRESS_REPORT", error);
 			}
 		}
 
-		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance) {
-			const bot = _bot?? await COMMANDER.getBotFocus();
-			progress_report(session_id, script, "Script `"+script.name+"` started");
+		async function report_script_issue(session_id: number|null, script: Script, context: string, error: unknown) {
+			const errorText = error instanceof Error ? error.message : String(error);
+			LOGGER.log(context, error);
+			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
+		}
 
-			for (let index = 0; index < script.lines.length; index++) {
-				const script_line = script.lines[index];
-				if (script_line.conditions.length) {
-					// Send conditions to bot (if it has some)
-					const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
-					if(!result.success) {
-						progress_report(session_id, script, "Script `"+script.name+"` aborted. One of the conditions is false.");
+		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance) {
+			try {
+				const bot = _bot ?? await COMMANDER.getBotFocus();
+				await progress_report(session_id, script, "info", "Script `"+script.name+"` started");
+
+				for (let lineIndex = 0; lineIndex < script.lines.length; lineIndex++) {
+					const script_line = script.lines[lineIndex];
+					try {
+						if (script_line.conditions.length) {
+							const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
+							if (!result.success) {
+								await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. One of the conditions is false. "+result.error);
+								return;
+							}
+							await progress_report(session_id, script, "progress", "Script `"+script.name+"`: All conditions are true.");
+						}
+
+						for (let actionIndex = 0; actionIndex < script_line.actions.length; actionIndex++) {
+							const action = script_line.actions[actionIndex];
+							try {
+								switch (action.type.kind) {
+									case ActionKind.SCRIPT: {
+										if (!action.arguments.id) throw new Error("Error in script#"+script.id+": script_id is invalid");
+										const action_script = shared.get_script(action.arguments.id);
+										if (!action_script) throw new Error("Error in script#"+script.id+": missing nested script `"+action.arguments.id+"`");
+										await progress_report(session_id, script, "progress", "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+										await script_worker(session_id, action_script, bot);
+										await progress_report(session_id, script, "progress", "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+										break;
+									}
+
+									case ActionKind.MESSAGE_TYPE: {
+										if (!action.type.message_type) throw new Error("Error in script#"+script.id+": action.type.message_type is invalid");
+										await progress_report(session_id, script, "progress", "START Action: "+action.type.name);
+
+										switch (action.type.message_type) {
+											case MessageType.INSERT_TEMPLATE: {
+												if (!action.arguments.id) throw new Error("Error in script#"+script.id+": id is invalid");
+												if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
+												const template = shared.get_template(action.arguments.id);
+												if (!template) throw new Error("Error in script#"+script.id+": missing template `"+action.arguments.id+"`");
+												
+												const result = await bot.sendMessage(action.type.message_type, { delete_insert: true, content: template.content, element_selector: action.arguments.element_selector });
+												if (!result.success) {
+													await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
+													return;
+												}
+												break;
+											}
+
+											default:
+												throw new Error("ActionKind.MESSAGE_TYPE:"+action.type.message_type+" is not supported");
+										}
+										await progress_report(session_id, script, "progress", "DONE  Action: "+action.type.name);
+										break;
+									}
+
+									case ActionKind.NOTIFY: {
+										if (!action.arguments.text) throw new Error("Error in script#"+script.id+": action.arguments.text is invalid");
+										await progress_report(session_id, script, "info", "NOTIFY: "+action.arguments.text);
+										try {
+											await browser.notifications.create('notify-'+Date.now(), {
+												type: 'basic',
+												title: APP_NAME,
+												message: action.arguments.text,
+												iconUrl: browser.runtime.getURL('/icon-48.png')
+											});
+										} catch (err) {
+											await report_script_issue(session_id, script, "Notification error", err);
+										}
+										if (shared.data.allow_alert_notify) {
+											await COMMANDER.sendMessageFocus(MessageType.ALERT, { text: action.arguments.text });
+										}
+										break;
+									}
+
+									case ActionKind.WAIT: {
+										if (!action.arguments.seconds) throw new Error("Error in script#"+script.id+": action.arguments.seconds is invalid");
+										await progress_report(session_id, script, "progress", "WAIT: "+action.arguments.seconds+" seconds");
+										await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
+										break;
+									}
+
+									default:
+										throw new Error("Unsupported action kind: "+action.type.kind);
+								}
+							} catch (error) {
+								await report_script_issue(session_id, script, "Script action failed", error);
+								return;
+							}
+						}
+					} catch (error) {
+						await report_script_issue(session_id, script, "Script line failed", error);
 						return;
 					}
-					progress_report(session_id, script, "Script `"+script.name+"`: All conditions are true.");
 				}
 
-				// execute actions
-				for (let index = 0; index < script_line.actions.length; index++) {
-					const action = script_line.actions[index];
-					switch (action.type.kind) {
-						case ActionKind.SCRIPT: {
-							if(!action.arguments.id) throw new Error("Error in script#"+script.id+": script_id is invalid");
-							
-							const action_script = shared.get_script(action.arguments.id);
-							progress_report(session_id, script, "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
-							await script_worker(session_id, action_script, bot);
-							progress_report(session_id, script, "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
-							break;
-						}
-					
-						case ActionKind.MESSAGE_TYPE: {
-							if(!action.type.message_type) throw new Error("Error in script#"+script.id+": action.type.message_type is invalid");
-							progress_report(session_id, script, "START Action: "+action.type.name);
-
-							switch (action.type.message_type) {
-								case MessageType.INSERT_TEMPLATE: {
-									if(!action.arguments.id) throw new Error("Error in script#"+script.id+": id is invalid");
-									if(!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
-									const template = shared.get_template(action.arguments.id);
-									await bot.sendMessage(action.type.message_type, { content: template.content, element_selector: action.arguments.element_selector });
-									break;
-								}
-							
-								default: throw new Error("ActionKind.MESSAGE_TYPE:"+action.type.message_type+" is not supported");
-							}
-							progress_report(session_id, script, "DONE  Action: "+action.type.name);
-							break;
-						}
-					
-						case ActionKind.NOTIFY: {
-							if(!action.arguments.text) throw new Error("Error in script#"+script.id+": action.arguments.text is invalid");
-							progress_report(session_id, script, "NOTIFY: "+action.arguments.text);
-							// create a simple browser notification
-							try {
-								await browser.notifications.create('notify-'+Date.now(), {
-									type: 'basic',
-									title: APP_NAME,
-									message: action.arguments.text,
-									iconUrl: browser.runtime.getURL('/icon-48.png')
-								});
-							} catch (err) {
-								LOGGER.log('Notification error', err);
-							}
-							if(shared.data.allow_alert_notify) COMMANDER.sendMessageFocus(MessageType.ALERT, { text: action.arguments.text });
-							break;
-						}
-					
-						case ActionKind.WAIT: {
-							if(!action.arguments.seconds) throw new Error("Error in script#"+script.id+": action.arguments.seconds is invalid");
-							progress_report(session_id, script, "WAIT: "+action.arguments.seconds+" seconds");
-							await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
-							break;
-						}
-					
-						default:
-							break;
-					}
+				if (_bot === undefined) {
+					await progress_report(session_id, script, "info", "Script `"+script.name+"` completed. All actions ended successfully.");
 				}
+			} catch (error) {
+				await report_script_issue(session_id, script, "Script execution failed", error);
 			}
-
-			if(_bot === undefined) progress_report(session_id, script, "Script `"+script.name+"` completed. All actions ended successfully.");
 		}
 	});
 });
