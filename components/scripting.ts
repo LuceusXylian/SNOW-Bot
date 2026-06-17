@@ -1,4 +1,5 @@
-import { Message, MessageType } from "@/components/messaging";
+import { MessageType, sendMessage } from "@/components/messaging";
+import { ScriptingUI } from "@/entrypoints/popup/scripting_ui";
 
 
 export enum ConditionType {
@@ -118,3 +119,9 @@ export interface Trigger {
 	conditions: Condition[],
 }
 
+// Send message from popup to background to start a script
+export function execute_script(self: ScriptingUI, script_id: string) {
+	return sendMessage(self.LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
+		session_id: self.SESSION_ID, script_id: script_id
+	}});
+}

@@ -3,6 +3,7 @@ import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal } from '@/components/ui';
+import { ChatUI } from './chat_ui';
 import { ScriptingUI } from './scripting_ui';
 import { TriggersUI } from './triggers_ui';
 import { buttongrid_ui } from './buttongrid_ui';
@@ -361,4 +362,14 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	});
 
 	// Chat
+	const chat_title = document.getElementById("chat")!;
+	const chat_container = document.getElementById("chat_container")!;
+	chat_title.addEventListener("click", () => {
+		if (IS_POPUP) {
+			open_new_tab("#" + chat_title.id);
+			window.close();
+		}
+		chat_container.innerHTML = "";
+		new ChatUI(shared, LOGGER, COMMANDER).build(chat_container);
+	});
 }

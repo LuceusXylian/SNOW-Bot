@@ -192,7 +192,7 @@ export default defineBackground(() => {
 							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed");
 						}
 
-						progress_report(session_id, "Trigger `"+trigger.name+"` conditions fulfilled.");
+						progress_report(session_id, script, "Trigger `"+trigger.name+"` conditions fulfilled.");
 						script_worker(session_id, script, bot);
 						return success_message({});
 					}
@@ -211,14 +211,14 @@ export default defineBackground(() => {
 		registerMessageHandler(handleMessage);
 
 		// create function to send progress reports
-		async function progress_report(session_id: number|null, message: string) {
+		async function progress_report(session_id: number|null, script: Script, message: string) {
 			LOGGER.log("PROGRESS_REPORT", message);
 			if(session_id === null) return;
 
 			try {
 				await browser.runtime.sendMessage({
 					type: MessageType.PROGRESS_REPORT,
-					data: { session_id, message }
+					data: { session_id, meta: script.name, message }
 				});
 			} catch (error) {
 				LOGGER.log("PROGRESS_REPORT", error);
@@ -227,7 +227,7 @@ export default defineBackground(() => {
 
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance) {
 			const bot = _bot?? await COMMANDER.getBotFocus();
-			progress_report(session_id, "Script `"+script.name+"` started");
+			progress_report(session_id, script, "Script `"+script.name+"` started");
 
 			for (let index = 0; index < script.lines.length; index++) {
 				const script_line = script.lines[index];
@@ -235,10 +235,10 @@ export default defineBackground(() => {
 					// Send conditions to bot (if it has some)
 					const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
 					if(!result.success) {
-						progress_report(session_id, "Script `"+script.name+"` aborted. One of the conditions is false.");
+						progress_report(session_id, script, "Script `"+script.name+"` aborted. One of the conditions is false.");
 						return;
 					}
-					progress_report(session_id, "Script `"+script.name+"`: All conditions are true.");
+					progress_report(session_id, script, "Script `"+script.name+"`: All conditions are true.");
 				}
 
 				// execute actions
@@ -249,15 +249,15 @@ export default defineBackground(() => {
 							if(!action.arguments.id) throw new Error("Error in script#"+script.id+": script_id is invalid");
 							
 							const action_script = shared.get_script(action.arguments.id);
-							progress_report(session_id, "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+							progress_report(session_id, script, "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
 							await script_worker(session_id, action_script, bot);
-							progress_report(session_id, "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+							progress_report(session_id, script, "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
 							break;
 						}
 					
 						case ActionKind.MESSAGE_TYPE: {
 							if(!action.type.message_type) throw new Error("Error in script#"+script.id+": action.type.message_type is invalid");
-							progress_report(session_id, "START Action: "+action.type.name);
+							progress_report(session_id, script, "START Action: "+action.type.name);
 
 							switch (action.type.message_type) {
 								case MessageType.INSERT_TEMPLATE: {
@@ -270,13 +270,13 @@ export default defineBackground(() => {
 							
 								default: throw new Error("ActionKind.MESSAGE_TYPE:"+action.type.message_type+" is not supported");
 							}
-							progress_report(session_id, "DONE  Action: "+action.type.name);
+							progress_report(session_id, script, "DONE  Action: "+action.type.name);
 							break;
 						}
 					
 						case ActionKind.NOTIFY: {
 							if(!action.arguments.text) throw new Error("Error in script#"+script.id+": action.arguments.text is invalid");
-							progress_report(session_id, "NOTIFY: "+action.arguments.text);
+							progress_report(session_id, script, "NOTIFY: "+action.arguments.text);
 							// create a simple browser notification
 							try {
 								await browser.notifications.create('notify-'+Date.now(), {
@@ -294,7 +294,7 @@ export default defineBackground(() => {
 					
 						case ActionKind.WAIT: {
 							if(!action.arguments.seconds) throw new Error("Error in script#"+script.id+": action.arguments.seconds is invalid");
-							progress_report(session_id, "WAIT: "+action.arguments.seconds+" seconds");
+							progress_report(session_id, script, "WAIT: "+action.arguments.seconds+" seconds");
 							await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
 							break;
 						}
@@ -305,7 +305,7 @@ export default defineBackground(() => {
 				}
 			}
 
-			if(_bot === undefined) progress_report(session_id, "Script `"+script.name+"` completed. All actions ended successfully.");
+			if(_bot === undefined) progress_report(session_id, script, "Script `"+script.name+"` completed. All actions ended successfully.");
 		}
 	});
 });

@@ -1,4 +1,4 @@
-import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference } from "@/components/scripting";
+import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, execute_script } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
@@ -23,8 +23,6 @@ export class ScriptingUI {
 	
 	/** list all scripts with actions: edit, delete, execute */
 	build_scripting_list(parent: HTMLElement) {
-		console.log("parent", parent, this.shared);
-		
 		const new_spoiler = create_element(parent, "div", { class:"spoiler-container" });
 		const new_spoiler_title = create_text_element(new_spoiler, "div", "Create new Script", { class:"spoiler-title" });
 		const new_spoiler_content = create_element(new_spoiler, "div", { class:"spoiler-content" });
@@ -72,9 +70,7 @@ export class ScriptingUI {
 					render_script_list();
 				});
 				create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
-					sendMessage(this.LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-						session_id: this.SESSION_ID, script_id: script.id
-					}});
+					execute_script(this, script.id)
 				});
 			}
 		}
