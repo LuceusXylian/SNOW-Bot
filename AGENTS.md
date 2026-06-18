@@ -24,6 +24,7 @@ SNOW Bot is a browser extension built with the WXT framework. It uses `@wxt-dev/
         - `main.ts`
         - `style.css`
         - `chat_ui.ts`
+        - `scripting_ui.ts`
     - `background.ts`
     - `content.ts`
 - `public/`

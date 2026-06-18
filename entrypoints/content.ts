@@ -47,12 +47,13 @@ class BackgroundMessageHandler {
 				case MessageType.INSERT_TEMPLATE: {
 					const { content, element_selector, delete_insert } = message.data || {};
 					if (!content) return error_message("No template content provided");
-					let target_element: HTMLElement;
+					let target_element: HTMLTextAreaElement;
+					
 					if (element_selector) {
-						target_element = querySelector(element_selector)!;
+						target_element = querySelector(element_selector)! as HTMLTextAreaElement;
 						if(target_element === null) return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					} else if (lastFocusedElement) {
-						target_element = lastFocusedElement;
+						target_element = lastFocusedElement as HTMLTextAreaElement;
 					} else {
 						LOGGER.debug("No focused element to insert template into");
 						return error_message("No element focused");
@@ -534,17 +535,17 @@ export default defineContentScript({
 		}, true);
 
 		// Tracker 2
-		setTimeout(function () {
-			for (const element of querySelectorAll("textarea")) {
+		setInterval(function () {
+			for (const element of querySelectorAll("textarea:not([focus_tracked])")) {
+				console.log("focus_tracked", element.id);
 				element.addEventListener('focus', (event) => {
-					const target = event.target;
-					if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-						lastFocusedElement = target;
-						LOGGER.debug("Focused element tracked", { type: target.constructor.name });
-					}
+					const target = event.target as HTMLTextAreaElement;
+					lastFocusedElement = target;
+					LOGGER.debug("Focused element tracked", "type:", target.constructor.name, "id:", target.id);
 				}, true);
+				element.setAttribute("focus_tracked", "1");
 			}
-		}, 100);
+		}, 5000);
 
 		// Get bot_id from background, which creates a record for this content script instance
 		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID });
