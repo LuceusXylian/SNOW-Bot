@@ -488,14 +488,17 @@ export class SharedData {
 
 /** document.querySelector(), but goes also through shadow DOMs */
 export function querySelector(selector: string, rootNode=document.body): HTMLElement|null {
+	// We ignore the "." delimiter for class because some weird websites uses it in id
+	const selector_id = selector.split("#")[1];
+
     const traverser = (node: HTMLElement): HTMLElement|null => {
         // 1. decline all nodes that are not elements
         if(node.nodeType !== Node.ELEMENT_NODE) {
             return null;
         }
         
-        // 2. add the node to the array, if it matches the selector
-        if(node.matches(selector)) {
+        // 2. return the node to the array, if it matches the selector
+        if(node.id === selector_id || node.matches(selector)) {
             return node as HTMLElement;
         }
         
@@ -520,11 +523,13 @@ export function querySelector(selector: string, rootNode=document.body): HTMLEle
 		return null;
     }
     
-    return traverser(rootNode);
+	return traverser(rootNode);
 }
 
 /** document.querySelectorAll(), but goes also through shadow DOMs */
 export function querySelectorAll(selector: string, rootNode=document.body) {
+	// We ignore the "." delimiter for class because some weird websites uses it in id
+	const selector_id = selector.split("#")[1];
     const arr: HTMLElement[] = []
     
     const traverser = (node: Element) => {
@@ -534,7 +539,7 @@ export function querySelectorAll(selector: string, rootNode=document.body) {
         }
         
         // 2. add the node to the array, if it matches the selector
-        if(node.matches(selector)) {
+        if(node.id === selector_id || node.matches(selector)) {
             arr.push(node as HTMLElement)
         }
         
