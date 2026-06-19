@@ -1,4 +1,4 @@
-import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, execute_script } from "@/components/scripting";
+import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ActionSetMethod, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, execute_script } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
@@ -114,7 +114,7 @@ export class ScriptingUI {
 			]
 		});
 	
-		const typeSelect = create_formcontrol(container, "select", "target_type", "Condition Type", { 
+		const typeSelect = create_formcontrol(container, "select", "type", "Condition Type", { 
 			value: initial?.type.toString() ?? "", 
 			class: "fc-container-3",
 			required: true,
@@ -243,6 +243,22 @@ export class ScriptingUI {
 						})
 					)
 				} else {
+					if (argument.use_set_method) {
+						console.log("initial", initial);
+						
+						arguments_fc_array.push(
+							create_formcontrol(arguments_container, "select", "set_method", "set method", {
+								value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STATIC.toString(),
+								class: "fc-container-3",
+								required: true,
+								options: [
+									{ title: "STATIC", value: ActionSetMethod.STATIC.toString() },
+									{ title: "DATE_NOW_PLUS_DAYS", value: ActionSetMethod.DATE_NOW_PLUS_DAYS.toString() },
+								]
+							})
+						)
+					}
+
 					arguments_fc_array.push(
 						create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument, {
 							value: argument_value,

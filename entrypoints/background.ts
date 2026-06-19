@@ -250,7 +250,7 @@ export default defineBackground(() => {
 					try {
 						if (script_line.conditions.length) {
 							const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
-							if (!result.success) {
+							if (!result.success || !result.result) {
 								await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. One of the conditions is false. "+result.error);
 								return;
 							}
@@ -296,6 +296,7 @@ export default defineBackground(() => {
 												const result = await bot.sendMessage(action.type.message_type, {
 													element_selector: action.arguments.element_selector,
 													attribute: action.arguments.attribute,
+													set_method: action.arguments.set_method,
 													value: action.arguments.value ?? "",
 												});
 												if (!result.success) {

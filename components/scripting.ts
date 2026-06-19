@@ -17,6 +17,15 @@ export enum ConditionTargetType {
 	ELEMENT = 2,
 	ELEMENT_ATTRIBUTE = 3,
 }
+export function conditionTargetType_toString(type: ConditionTargetType) {
+	switch (type) {
+		case 0: return "URL";
+		case 1: return "DOMAIN";
+		case 2: return "ELEMENT";
+		case 3: return "ELEMENT_ATTRIBUTE";
+		default: return "UNKOWN_ConditionTargetType";
+	}
+} 
 
 export interface ConditionTarget {
 	target_type: ConditionTargetType,
@@ -38,6 +47,11 @@ export enum ActionKind {
 	WAIT = 3,
 }
 
+export enum ActionSetMethod {
+	STATIC = 0,
+	DATE_NOW_PLUS_DAYS = 1,
+}
+
 export interface ActionType {
 	name: string,
 	kind: ActionKind,
@@ -46,7 +60,7 @@ export interface ActionType {
 	 *  If reference is set then we get automaticly a select with data from SharedData
 	 *  we expect that the object has the `id` and `name` attributes. The expected value to return of the select is the argument.
 	 */
-	available_arguments: { argument: string, type: "text"|"number", required: boolean, reference?: "scripts"|"templates" }[]
+	available_arguments: { argument: string, type: "text"|"number", required: boolean, use_set_method: boolean, reference?: "scripts"|"templates" }[]
 }
 
 export interface Reference {
@@ -64,6 +78,7 @@ export interface Action {
 		attribute?: string,
 		value?: string,
 		event_type?: string,
+		set_method?: ActionSetMethod;
 	},
 }
 
@@ -71,22 +86,22 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 	{
 		name: "Script",
 		kind: ActionKind.SCRIPT,
-		available_arguments: [{argument: "id", type: "number", required: true, reference: "scripts"}]
+		available_arguments: [{argument: "id", type: "number", required: true, use_set_method: false, reference: "scripts"}]
 	},
 	{
 		name: "InsertTemplate",
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.INSERT_TEMPLATE,
-		available_arguments: [{argument: "id", type: "text", required: true, reference: "templates"}, { argument: "element_selector", type: "text", required: true }]
+		available_arguments: [{argument: "id", type: "text", required: true, use_set_method: false, reference: "templates"}, { argument: "element_selector", type: "text", required: true, use_set_method: false }]
 	},
 	{
 		name: "SetElementAttribute",
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.SET_ELEMENT_ATTRIBUTE,
 		available_arguments: [
-			{ argument: "element_selector", type: "text", required: true },
-			{ argument: "attribute", type: "text", required: true },
-			{ argument: "value", type: "text", required: false },
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
+			{ argument: "attribute", type: "text", required: true, use_set_method: false },
+			{ argument: "value", type: "text", required: false, use_set_method: true },
 		]
 	},
 	{
@@ -94,19 +109,19 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.TRIGGER_ELEMENT_EVENT,
 		available_arguments: [
-			{ argument: "element_selector", type: "text", required: true },
-			{ argument: "event_type", type: "text", required: true },
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
+			{ argument: "event_type", type: "text", required: true, use_set_method: false },
 		]
 	},
 	{
 		name: "Notification",
 		kind: ActionKind.NOTIFY,
-		available_arguments: [{argument: "text", type: "text", required: true}]
+		available_arguments: [{argument: "text", type: "text", required: true, use_set_method: false}]
 	},
 	{
 		name: "Wait",
 		kind: ActionKind.WAIT,
-		available_arguments: [{argument: "seconds", type: "number", required: true}]
+		available_arguments: [{argument: "seconds", type: "number", required: true, use_set_method: false}]
 	},
 ];
 

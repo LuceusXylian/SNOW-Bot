@@ -172,6 +172,7 @@ export class BotCommander {
 						const mf_response = await browser.tabs.sendMessage(this.tabId, {
 							type: message_type,
 							data: data,
+							frameIndex: 0,
 						});
 
 						// we iterate all frames until we get success
@@ -180,12 +181,13 @@ export class BotCommander {
 							if (frames) {
 								// start at 1 to skip main frame
 								for (let f = 1; f < frames.length; f++) {
-									console.log("sendMessage frame "+f, frames[f].url);
+									console.log("sendMessage frameIndex "+f, frames[f].url);
 									
 									try {
 										const response = await browser.tabs.sendMessage(this.tabId, {
 											type: message_type,
 											data: data,
+											frameIndex: f
 										}, { frameId: frames[f].frameId });
 		
 										console.log("sendMessage response", response);
@@ -490,6 +492,10 @@ export class SharedData {
 export function querySelector(selector: string, rootNode=document.body): HTMLElement|null {
 	// We ignore the "." delimiter for class because some weird websites uses it in id
 	const selector_id = selector.split("#")[1];
+	console.log("selector_id", selector_id);
+	
+	const elem = document.getElementById(selector_id);
+	if(elem) return elem;
 
     const traverser = (node: HTMLElement): HTMLElement|null => {
         // 1. decline all nodes that are not elements

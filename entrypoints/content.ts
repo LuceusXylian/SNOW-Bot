@@ -1,7 +1,7 @@
 import { LogFrom, Logger, SharedData, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
-import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
+import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
@@ -25,7 +25,7 @@ class BackgroundMessageHandler {
 	}
 
 	async handle(message: Message): Promise<MessageResponse<any>> {
-		LOGGER.debug(`Received message: ${message.type}`, message);
+		LOGGER.debug(`frameIndex:${(message as any).frameIndex} | ${document.title} | Received message: ${message.type}`, message);
 	
 		try {
 			if (message.type === MessageType.UPDATE_SHARED_DATA) {
@@ -87,7 +87,7 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.SET_ELEMENT_ATTRIBUTE: {
-					const { element_selector, attribute, value } = message.data || {};
+					const { element_selector, attribute, value, set_method } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
 
@@ -96,17 +96,20 @@ class BackgroundMessageHandler {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					}
 
+					const new_value = this.new_value_set_method(set_method, value);
+					LOGGER.debug("SET_ELEMENT_ATTRIBUTE new_value", new_value)
+
 					if (attribute === "value") {
 						if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement) {
-							target_element.value = String(value ?? "");
+							target_element.value = new_value;
 							target_element.dispatchEvent(new Event("input", { bubbles: true }));
 							target_element.dispatchEvent(new Event("change", { bubbles: true }));
-							return success_message({ updated: true, attribute, value: target_element.value });
+							return success_message({ updated: true });
 						}
 					}
 
-					target_element.setAttribute(attribute, String(value ?? ""));
-					return success_message({ updated: true, attribute, value: String(value ?? "") });
+					target_element.setAttribute(attribute, new_value);
+					return success_message({ updated: true });
 				}
 
 				case MessageType.TRIGGER_ELEMENT_EVENT: {
@@ -131,7 +134,16 @@ class BackgroundMessageHandler {
 						const value1 = this.get_condition_target_value(condition.target);
 						if(value1 === null) return error_message("Unable to get value1, abort");
 						const result = this.test_condition(condition.type, value1, condition.static_value);
-						if(!result) return error_message("Condition is false, abort");
+						if(!result) {
+							const target_type = condition.target.target_type;
+							let target_label = conditionTargetType_toString(target_type);
+							if(condition.target.element_selector) target_label += " " + condition.target.element_selector;
+							if(condition.target.attribute) target_label += " " + condition.target.attribute;
+							return success_message({
+								result: false,
+								error: `The condition failed: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.static_value)} but got ${JSON.stringify(value1)}`,
+							});
+						}
 					}
 					return success_message({ result: true });
 				}
@@ -322,15 +334,19 @@ class BackgroundMessageHandler {
 			case ConditionTargetType.URL: return location.href;
 			case ConditionTargetType.ELEMENT: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT needs element_selector");
-				const element = document.querySelector(target.element_selector);
+				const element = querySelector(target.element_selector);
 				if(element === null) return null;
 				return element.outerHTML;
 			}
 			case ConditionTargetType.ELEMENT_ATTRIBUTE: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs element_selector");
 				if(!target.attribute) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs attribute");
-				const element = document.querySelector(target.element_selector);
+				const element = querySelector(target.element_selector);
+				console.log("get_condition_target_value element", element);
+				
 				if(element === null) return null;
+				console.log("get_condition_target_value (element as HTMLInputElement).value", (element as HTMLInputElement).value);
+				if(target.attribute === "value") (element as HTMLInputElement).value;
 				return element.getAttribute(target.attribute);
 			}
 		}
@@ -348,6 +364,18 @@ class BackgroundMessageHandler {
 			case ConditionType.CONTAINS_NOT: return !value1.includes(value2);
 		}
 		throw new Error("Unknown ConditionType:"+type);
+	}
+
+	new_value_set_method(set_method: ActionSetMethod, value: string) {
+		switch (set_method) {
+			case ActionSetMethod.DATE_NOW_PLUS_DAYS: {
+				const days = parseInt(value);
+				if(isNaN(days)) throw new Error("value needs to be a number for DATE_NOW_PLUS_DAYS");
+				const new_date = new Date(new Date().getTime() + 86400000 * days);
+				return new_date.toLocaleDateString() + " " + new_date.toLocaleTimeString();
+			}
+			default: return String(value ?? "");
+		}
 	}
 
 	async startElementSelector(): Promise<string | null> {

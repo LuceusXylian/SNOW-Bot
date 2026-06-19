@@ -97,7 +97,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				item.classList.add("selected");
 				header.classList.remove("goback-hidden");
 				menu_item_selected = item;
-				storage.setItem(KEY_POPUP_MENU_INDEX, index);
+				if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, index);
 				title_sub.innerText = menu_item_title.innerText;
 				location.hash = menu_item_title.id;
 			}
@@ -117,7 +117,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			menu_item_selected.classList.remove("selected");
 			header.classList.add("goback-hidden");
 			menu_item_selected = null;
-			storage.setItem(KEY_POPUP_MENU_INDEX, null);
+			if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, null);
 			title_sub.innerHTML = "";
 		}
 	});
