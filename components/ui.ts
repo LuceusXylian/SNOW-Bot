@@ -191,7 +191,7 @@ interface FormControlOptionals {
     required?: boolean;
     disabled?: boolean;
     autocomplete_off?: boolean;
-    value?: string|number;
+    value?: string;
 	class?: string;
 }
 

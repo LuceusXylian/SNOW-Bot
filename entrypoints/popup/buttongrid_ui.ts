@@ -1,9 +1,9 @@
 import { create_element, create_text_element, create_modal } from '@/components/ui';
 
 
+let button_edit_mode = false;
 export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: BotCommander, buttongrid_container: HTMLElement) {
 	buttongrid_container.innerHTML = "";
-	let button_edit_mode = false;
 
 	const options: { value: string, title: string }[] = [
 		{ value: "new", title: "--- Create new Button Grid ---" }, 
@@ -14,18 +14,24 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 		options.push({ value: index.toString(), title: grid.title });
 	}
 
-	const buttongrid_select = create_formcontrol(buttongrid_container, "select", "buttongrid_select", "Profile", {options: options, value: shared.data.button_grid_index });
+	console.log("shared.data.button_grid_index", shared.data.button_grid_index);
+	
+	const buttongrid_select = create_formcontrol(buttongrid_container, "select", "buttongrid_select", "Profile", {options: options, value: shared.data.button_grid_index.toString() });
 	buttongrid_select.parentElement!.style = "margin: 0 6px 0 0; display: inline-block; vertical-align: top; width: calc(100% - 50px - 6px);";
 	const edit_mode_toggler_text = "Edit";
 	const edit_mode_toggler = create_text_element(buttongrid_container, "button", edit_mode_toggler_text, { class: "fc fc-small" });
 	edit_mode_toggler.style.cssText = "display: inline-block; vertical-align: top; width: 50px; line-height: 1.1; height: "+buttongrid_select.parentElement!.clientHeight+"px";
-	edit_mode_toggler.addEventListener("click", () => {
-		button_edit_mode = !button_edit_mode;
+	const set_text_mode_toggler = () => {
 		if (button_edit_mode) {
 			edit_mode_toggler.innerText = edit_mode_toggler_text + " (active)";
 		} else {
 			edit_mode_toggler.innerText = edit_mode_toggler_text;
 		}
+	};
+	set_text_mode_toggler();
+	edit_mode_toggler.addEventListener("click", () => {
+		button_edit_mode = !button_edit_mode;
+		set_text_mode_toggler();
 	});
 	const buttons_container = create_element(buttongrid_container, "div", { style:"margin-top: 20px;" });
 
@@ -89,7 +95,13 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 							}
 							create_formcontrol(container, "select", "script_id", "Script", { value: entry.script_id?.toString()??"", options: script_options });
 						});
-						shared.data.button_grids[button_grid_index].buttons[index].text = result.text;
+
+						if (result.text === "") {
+							const script = shared.get_script(result.script_id);
+							shared.data.button_grids[button_grid_index].buttons[index].text = script.name;
+						} else {
+							shared.data.button_grids[button_grid_index].buttons[index].text = result.text;
+						}
 						shared.data.button_grids[button_grid_index].buttons[index].script_id = result.script_id;
 						await shared.applyStateChange({ button_grids: shared.data.button_grids });
 						buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
