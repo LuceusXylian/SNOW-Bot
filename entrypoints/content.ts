@@ -86,6 +86,43 @@ class BackgroundMessageHandler {
 					return error_message("Unsupported element type for template insertion");
 				}
 
+				case MessageType.SET_ELEMENT_ATTRIBUTE: {
+					const { element_selector, attribute, value } = message.data || {};
+					if (!element_selector) return error_message("No element selector provided");
+					if (!attribute) return error_message("No attribute provided");
+
+					const target_element = querySelector(element_selector);
+					if (target_element === null) {
+						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
+					}
+
+					if (attribute === "value") {
+						if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement) {
+							target_element.value = String(value ?? "");
+							target_element.dispatchEvent(new Event("input", { bubbles: true }));
+							target_element.dispatchEvent(new Event("change", { bubbles: true }));
+							return success_message({ updated: true, attribute, value: target_element.value });
+						}
+					}
+
+					target_element.setAttribute(attribute, String(value ?? ""));
+					return success_message({ updated: true, attribute, value: String(value ?? "") });
+				}
+
+				case MessageType.TRIGGER_ELEMENT_EVENT: {
+					const { element_selector, event_type } = message.data || {};
+					if (!element_selector) return error_message("No element selector provided");
+					if (!event_type) return error_message("No event type provided");
+
+					const target_element = querySelector(element_selector);
+					if (target_element === null) {
+						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
+					}
+
+					target_element.dispatchEvent(new Event(event_type, { bubbles: true, cancelable: true }));
+					return success_message({ dispatched: true });
+				}
+
 				case MessageType.CHECK_CONDITIONS: {
 					// All conditions need to be true
 					const conditions = message.data.conditions as Condition[];

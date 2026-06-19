@@ -18,7 +18,8 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 			- Element attribute checks
 		- Actions
 			- Templates: execute insert
-			- [ ] Set element attribute, including "value" for formcontrols
+			- Set element attribute, including "value" for formcontrols
+			- Trigger element events
 			- Send notifications
 			- Wait
 	- Triggers

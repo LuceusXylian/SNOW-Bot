@@ -290,6 +290,35 @@ export default defineBackground(() => {
 												break;
 											}
 
+											case MessageType.SET_ELEMENT_ATTRIBUTE: {
+												if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
+												if (!action.arguments.attribute) throw new Error("Error in script#"+script.id+": attribute is invalid");
+												const result = await bot.sendMessage(action.type.message_type, {
+													element_selector: action.arguments.element_selector,
+													attribute: action.arguments.attribute,
+													value: action.arguments.value ?? "",
+												});
+												if (!result.success) {
+													await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
+													return;
+												}
+												break;
+											}
+
+											case MessageType.TRIGGER_ELEMENT_EVENT: {
+												if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
+												if (!action.arguments.event_type) throw new Error("Error in script#"+script.id+": event_type is invalid");
+												const result = await bot.sendMessage(action.type.message_type, {
+													element_selector: action.arguments.element_selector,
+													event_type: action.arguments.event_type,
+												});
+												if (!result.success) {
+													await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
+													return;
+												}
+												break;
+											}
+
 											default:
 												throw new Error("ActionKind.MESSAGE_TYPE:"+action.type.message_type+" is not supported");
 										}

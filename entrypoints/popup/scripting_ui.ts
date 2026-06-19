@@ -115,7 +115,7 @@ export class ScriptingUI {
 		});
 	
 		const typeSelect = create_formcontrol(container, "select", "target_type", "Condition Type", { 
-			value: initial?.type ?? "", 
+			value: initial?.type.toString() ?? "", 
 			class: "fc-container-3",
 			required: true,
 			options: [
@@ -431,7 +431,7 @@ export class ScriptingUI {
 		create_text_element(container, "h3", "Trigger Editor");
 		
 		// Basic properties
-		const everyInput = create_formcontrol(container, "number", "every", "Execute every (ms, null for event-based)", { value: initial?.every ?? "", required: false });
+		const everyInput = create_formcontrol(container, "number", "every", "Execute every (ms, null for event-based)", { value: String(initial?.every), required: false });
 	
 		// Conditions section
 		create_text_element(container, "h4", "Trigger Conditions");

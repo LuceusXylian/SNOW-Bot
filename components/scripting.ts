@@ -61,6 +61,9 @@ export interface Action {
 		id?: string,
 		text?: string,
 		seconds?: number,
+		attribute?: string,
+		value?: string,
+		event_type?: string,
 	},
 }
 
@@ -75,6 +78,25 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.INSERT_TEMPLATE,
 		available_arguments: [{argument: "id", type: "text", required: true, reference: "templates"}, { argument: "element_selector", type: "text", required: true }]
+	},
+	{
+		name: "SetElementAttribute",
+		kind: ActionKind.MESSAGE_TYPE,
+		message_type: MessageType.SET_ELEMENT_ATTRIBUTE,
+		available_arguments: [
+			{ argument: "element_selector", type: "text", required: true },
+			{ argument: "attribute", type: "text", required: true },
+			{ argument: "value", type: "text", required: false },
+		]
+	},
+	{
+		name: "TriggerElementEvent",
+		kind: ActionKind.MESSAGE_TYPE,
+		message_type: MessageType.TRIGGER_ELEMENT_EVENT,
+		available_arguments: [
+			{ argument: "element_selector", type: "text", required: true },
+			{ argument: "event_type", type: "text", required: true },
+		]
 	},
 	{
 		name: "Notification",
