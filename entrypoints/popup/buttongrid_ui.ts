@@ -31,7 +31,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 		button_edit_mode = !button_edit_mode;
 		set_text_mode_toggler();
 	});
-	const buttons_container = create_element(buttongrid_container, "div", { style:"margin-top: 20px;" });
+	const buttons_container = create_element(buttongrid_container, "div", { class: "button_grid", style:"margin-top: 20px;" });
 
 	const create_buttons = async () => {
 		if (buttongrid_select.value === "new") {
@@ -67,7 +67,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			// Get all scripts as buttons
 			for (let b = 0; b < shared.data.scripts.length; b++) {
 				const script = shared.data.scripts[b];
-				const button = create_text_element(buttons_container, "button", script.name, { class: "fc fc-margin fc-container-4", style: "min-width: min-content;" });
+				const button = create_text_element(buttons_container, "button", button_text(script.name), { class: "fc fc-margin fc-container-4 bgrid_button" });
 				button.addEventListener("click", () => {
 					sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
 						script_id: script.id
@@ -81,7 +81,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			for (let b = 0; b < grid.buttons.length; b++) {
 				const index = b;
 				const entry = grid.buttons[b];
-				const button = create_text_element(buttons_container, "button", entry.text, { class: "fc fc-margin fc-container-4", style: "min-width: min-content;" });
+				const button = create_text_element(buttons_container, "button", button_text(entry.text), { class: "fc fc-margin fc-container-4 bgrid_button" });
 				button.addEventListener("click", async () => {
 					if (button_edit_mode) {
 						// start modal to prompt for ButtonGrid title and Script
@@ -114,4 +114,8 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 	};
 	buttongrid_select.addEventListener("change", create_buttons);
 	create_buttons();
+}
+
+function button_text(text: string) {
+	return text.split("_").join(" ");
 }

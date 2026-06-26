@@ -186,3 +186,19 @@ h5 { border-bottom: 1px solid; margin: 1rem 0 1rem 0; }
 	background-color: rgba(0, 0, 0, 0.5); opacity: 0; 
 	transition: opacity 0.25s ease; z-index: 9999;
 }
+
+.button_grid {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+}
+
+.bgrid_button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	vertical-align: top;
+	overflow: hidden;
+	box-sizing: border-box;
+}
