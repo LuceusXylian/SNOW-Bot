@@ -14,8 +14,6 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 		options.push({ value: index.toString(), title: grid.title });
 	}
 
-	console.log("shared.data.button_grid_index", shared.data.button_grid_index);
-	
 	const buttongrid_select = create_formcontrol(buttongrid_container, "select", "buttongrid_select", "Profile", {options: options, value: shared.data.button_grid_index.toString() });
 	buttongrid_select.parentElement!.style = "margin: 0 6px 0 0; display: inline-block; vertical-align: top; width: calc(100% - 50px - 6px);";
 	const edit_mode_toggler_text = "Edit";

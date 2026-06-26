@@ -133,6 +133,7 @@ export interface SharedDataInner {
 	triggers: Trigger[],
 	button_grids: ButtonGrid[],
 	button_grid_index: number,
+	datetime_locale: string,
 }
 
 
@@ -399,6 +400,7 @@ export class SharedData {
 			triggers: data.triggers ?? [],
 			button_grids: data.button_grids ?? [],
 			button_grid_index: data.button_grid_index ?? -1,
+			datetime_locale: data.datetime_locale ?? DEFAULT_DATETIME_LOCALE,
 		};
 	}
 
@@ -492,8 +494,6 @@ export class SharedData {
 export function querySelector(selector: string, rootNode=document.body): HTMLElement|null {
 	// We ignore the "." delimiter for class because some weird websites uses it in id
 	const selector_id = selector.split("#")[1];
-	console.log("selector_id", selector_id);
-	
 	const elem = document.getElementById(selector_id);
 	if(elem) return elem;
 
@@ -572,15 +572,47 @@ export function querySelectorAll(selector: string, rootNode=document.body) {
     return arr
 }
 
+
+/** Pads a number by 2 digits */
+function pad2(n: number) {
+	return n.toString().padStart(2, '0');
+}
+
 /** Converts a Date to ISO 8601 string format 'YYYY-MM-DD hh:mm:ss' */
 export function dateToISOString(date: Date): string {
-	const pad = (n: number) => n.toString().padStart(2, '0')
-	const year = date.getFullYear()
-	const month = pad(date.getMonth() + 1)
-	const day = pad(date.getDate())
-	const hours = pad(date.getHours())
-	const minutes = pad(date.getMinutes())
-	const seconds = pad(date.getSeconds())
-	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+	const year = date.getFullYear();
+	const month = pad2(date.getMonth() + 1);
+	const day = pad2(date.getDate());
+	const hours = pad2(date.getHours());
+	const minutes = pad2(date.getMinutes());
+	const seconds = pad2(date.getSeconds());
+	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/** Converts a Date to locale string format like de_DE 'dd.MM.yyyy HH:mm:ss'. Defaults to ISO 8601 */
+export function dateToLocaleString(date: Date, locale: string): string {
+	switch (locale) {
+		case "de_DE": { // dd.MM.yyyy HH:mm:ss
+			const year = date.getFullYear();
+			const month = pad2(date.getMonth() + 1);
+			const day = pad2(date.getDate());
+			const hours = pad2(date.getHours());
+			const minutes = pad2(date.getMinutes());
+			const seconds = pad2(date.getSeconds());
+			return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+		}
+	
+		case "en_US": { // MM/dd/yyyy HH:mm:ss
+			const year = date.getFullYear();
+			const month = pad2(date.getMonth() + 1);
+			const day = pad2(date.getDate());
+			const hours = pad2(date.getHours());
+			const minutes = pad2(date.getMinutes());
+			const seconds = pad2(date.getSeconds());
+			return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+		}
+	
+		default: return dateToISOString(date);
+	}
 }
 

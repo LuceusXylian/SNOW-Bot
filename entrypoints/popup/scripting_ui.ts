@@ -244,8 +244,6 @@ export class ScriptingUI {
 					)
 				} else {
 					if (argument.use_set_method) {
-						console.log("initial", initial);
-						
 						arguments_fc_array.push(
 							create_formcontrol(arguments_container, "select", "set_method", "set method", {
 								value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STATIC.toString(),
@@ -353,8 +351,6 @@ export class ScriptingUI {
 	 */
 	build_script_form(container: HTMLElement, shared: SharedData, on_set: ()=>void, initial?: Script) {
 		const title_sub = document.getElementById("title_sub");
-		console.log("title_sub", title_sub);
-		
 		if (title_sub !== null) {
 			title_sub.innerHTML = "Script Editor <small>v"+SCRIPTING_VERSION+"</small>";
 			if(initial) title_sub.innerHTML += " ID: "+initial.id;

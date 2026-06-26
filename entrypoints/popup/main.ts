@@ -308,6 +308,17 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		}
 	});
 
+	// Settings - general_settings
+	const general_settings = document.getElementById("general_settings")!;
+	const datetime_locale_select = create_formcontrol(general_settings, "select", "datetime_locale", "Datetime locale", { value: shared.data.datetime_locale, options: [
+		{ title: "German format dd.MM.yyyy HH:mm:ss", value: "de_DE" },
+		{ title: "USA format MM/dd/yyyy HH:mm:ss", value: "en_US" },
+		{ title: "ISO 8601 format YYYY-MM-DD hh:mm:ss", value: "ISO" },
+	] });
+	datetime_locale_select.addEventListener("change", () => {
+		shared.applyStateChange({ datetime_locale: datetime_locale_select.value });
+	});
+
 	// Settings - checkbox settings
 	const checkbox_container = document.getElementById("checkbox_settings")!;
 	const settingsAttributes = [

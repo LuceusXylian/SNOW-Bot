@@ -1,4 +1,4 @@
-import { LogFrom, Logger, SharedData, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
+import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
 import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod } from "@/components/scripting";
@@ -96,6 +96,8 @@ class BackgroundMessageHandler {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					}
 
+					LOGGER.debug("SET_ELEMENT_ATTRIBUTE set_method, value", set_method, value)
+					LOGGER.debug("SET_ELEMENT_ATTRIBUTE typeof set_method", typeof set_method)
 					const new_value = this.new_value_set_method(set_method, value);
 					LOGGER.debug("SET_ELEMENT_ATTRIBUTE new_value", new_value)
 
@@ -367,12 +369,12 @@ class BackgroundMessageHandler {
 	}
 
 	new_value_set_method(set_method: ActionSetMethod, value: string) {
-		switch (set_method) {
+		switch (parseInt(set_method as any) as ActionSetMethod) {
 			case ActionSetMethod.DATE_NOW_PLUS_DAYS: {
 				const days = parseInt(value);
 				if(isNaN(days)) throw new Error("value needs to be a number for DATE_NOW_PLUS_DAYS");
 				const new_date = new Date(new Date().getTime() + 86400000 * days);
-				return new_date.toLocaleDateString() + " " + new_date.toLocaleTimeString();
+				return dateToLocaleString(new_date, this.shared.data.datetime_locale);
 			}
 			default: return String(value ?? "");
 		}
