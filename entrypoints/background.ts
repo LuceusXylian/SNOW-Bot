@@ -28,10 +28,10 @@ export default defineBackground(() => {
 	const global_variables: Record<string, string> = {};
 	let shared: SharedData;
 
-	function interpolateVariablePlaceholders(value: string, local_variables: Record<string, string>): string {
+	function resolveActionArgument(value: string, local_variables: Record<string, string>): string {
 		if (typeof value !== "string") return value;
 
-		return value.replace(/\[\[(local|global|persistent):([a-zA-Z0-9_\-]+)\]\]/g, (_match, scope, name) => {
+		return value.replace(/\$\{(local|global|persistent):([a-zA-Z0-9_\-]+)\}/g, (_match, scope, name) => {
 			const variableName = String(name);
 			switch (scope) {
 				case "local":
@@ -43,13 +43,6 @@ export default defineBackground(() => {
 			}
 			return "";
 		});
-	}
-
-	function resolveActionArgument(arg: any, local_variables: Record<string, string>) {
-		if (typeof arg === "string") {
-			return interpolateVariablePlaceholders(arg, local_variables);
-		}
-		return arg;
 	}
 
 	browser.tabs.onActivated.addListener((activeInfo) => {
@@ -322,30 +315,36 @@ export default defineBackground(() => {
 									progress_report(session_id, script, "info", "DONE  Action: Script `" + action_script.name + "` from Script `" + script.name + "`.");
 									break;
 								}
-								case ActionKind.VARIABLE: {
-									const name = resolveActionArgument(action.arguments.name, local_variables);
-									const target = resolveActionArgument(action.arguments.target, local_variables);
-									const value = resolveActionArgument(action.arguments.value, local_variables);
+								case ActionKind.SET_VARIABLE: {
+									const scope = action.arguments.scope;
+									const name = action.arguments.name;
+									if (!scope) throw new Error("Error in script#" + script.id + ": variable scope is invalid");
 									if (!name) throw new Error("Error in script#" + script.id + ": variable name is invalid");
 
-									if (action.type.name === 'Set Local Variable') {
-										setVariable('local', name, value ?? '');
-									} else if (action.type.name === 'Set Global Variable') {
-										setVariable('global', name, value ?? '');
-									} else if (action.type.name === 'Set Persistent Variable') {
-										setVariable('persistent', name, value ?? '');
-									} else if (action.type.name === 'Get Local Variable') {
-										const storedValue = getVariable('local', name);
-										if (target) setVariable('local', target, storedValue);
-									} else if (action.type.name === 'Get Global Variable') {
-										const storedValue = getVariable('global', name);
-										if (target) setVariable('local', target, storedValue);
-									} else if (action.type.name === 'Get Persistent Variable') {
-										const storedValue = getVariable('persistent', name);
-										if (target) setVariable('local', target, storedValue);
-									} else {
-										throw new Error("ActionKind.VARIABLE:" + action.type.name + " is not supported");
+									const value = resolveActionArgument(action.arguments.value ?? "", local_variables);
+									setVariable(scope, name, value);
+									break;
+								}
+								case ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE: {
+									const scope = action.arguments.scope;
+									const name = action.arguments.name;
+									if (!scope) throw new Error("Error in script#" + script.id + ": variable scope is invalid");
+									if (!name) throw new Error("Error in script#" + script.id + ": variable name is invalid");
+
+									const element_selector = resolveActionArgument(action.arguments.element_selector ?? "", local_variables);
+									const attribute = resolveActionArgument(action.arguments.attribute ?? "", local_variables);
+									if (!element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
+									if (!attribute) throw new Error("Error in script#" + script.id + ": attribute is invalid");
+
+									const result = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, {
+										element_selector,
+										attribute,
+									});
+									if (!result.success) {
+										throw new Error("Failed to get element attribute: " + result.error);
 									}
+									const value = result.data?.value ?? "";
+									setVariable(scope, name, value);
 									break;
 								}
 								case ActionKind.MESSAGE_TYPE: {
@@ -357,9 +356,11 @@ export default defineBackground(() => {
 											if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": id is invalid");
 											if (!action.arguments.element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
 											const template = shared.get_template(action.arguments.id);
+											const content = resolveActionArgument(template.content, local_variables);
 											await bot.sendMessage(action.type.message_type, {
-												content: template.content,
+												content: content,
 												element_selector: action.arguments.element_selector,
+												delete_insert: true,
 											});
 											break;
 										}
@@ -367,11 +368,12 @@ export default defineBackground(() => {
 										case MessageType.SET_ELEMENT_ATTRIBUTE: {
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.attribute) throw new Error("Error in script#"+script.id+": attribute is invalid");
+											const value = resolveActionArgument(action.arguments.value ?? "", local_variables);
 											const result = await bot.sendMessage(action.type.message_type, {
 												element_selector: action.arguments.element_selector,
 												attribute: action.arguments.attribute,
 												set_method: action.arguments.set_method,
-												value: action.arguments.value ?? "",
+												value: value,
 											});
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
@@ -402,18 +404,19 @@ export default defineBackground(() => {
 								}
 								case ActionKind.NOTIFY: {
 									if (!action.arguments.text) throw new Error("Error in script#" + script.id + ": action.arguments.text is invalid");
-									progress_report(session_id, script, "info", "NOTIFY: " + action.arguments.text);
+									const text = resolveActionArgument(action.arguments.value ?? "", local_variables);
+									progress_report(session_id, script, "info", "NOTIFY: " + text);
 									try {
 										await browser.notifications.create('notify-' + Date.now(), {
 											type: 'basic',
 											title: APP_NAME,
-											message: action.arguments.text,
+											message: text,
 											iconUrl: browser.runtime.getURL('/icon-48.png'),
 										});
 									} catch (err) {
 										await report_script_issue(session_id, script, "Notification error", err);
 									}
-									if (shared.data.allow_alert_notify) COMMANDER.sendMessageFocus(MessageType.ALERT, { text: action.arguments.text });
+									if (shared.data.allow_alert_notify) COMMANDER.sendMessageFocus(MessageType.ALERT, { text: text });
 									break;
 								}
 								case ActionKind.WAIT: {

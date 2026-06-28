@@ -127,7 +127,7 @@ export class ScriptingUI {
 			]
 		});
 		
-		const valueInput = create_formcontrol(container, "text", "static_value", "Value", { value: initial?.static_value ?? "", class: "fc-container-3", required: true });
+		const valueInput = create_formcontrol(container, "text", "string_value", "Value", { value: initial?.string_value ?? "", class: "fc-container-3", required: true });
 		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
 		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "", class: "fc-container-3" });
 		
@@ -167,7 +167,7 @@ export class ScriptingUI {
 						attribute: attribiteInput.value || undefined
 					},
 					type: parseInt(typeSelect.value),
-					static_value: valueInput.value
+					string_value: valueInput.value
 				};
 			}
 		};
@@ -197,20 +197,19 @@ export class ScriptingUI {
 		});
 		
 		// Auto generate arguments inputs
-		const arguments_fc_array: (HTMLInputElement|HTMLSelectElement)[] = [];
+		const arguments_fc_array: (HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement)[] = [];
 		const arguments_container = create_element(container, "div");
 		const action_hint = create_text_element(container, "div", "", { class: "action-hint", style: "margin-top: 0.5rem; color: #ccc; font-size: 0.9rem;" });
 		const action_type_change_event = () => {
 			arguments_container.innerHTML = "";
 			action_hint.innerText = "";
+			arguments_fc_array.length = 0;
 			if (action_type_select.value === "") return;
 			const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
-			if (action_type.kind === ActionKind.VARIABLE) {
-				action_hint.innerText = action_type.name.includes('Get')
-					? 'Get variable value and optionally store it in another local variable.'
-					: action_type.name.includes('Persistent')
-						? 'Persistent variables are stored across extension sessions.'
-						: 'Define a variable name and value. Local variables exist only during this script run.';
+			if (action_type.kind === ActionKind.SET_VARIABLE) {
+				action_hint.innerText += 'Define a variable name and value. Local variables exist only during this script run. Variables can be used in STRING with ${var}.';
+			} else if (action_type.kind === ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE) {
+				action_hint.innerText += 'Read an element attribute and store it in a variable. Variables can be used in STRING with ${var}.';
 			}
 			console.debug("action_type_select", action_type_select);
 			console.debug("action_type_select.value", action_type_select.value);
@@ -220,16 +219,24 @@ export class ScriptingUI {
 				const argument = action_type.available_arguments[index];
 				let argument_value: string;
 				if (initial) {
-					argument_value = (initial.arguments as any)[argument.argument as any]?? "";
+					argument_value = (initial.arguments as any)[argument.argument as any] ?? "";
 				} else {
 					argument_value = "";
 				}
-				
-				/** If reference is set then we get automaticly a select with data from from SharedData.data
-				*  we expect that the object has `name` attribute. the expected value to return of the select is the argument.
-				*/
+
 				const referenceKey = argument.reference as keyof SharedDataInner;
-				if (argument.argument === "element_selector") {
+				if (argument.argument === "scope") {
+					arguments_fc_array.push(create_formcontrol(arguments_container, "select", "scope", "Scope", {
+						value: argument_value,
+						class: "fc-container-3",
+						required: argument.required,
+						options: [
+							{ title: "local", value: "local" },
+							{ title: "global", value: "global" },
+							{ title: "persistent", value: "persistent" },
+						],
+					}));
+				} else if (argument.argument === "element_selector") {
 					const {element_selector_container, element_selector_input} = this.create_element_selector_fc(arguments_container, argument_value);
 					arguments_fc_array.push(element_selector_input);
 				} else if (argument.reference && this.shared.data[referenceKey] !== undefined) {
@@ -239,12 +246,12 @@ export class ScriptingUI {
 						const reference = referenceArray[index];
 						reference_options.push({ title: reference.name, value: reference.id.toString() });
 					}
-	
+
 					let placeholder: string = argument.reference;
 					if(placeholder.endsWith("s")) placeholder = placeholder.substring(0, placeholder.length -1);
 					arguments_fc_array.push(
-						create_formcontrol(arguments_container, "select", argument.argument, "Select "+placeholder, { 
-							value: argument_value, 
+						create_formcontrol(arguments_container, "select", argument.argument, "Select "+placeholder, {
+							value: argument_value,
 							class: "fc-container-3",
 							required: true,
 							options: reference_options
@@ -254,11 +261,11 @@ export class ScriptingUI {
 					if (argument.use_set_method) {
 						arguments_fc_array.push(
 							create_formcontrol(arguments_container, "select", "set_method", "set method", {
-								value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STATIC.toString(),
+								value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STRING.toString(),
 								class: "fc-container-3",
 								required: true,
 								options: [
-									{ title: "STATIC", value: ActionSetMethod.STATIC.toString() },
+									{ title: "STRING", value: ActionSetMethod.STRING.toString() },
 									{ title: "DATE_NOW_PLUS_DAYS", value: ActionSetMethod.DATE_NOW_PLUS_DAYS.toString() },
 								]
 							})
@@ -266,7 +273,7 @@ export class ScriptingUI {
 					}
 
 					arguments_fc_array.push(
-						create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument, {
+						create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument === "value" ? "Value" : argument.argument, {
 							value: argument_value,
 							class: "fc-container-3",
 							required: argument.required,

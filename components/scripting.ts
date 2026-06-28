@@ -36,7 +36,7 @@ export interface ConditionTarget {
 export interface Condition {
 	target: ConditionTarget
 	type: ConditionType,
-	static_value: string
+	string_value: string
 }
 
 export enum ActionKind {
@@ -45,12 +45,20 @@ export enum ActionKind {
 	MESSAGE_TYPE = 1,
 	NOTIFY = 2,
 	WAIT = 3,
-	VARIABLE = 4,
+	SET_VARIABLE = 4,
+	ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE = 5,
 }
 
 export enum ActionSetMethod {
-	STATIC = 0,
+	// Set string with optional ${VAR} variables
+	STRING = 0,
 	DATE_NOW_PLUS_DAYS = 1,
+}
+
+export enum VariableScope {
+	LOCAL = "local",
+	GLOBAL = "global",
+	PERSISTENT = "persistent",
 }
 
 export interface ActionType {
@@ -61,7 +69,7 @@ export interface ActionType {
 	 *  If reference is set then we get automaticly a select with data from SharedData
 	 *  we expect that the object has the `id` and `name` attributes. The expected value to return of the select is the argument.
 	 */
-	available_arguments: { argument: string, type: "text"|"number", required: boolean, use_set_method: boolean, reference?: "scripts"|"templates" }[]
+	available_arguments: { argument: string, type: "text"|"number"|"textarea"|"select", required: boolean, use_set_method: boolean, reference?: "scripts"|"templates" }[]
 }
 
 export interface Reference {
@@ -79,6 +87,7 @@ export interface Action {
 		name?: string,
 		value?: string,
 		target?: string,
+		scope?: VariableScope,
 		[key: string]: any,
 		attribute?: string,
 		event_type?: string,
@@ -128,99 +137,22 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		available_arguments: [{argument: "seconds", type: "number", required: true, use_set_method: false}]
 	},
 	{
-		name: "Set Local Variable",
-		kind: ActionKind.VARIABLE,
+		name: "Assign Variable from Element Attribute",
+		kind: ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE,
 		available_arguments: [
+			{ argument: "scope", type: "text", required: true, use_set_method: false },
 			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "text", required: true, use_set_method: false },
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
+			{ argument: "attribute", type: "text", required: true, use_set_method: false },
 		],
 	},
 	{
-		name: "Get Local Variable",
-		kind: ActionKind.VARIABLE,
+		name: "Set Variable",
+		kind: ActionKind.SET_VARIABLE,
 		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false},
-			{ argument: "target", type: "text", required: false, use_set_method: false },
-		],
-	},
-	{
-		name: "Set Global Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
+			{ argument: "scope", type: "text", required: true, use_set_method: false },
 			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "text", required: true, use_set_method: false },
-		],
-	},
-	{
-		name: "Get Global Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "target", type: "text", required: false, use_set_method: false },
-		],
-	},
-	{
-		name: "Set Persistent Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "text", required: true, use_set_method: false },
-		],
-	},
-	{
-		name: "Get Persistent Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "target", type: "text", required: false, use_set_method: false },
-		],
-	},
-	{
-		name: "Set Local Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "text", required: true, use_set_method: false },
-		],
-	},
-	{
-		name: "Get Local Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "target", type: "text", required: false, use_set_method: false },
-		],
-	},
-	{
-		name: "Set Global Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "text", required: true, use_set_method: false },
-		],
-	},
-	{
-		name: "Get Global Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "target", type: "text", required: false, use_set_method: false },
-		],
-	},
-	{
-		name: "Set Persistent Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "text", required: true, use_set_method: false },
-		],
-	},
-	{
-		name: "Get Persistent Variable",
-		kind: ActionKind.VARIABLE,
-		available_arguments: [
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "target", type: "text", required: false, use_set_method: false },
+			{ argument: "value", type: "textarea", required: true, use_set_method: false },
 		],
 	},
 ];

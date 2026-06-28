@@ -26,6 +26,10 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 		- On Conditions met notify background
 		- execute Script on user interactions
 		- execute Script every x seconds
+	- Variables
+		- local - Variable exists for Script
+		- global - Variable exists for all Scripts
+		- peristant - Variable exists for all Script and is saved to peristant storage
 	- [ ] Half automation for returns
 		- give the bot the serial number and it will guide you through the return process
 - Chat UI to send commands and receive responses

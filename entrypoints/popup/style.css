@@ -9,7 +9,7 @@ small { font-size: .8em; }
 button { cursor: pointer; }
 
 /* Form Components */
-.fc-container { position: relative; margin: 1rem .4rem 0 .4rem; }
+.fc-container { position: relative; vertical-align: top; margin: 1rem .4rem 0 .4rem; }
 .fc {
     width: 100%;
     max-width: -moz-available; max-width: -webkit-fill-available;

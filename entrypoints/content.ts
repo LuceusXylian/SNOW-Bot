@@ -114,6 +114,26 @@ class BackgroundMessageHandler {
 					return success_message({ updated: true });
 				}
 
+				case MessageType.GET_ELEMENT_ATTRIBUTE: {
+					const { element_selector, attribute } = message.data || {};
+					if (!element_selector) return error_message("No element selector provided");
+					if (!attribute) return error_message("No attribute provided");
+
+					const target_element = querySelector(element_selector);
+					if (target_element === null) {
+						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
+					}
+
+					let attributeValue: string | null = null;
+					if (attribute === "value" && (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement)) {
+						attributeValue = target_element.value;
+					} else {
+						attributeValue = target_element.getAttribute(attribute);
+					}
+
+					return success_message({ value: attributeValue ?? "" });
+				}
+				
 				case MessageType.TRIGGER_ELEMENT_EVENT: {
 					const { element_selector, event_type } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
@@ -135,7 +155,7 @@ class BackgroundMessageHandler {
 						const condition = conditions[c];
 						const value1 = this.get_condition_target_value(condition.target);
 						if(value1 === null) return error_message("Unable to get value1, abort");
-						const result = this.test_condition(condition.type, value1, condition.static_value);
+						const result = this.test_condition(condition.type, value1, condition.string_value);
 						if(!result) {
 							const target_type = condition.target.target_type;
 							let target_label = conditionTargetType_toString(target_type);
@@ -143,7 +163,7 @@ class BackgroundMessageHandler {
 							if(condition.target.attribute) target_label += " " + condition.target.attribute;
 							return success_message({
 								result: false,
-								error: `The condition failed: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.static_value)} but got ${JSON.stringify(value1)}`,
+								error: `The condition failed: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value1)}`,
 							});
 						}
 					}
