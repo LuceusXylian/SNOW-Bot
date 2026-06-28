@@ -47,6 +47,8 @@ export enum ActionKind {
 	WAIT = 3,
 	SET_VARIABLE = 4,
 	ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE = 5,
+	/** Runs a script per element found with the element selector */
+	FOREACH_ELEMENT = 6,
 }
 
 export enum ActionSetMethod {
@@ -155,6 +157,14 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 			{ argument: "value", type: "textarea", required: true, use_set_method: false },
 		],
 	},
+	{
+		name: "Execute Per Element",
+		kind: ActionKind.FOREACH_ELEMENT,
+		available_arguments: [
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
+			{ argument: "id", type: "text", required: true, use_set_method: false, reference: "scripts" },
+		],
+	},
 ];
 
 export interface ScriptLine {
@@ -186,6 +196,11 @@ export interface Trigger {
 	every: number|null,
 	/** Additinal conditions before executing script */
 	conditions: Condition[],
+}
+
+export interface ForeachContext {
+	foreach_selector: string;
+	foreach_index: number;
 }
 
 // Send message from popup to background to start a script

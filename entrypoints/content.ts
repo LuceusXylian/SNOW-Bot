@@ -45,12 +45,18 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content, element_selector, delete_insert } = message.data || {};
+					const { content, element_selector, delete_insert, foreach_selector, foreach_index } = message.data || {};
 					if (!content) return error_message("No template content provided");
 					let target_element: HTMLTextAreaElement;
+					let rootNode = document.body;
+					if (foreach_selector && foreach_index !== undefined) {
+						const foreachElements = querySelectorAll(foreach_selector);
+						rootNode = foreachElements[parseInt(foreach_index)];
+						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+					}
 					
 					if (element_selector) {
-						target_element = querySelector(element_selector)! as HTMLTextAreaElement;
+						target_element = querySelector(element_selector, rootNode)! as HTMLTextAreaElement;
 						if(target_element === null) return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					} else if (lastFocusedElement) {
 						target_element = lastFocusedElement as HTMLTextAreaElement;
@@ -87,11 +93,18 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.SET_ELEMENT_ATTRIBUTE: {
-					const { element_selector, attribute, value, set_method } = message.data || {};
+					const { element_selector, attribute, value, set_method, foreach_selector, foreach_index } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
 
-					const target_element = querySelector(element_selector);
+					let rootNode = document.body;
+					if (foreach_selector && foreach_index !== undefined) {
+						const foreachElements = querySelectorAll(foreach_selector);
+						rootNode = foreachElements[parseInt(foreach_index)];
+						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+					}
+
+					const target_element = querySelector(element_selector, rootNode);
 					if (target_element === null) {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					}
@@ -115,16 +128,23 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.GET_ELEMENT_ATTRIBUTE: {
-					const { element_selector, attribute } = message.data || {};
+					const { element_selector, attribute, foreach_selector, foreach_index } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
 
+					let rootNode = document.body;
+					if (foreach_selector && foreach_index !== undefined) {
+						const foreachElements = querySelectorAll(foreach_selector);
+						rootNode = foreachElements[parseInt(foreach_index)];
+						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+					}
+
 					if (attribute === "length") {
-						const target_elements = querySelectorAll(element_selector);
+						const target_elements = querySelectorAll(element_selector, rootNode);
 						return success_message({ value: target_elements.length });
 					}
 
-					const target_element = querySelector(element_selector);
+					const target_element = querySelector(element_selector, rootNode);
 					if (target_element === null) {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					}
@@ -140,11 +160,18 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.TRIGGER_ELEMENT_EVENT: {
-					const { element_selector, event_type } = message.data || {};
+					const { element_selector, event_type, foreach_selector, foreach_index } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!event_type) return error_message("No event type provided");
 
-					const target_element = querySelector(element_selector);
+					let rootNode = document.body;
+					if (foreach_selector && foreach_index !== undefined) {
+						const foreachElements = querySelectorAll(foreach_selector);
+						rootNode = foreachElements[parseInt(foreach_index)];
+						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+					}
+
+					const target_element = querySelector(element_selector, rootNode);
 					if (target_element === null) {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					}

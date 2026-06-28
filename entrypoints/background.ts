@@ -2,7 +2,7 @@ import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
 import { storage } from '#imports';
-import { ActionKind, Script } from "@/components/scripting";
+import { ActionKind, ForeachContext, Script } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
@@ -260,7 +260,7 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
-		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance) {
+		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
 				const bot = _bot  ?? await COMMANDER.getBotFocus();
 				await progress_report(session_id, script, "info", "Script `" + script.name + "` started");
@@ -336,10 +336,15 @@ export default defineBackground(() => {
 									if (!element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
 									if (!attribute) throw new Error("Error in script#" + script.id + ": attribute is invalid");
 
-									const result = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, {
+									const getAttrData: Record<string, any> = {
 										element_selector,
 										attribute,
-									});
+									};
+									if (foreach_context) {
+										getAttrData.foreach_selector = foreach_context.foreach_selector;
+										getAttrData.foreach_index = foreach_context.foreach_index;
+									}
+									const result = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, getAttrData);
 									if (!result.success) {
 										throw new Error("Failed to get element attribute: " + result.error);
 									}
@@ -357,11 +362,16 @@ export default defineBackground(() => {
 											if (!action.arguments.element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
 											const template = shared.get_template(action.arguments.id);
 											const content = resolveActionArgument(template.content, local_variables);
-											await bot.sendMessage(action.type.message_type, {
+											const insertData: Record<string, any> = {
 												content: content,
 												element_selector: action.arguments.element_selector,
 												delete_insert: true,
-											});
+											};
+											if (foreach_context) {
+												insertData.foreach_selector = foreach_context.foreach_selector;
+												insertData.foreach_index = foreach_context.foreach_index;
+											}
+											await bot.sendMessage(action.type.message_type, insertData);
 											break;
 										}
 
@@ -369,12 +379,17 @@ export default defineBackground(() => {
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.attribute) throw new Error("Error in script#"+script.id+": attribute is invalid");
 											const value = resolveActionArgument(action.arguments.value ?? "", local_variables);
-											const result = await bot.sendMessage(action.type.message_type, {
+											const setAttrData: Record<string, any> = {
 												element_selector: action.arguments.element_selector,
 												attribute: action.arguments.attribute,
 												set_method: action.arguments.set_method,
 												value: value,
-											});
+											};
+											if (foreach_context) {
+												setAttrData.foreach_selector = foreach_context.foreach_selector;
+												setAttrData.foreach_index = foreach_context.foreach_index;
+											}
+											const result = await bot.sendMessage(action.type.message_type, setAttrData);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;
@@ -385,10 +400,15 @@ export default defineBackground(() => {
 										case MessageType.TRIGGER_ELEMENT_EVENT: {
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.event_type) throw new Error("Error in script#"+script.id+": event_type is invalid");
-											const result = await bot.sendMessage(action.type.message_type, {
+											const triggerData: Record<string, any> = {
 												element_selector: action.arguments.element_selector,
 												event_type: action.arguments.event_type,
-											});
+											};
+											if (foreach_context) {
+												triggerData.foreach_selector = foreach_context.foreach_selector;
+												triggerData.foreach_index = foreach_context.foreach_index;
+											}
+											const result = await bot.sendMessage(action.type.message_type, triggerData);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;
@@ -423,6 +443,35 @@ export default defineBackground(() => {
 									if (!action.arguments.seconds) throw new Error("Error in script#" + script.id + ": action.arguments.seconds is invalid");
 									progress_report(session_id, script, "info", "WAIT: " + action.arguments.seconds + " seconds");
 									await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
+									break;
+								}
+								case ActionKind.FOREACH_ELEMENT: {
+									const forEachSelector = resolveActionArgument(action.arguments.element_selector ?? "", local_variables);
+									if (!forEachSelector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
+									if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": id is invalid");
+
+									const foreachScript = shared.get_script(action.arguments.id);
+									progress_report(session_id, script, "info", "START Action: Execute Per Element with `" + foreachScript.name + "`");
+
+									const countResult = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, {
+										element_selector: forEachSelector,
+										attribute: "length",
+									});
+									if (!countResult.success) {
+										throw new Error("Failed to count elements: " + countResult.error);
+									}
+									const count = parseInt(countResult.data?.value ?? "0");
+
+									for (let i = 0; i < count; i++) {
+										setVariable("local", "foreach_index", String(i));
+										setVariable("local", "foreach_count", String(count));
+										setVariable("local", "foreach_selector", forEachSelector);
+										await script_worker(session_id, foreachScript, bot, {
+											foreach_selector: forEachSelector,
+											foreach_index: i,
+										});
+									}
+									progress_report(session_id, script, "info", "DONE  Action: Execute Per Element with `" + foreachScript.name + "`");
 									break;
 								}
 								default:
