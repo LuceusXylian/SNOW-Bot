@@ -1,4 +1,4 @@
-import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, ActionKind } from "@/components/scripting";
+import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ActionSetMethod, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, execute_script, ActionKind } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
@@ -23,8 +23,6 @@ export class ScriptingUI {
 	
 	/** list all scripts with actions: edit, delete, execute */
 	build_scripting_list(parent: HTMLElement) {
-		console.log("parent", parent, this.shared);
-		
 		const new_spoiler = create_element(parent, "div", { class:"spoiler-container" });
 		const new_spoiler_title = create_text_element(new_spoiler, "div", "Create new Script", { class:"spoiler-title" });
 		const new_spoiler_content = create_element(new_spoiler, "div", { class:"spoiler-content" });
@@ -72,9 +70,7 @@ export class ScriptingUI {
 					render_script_list();
 				});
 				create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
-					sendMessage(this.LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-						session_id: this.SESSION_ID, script_id: script.id
-					}});
+					execute_script(this, script.id)
 				});
 			}
 		}
@@ -118,8 +114,8 @@ export class ScriptingUI {
 			]
 		});
 	
-		const typeSelect = create_formcontrol(container, "select", "target_type", "Condition Type", { 
-			value: initial?.type ?? "", 
+		const typeSelect = create_formcontrol(container, "select", "type", "Condition Type", { 
+			value: initial?.type.toString() ?? "", 
 			class: "fc-container-3",
 			required: true,
 			options: [
@@ -255,6 +251,20 @@ export class ScriptingUI {
 						})
 					)
 				} else {
+					if (argument.use_set_method) {
+						arguments_fc_array.push(
+							create_formcontrol(arguments_container, "select", "set_method", "set method", {
+								value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STATIC.toString(),
+								class: "fc-container-3",
+								required: true,
+								options: [
+									{ title: "STATIC", value: ActionSetMethod.STATIC.toString() },
+									{ title: "DATE_NOW_PLUS_DAYS", value: ActionSetMethod.DATE_NOW_PLUS_DAYS.toString() },
+								]
+							})
+						)
+					}
+
 					arguments_fc_array.push(
 						create_formcontrol(arguments_container, argument.type, argument.argument, argument.argument, {
 							value: argument_value,
@@ -349,8 +359,6 @@ export class ScriptingUI {
 	 */
 	build_script_form(container: HTMLElement, shared: SharedData, on_set: ()=>void, initial?: Script) {
 		const title_sub = document.getElementById("title_sub");
-		console.log("title_sub", title_sub);
-		
 		if (title_sub !== null) {
 			title_sub.innerHTML = "Script Editor <small>v"+SCRIPTING_VERSION+"</small>";
 			if(initial) title_sub.innerHTML += " ID: "+initial.id;
@@ -443,7 +451,7 @@ export class ScriptingUI {
 		create_text_element(container, "h3", "Trigger Editor");
 		
 		// Basic properties
-		const everyInput = create_formcontrol(container, "number", "every", "Execute every (ms, null for event-based)", { value: initial?.every ?? "", required: false });
+		const everyInput = create_formcontrol(container, "number", "every", "Execute every (ms, null for event-based)", { value: String(initial?.every), required: false });
 	
 		// Conditions section
 		create_text_element(container, "h4", "Trigger Conditions");

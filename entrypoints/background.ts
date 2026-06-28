@@ -198,9 +198,10 @@ export default defineBackground(() => {
 						if (script_id) {
 							const script = shared.get_script(script_id);
 							if (script) {
-								script_worker(session_id, script);
+								void script_worker(session_id, script);
 								return success_message({});
 							}
+							await progress_report(session_id, { name: String(script_id) } as Script, "error", "Invalid script with id " + script_id);
 						}
 						return error_message("Invalid script with id "+script_id);
 					}
@@ -211,16 +212,24 @@ export default defineBackground(() => {
 						const bot = focus_bot? await COMMANDER.getBotFocus() : await COMMANDER.getBot(bot_id);
 						if(!trigger_id) return error_message("Invalid trigger with id "+trigger_id);
 						const trigger = shared.get_trigger(trigger_id);
+						if (!trigger) {
+							await progress_report(session_id, { name: String(trigger_id) } as Script, "error", "Invalid trigger with id " + trigger_id);
+							return error_message("Invalid trigger with id "+trigger_id);
+						}
 						const script = shared.get_script(trigger.script_id);
+						if (!script) {
+							await progress_report(session_id, { name: trigger.name } as Script, "error", "Trigger `"+trigger.name+"` references missing script `"+trigger.script_id+"`.");
+							return error_message("Trigger #"+trigger_id+" references missing script");
+						}
 
 						if (trigger.conditions.length) {
 							// Send conditions to bot (if it has some)
 							const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: trigger.conditions });
-							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed");
+							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
-						progress_report(session_id, "Trigger `"+trigger.name+"` conditions fulfilled.");
-						script_worker(session_id, script, bot);
+						await progress_report(session_id, script, "info", "Trigger `"+trigger.name+"` conditions fulfilled.");
+						void script_worker(session_id, script, bot);
 						return success_message({});
 					}
 
@@ -238,23 +247,30 @@ export default defineBackground(() => {
 		registerMessageHandler(handleMessage);
 
 		// create function to send progress reports
-		async function progress_report(session_id: number|null, message: string) {
+		async function progress_report(session_id: number|null, script: Script, kind: "progress" | "error" | "info", message: string) {
 			LOGGER.log("PROGRESS_REPORT", message);
 			if(session_id === null) return;
 
 			try {
 				await browser.runtime.sendMessage({
 					type: MessageType.PROGRESS_REPORT,
-					data: { session_id, message }
+					data: { session_id, kind, message, meta: script.name }
 				});
 			} catch (error) {
 				LOGGER.log("PROGRESS_REPORT", error);
 			}
 		}
 
+		async function report_script_issue(session_id: number|null, script: Script, context: string, error: unknown) {
+			const errorText = error instanceof Error ? error.message : String(error);
+			LOGGER.log(context, error);
+			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
+		}
+
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance) {
-				const bot = _bot ?? await COMMANDER.getBotFocus();
-				progress_report(session_id, "Script `" + script.name + "` started");
+			try {
+					const bot = _bot  ?? await COMMANDER.getBotFocus();
+					await progress_report(session_id, script, "info", "Script `" + script.name + "` started");
 
 				const local_variables: Record<string, string> = {};
 				function setVariable(scope: string, name: string, value: string) {

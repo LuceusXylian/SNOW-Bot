@@ -69,11 +69,21 @@ export class Logger {
 	log(...params: any[]) {
 		const prefix = "[" + log_from_to_string(this.from) + "]";
 		console.log(prefix, ...params);
+
+		let text = prefix;
+		for (const param of params) {
+			text += " ";
+			if (typeof param === "object") {
+				text += JSON.stringify(params);
+			} else {
+				text += String(param);
+			}
+		}
 		
 		const new_log: LogEntry = {
 			from: this.from,
 			timestamp: new Date().getTime(),
-			text: prefix + " " + String(...params),
+			text,
 		};
 		if (this.from === LogFrom.background) {
 			this.log_array.push(new_log);
@@ -123,6 +133,7 @@ export interface SharedDataInner {
 	triggers: Trigger[],
 	button_grids: ButtonGrid[],
 	button_grid_index: number,
+	datetime_locale: string,
 	persistent_variables: Record<string, string>,
 }
 
@@ -159,12 +170,41 @@ export class BotCommander {
 					this.is_busy = true;
 					
 					try {
-						const response = await browser.tabs.sendMessage(this.tabId, {
+						// First we try the main frame
+						const mf_response = await browser.tabs.sendMessage(this.tabId, {
 							type: message_type,
 							data: data,
+							frameIndex: 0,
 						});
+
+						// we iterate all frames until we get success
+						if (!mf_response.success) {
+							const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
+							if (frames) {
+								// start at 1 to skip main frame
+								for (let f = 1; f < frames.length; f++) {
+									console.log("sendMessage frameIndex "+f, frames[f].url);
+									
+									try {
+										const response = await browser.tabs.sendMessage(this.tabId, {
+											type: message_type,
+											data: data,
+											frameIndex: f
+										}, { frameId: frames[f].frameId });
+		
+										console.log("sendMessage response", response);
+										if (response.success) {
+											this.is_busy = false;
+											return response;
+										}
+									} catch (error) {
+										self.LOGGER.log("sendMessage(", message_type, ", ", data, ") failed for tabId:"+this.tabId+" frameId:"+frames[f].frameId);
+									}
+								}
+							}
+						}
 						this.is_busy = false;
-						return response;
+						return mf_response;
 					} catch (error) {
 						this.is_busy = false;
 						self.LOGGER.log(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);
@@ -361,6 +401,7 @@ export class SharedData {
 			triggers: data.triggers ?? [],
 			button_grids: data.button_grids ?? [],
 			button_grid_index: data.button_grid_index ?? -1,
+			datetime_locale: data.datetime_locale ?? DEFAULT_DATETIME_LOCALE,
 			persistent_variables: data.persistent_variables ?? {},
 		};
 	}
@@ -453,14 +494,19 @@ export class SharedData {
 
 /** document.querySelector(), but goes also through shadow DOMs */
 export function querySelector(selector: string, rootNode=document.body): HTMLElement|null {
+	// We ignore the "." delimiter for class because some weird websites uses it in id
+	const selector_id = selector.split("#")[1];
+	const elem = document.getElementById(selector_id);
+	if(elem) return elem;
+
     const traverser = (node: HTMLElement): HTMLElement|null => {
         // 1. decline all nodes that are not elements
         if(node.nodeType !== Node.ELEMENT_NODE) {
             return null;
         }
         
-        // 2. add the node to the array, if it matches the selector
-        if(node.matches(selector)) {
+        // 2. return the node to the array, if it matches the selector
+        if(node.id === selector_id || node.matches(selector)) {
             return node as HTMLElement;
         }
         
@@ -485,11 +531,13 @@ export function querySelector(selector: string, rootNode=document.body): HTMLEle
 		return null;
     }
     
-    return traverser(rootNode);
+	return traverser(rootNode);
 }
 
 /** document.querySelectorAll(), but goes also through shadow DOMs */
 export function querySelectorAll(selector: string, rootNode=document.body) {
+	// We ignore the "." delimiter for class because some weird websites uses it in id
+	const selector_id = selector.split("#")[1];
     const arr: HTMLElement[] = []
     
     const traverser = (node: Element) => {
@@ -499,7 +547,7 @@ export function querySelectorAll(selector: string, rootNode=document.body) {
         }
         
         // 2. add the node to the array, if it matches the selector
-        if(node.matches(selector)) {
+        if(node.id === selector_id || node.matches(selector)) {
             arr.push(node as HTMLElement)
         }
         
@@ -526,15 +574,47 @@ export function querySelectorAll(selector: string, rootNode=document.body) {
     return arr
 }
 
+
+/** Pads a number by 2 digits */
+function pad2(n: number) {
+	return n.toString().padStart(2, '0');
+}
+
 /** Converts a Date to ISO 8601 string format 'YYYY-MM-DD hh:mm:ss' */
 export function dateToISOString(date: Date): string {
-	const pad = (n: number) => n.toString().padStart(2, '0')
-	const year = date.getFullYear()
-	const month = pad(date.getMonth() + 1)
-	const day = pad(date.getDate())
-	const hours = pad(date.getHours())
-	const minutes = pad(date.getMinutes())
-	const seconds = pad(date.getSeconds())
-	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+	const year = date.getFullYear();
+	const month = pad2(date.getMonth() + 1);
+	const day = pad2(date.getDate());
+	const hours = pad2(date.getHours());
+	const minutes = pad2(date.getMinutes());
+	const seconds = pad2(date.getSeconds());
+	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/** Converts a Date to locale string format like de_DE 'dd.MM.yyyy HH:mm:ss'. Defaults to ISO 8601 */
+export function dateToLocaleString(date: Date, locale: string): string {
+	switch (locale) {
+		case "de_DE": { // dd.MM.yyyy HH:mm:ss
+			const year = date.getFullYear();
+			const month = pad2(date.getMonth() + 1);
+			const day = pad2(date.getDate());
+			const hours = pad2(date.getHours());
+			const minutes = pad2(date.getMinutes());
+			const seconds = pad2(date.getSeconds());
+			return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+		}
+	
+		case "en_US": { // MM/dd/yyyy HH:mm:ss
+			const year = date.getFullYear();
+			const month = pad2(date.getMonth() + 1);
+			const day = pad2(date.getDate());
+			const hours = pad2(date.getHours());
+			const minutes = pad2(date.getMinutes());
+			const seconds = pad2(date.getSeconds());
+			return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+		}
+	
+		default: return dateToISOString(date);
+	}
 }
 

@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8" />
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<link rel="stylesheet" href="style.css" />
 	<title>SNOW Bot</title>
 </head>
@@ -66,6 +68,11 @@
 			<div id="buttongrid_container" class="menu-item-container" style="margin-top: 10px;"></div>
 		</div>
 
+		<div class="menu-item">
+			<div id="chat" class="menu-item-title">Chat</div>
+			<div id="chat_container" class="menu-item-container chat-ui" style="padding: 0.6rem;"></div>
+		</div>
+
 
 		<div class="menu-item">
 			<div id="logs" class="menu-item-title">Logs</div>
@@ -74,12 +81,13 @@
 
 		<div class="menu-item">
 			<div id="settings" class="menu-item-title">Settings</div>
-			<div class="menu-item-container">
+			<div class="menu-item-container" style="padding-top: 0.6rem;">
 				<div style="margin-bottom: 1rem;">
 					<input type="file" id="shared-import-input" accept=".json" style="display: none;" />
 					<button id="shared-export-btn" type="button" class="btn-insert" style="margin-left: .5rem">Export Settings</button>
 					<button id="shared-import-btn" type="button" class="btn-delete" style="margin-left: .5rem">Import Settings</button>
 				</div>
+				<div id="general_settings" class="general_settings" style="margin: 1rem;"></div>
 				<div id="checkbox_settings" class="checkbox_settings" style="margin: 1rem;"></div>
 			</div>
 		</div>

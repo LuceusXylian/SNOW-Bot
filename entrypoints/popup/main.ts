@@ -3,6 +3,7 @@ import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING } from '@/components/constants';
 import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal } from '@/components/ui';
+import { ChatUI } from './chat_ui';
 import { ScriptingUI } from './scripting_ui';
 import { TriggersUI } from './triggers_ui';
 import { buttongrid_ui } from './buttongrid_ui';
@@ -96,7 +97,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				item.classList.add("selected");
 				header.classList.remove("goback-hidden");
 				menu_item_selected = item;
-				storage.setItem(KEY_POPUP_MENU_INDEX, index);
+				if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, index);
 				title_sub.innerText = menu_item_title.innerText;
 				location.hash = menu_item_title.id;
 			}
@@ -116,7 +117,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			menu_item_selected.classList.remove("selected");
 			header.classList.add("goback-hidden");
 			menu_item_selected = null;
-			storage.setItem(KEY_POPUP_MENU_INDEX, null);
+			if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, null);
 			title_sub.innerHTML = "";
 		}
 	});
@@ -307,6 +308,17 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		}
 	});
 
+	// Settings - general_settings
+	const general_settings = document.getElementById("general_settings")!;
+	const datetime_locale_select = create_formcontrol(general_settings, "select", "datetime_locale", "Datetime locale", { value: shared.data.datetime_locale, options: [
+		{ title: "German format dd.MM.yyyy HH:mm:ss", value: "de_DE" },
+		{ title: "USA format MM/dd/yyyy HH:mm:ss", value: "en_US" },
+		{ title: "ISO 8601 format YYYY-MM-DD hh:mm:ss", value: "ISO" },
+	] });
+	datetime_locale_select.addEventListener("change", () => {
+		shared.applyStateChange({ datetime_locale: datetime_locale_select.value });
+	});
+
 	// Settings - checkbox settings
 	const checkbox_container = document.getElementById("checkbox_settings")!;
 	const settingsAttributes = [
@@ -361,4 +373,10 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	});
 
 	// Chat
+	const chat_title = document.getElementById("chat")!;
+	const chat_container = document.getElementById("chat_container")!;
+	chat_title.addEventListener("click", () => {
+		chat_container.innerHTML = "";
+		new ChatUI(shared, LOGGER, COMMANDER).build(chat_container);
+	});
 }

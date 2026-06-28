@@ -1,7 +1,7 @@
-import { LogFrom, Logger, SharedData, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
+import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
-import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
+import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
@@ -25,7 +25,7 @@ class BackgroundMessageHandler {
 	}
 
 	async handle(message: Message): Promise<MessageResponse<any>> {
-		LOGGER.debug(`Received message: ${message.type}`, message);
+		LOGGER.debug(`frameIndex:${(message as any).frameIndex} | ${document.title} | Received message: ${message.type}`, message);
 	
 		try {
 			if (message.type === MessageType.UPDATE_SHARED_DATA) {
@@ -45,14 +45,15 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content, element_selector } = message.data || {};
+					const { content, element_selector, delete_insert } = message.data || {};
 					if (!content) return error_message("No template content provided");
-					let target_element: HTMLElement;
+					let target_element: HTMLTextAreaElement;
+					
 					if (element_selector) {
-						target_element = querySelector(element_selector)!;
-						if(target_element === null) return error_message("target_element is null, because the element_selector is unable to find the element");
+						target_element = querySelector(element_selector)! as HTMLTextAreaElement;
+						if(target_element === null) return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					} else if (lastFocusedElement) {
-						target_element = lastFocusedElement;
+						target_element = lastFocusedElement as HTMLTextAreaElement;
 					} else {
 						LOGGER.debug("No focused element to insert template into");
 						return error_message("No element focused");
@@ -60,16 +61,20 @@ class BackgroundMessageHandler {
 
 					const resolvedContent = await this.resolveTemplateContent(content);
 					if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement) {
-						const start = target_element.selectionStart || 0;
-						const end = target_element.selectionEnd ?? target_element.value.length;
-
-						target_element.value =
-							target_element.value.slice(0, start) +
-							resolvedContent +
-							target_element.value.slice(end);
-
-						const newPos = start + resolvedContent.length;
-						target_element.setSelectionRange(newPos, newPos);
+						if (delete_insert) {
+							target_element.value = resolvedContent;
+						} else {
+							const start = target_element.selectionStart || 0;
+							const end = target_element.selectionEnd ?? target_element.value.length;
+	
+							target_element.value =
+								target_element.value.slice(0, start) +
+								resolvedContent +
+								target_element.value.slice(end);
+	
+							const newPos = start + resolvedContent.length;
+							target_element.setSelectionRange(newPos, newPos);
+						}
 
 						target_element.dispatchEvent(new Event("input", { bubbles: true }));
 						target_element.dispatchEvent(new Event("change", { bubbles: true }));
@@ -81,6 +86,48 @@ class BackgroundMessageHandler {
 					return error_message("Unsupported element type for template insertion");
 				}
 
+				case MessageType.SET_ELEMENT_ATTRIBUTE: {
+					const { element_selector, attribute, value, set_method } = message.data || {};
+					if (!element_selector) return error_message("No element selector provided");
+					if (!attribute) return error_message("No attribute provided");
+
+					const target_element = querySelector(element_selector);
+					if (target_element === null) {
+						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
+					}
+
+					LOGGER.debug("SET_ELEMENT_ATTRIBUTE set_method, value", set_method, value)
+					LOGGER.debug("SET_ELEMENT_ATTRIBUTE typeof set_method", typeof set_method)
+					const new_value = this.new_value_set_method(set_method, value);
+					LOGGER.debug("SET_ELEMENT_ATTRIBUTE new_value", new_value)
+
+					if (attribute === "value") {
+						if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement) {
+							target_element.value = new_value;
+							target_element.dispatchEvent(new Event("input", { bubbles: true }));
+							target_element.dispatchEvent(new Event("change", { bubbles: true }));
+							return success_message({ updated: true });
+						}
+					}
+
+					target_element.setAttribute(attribute, new_value);
+					return success_message({ updated: true });
+				}
+
+				case MessageType.TRIGGER_ELEMENT_EVENT: {
+					const { element_selector, event_type } = message.data || {};
+					if (!element_selector) return error_message("No element selector provided");
+					if (!event_type) return error_message("No event type provided");
+
+					const target_element = querySelector(element_selector);
+					if (target_element === null) {
+						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
+					}
+
+					target_element.dispatchEvent(new Event(event_type, { bubbles: true, cancelable: true }));
+					return success_message({ dispatched: true });
+				}
+
 				case MessageType.CHECK_CONDITIONS: {
 					// All conditions need to be true
 					const conditions = message.data.conditions as Condition[];
@@ -89,7 +136,16 @@ class BackgroundMessageHandler {
 						const value1 = this.get_condition_target_value(condition.target);
 						if(value1 === null) return error_message("Unable to get value1, abort");
 						const result = this.test_condition(condition.type, value1, condition.static_value);
-						if(!result) return error_message("Condition is false, abort");
+						if(!result) {
+							const target_type = condition.target.target_type;
+							let target_label = conditionTargetType_toString(target_type);
+							if(condition.target.element_selector) target_label += " " + condition.target.element_selector;
+							if(condition.target.attribute) target_label += " " + condition.target.attribute;
+							return success_message({
+								result: false,
+								error: `The condition failed: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.static_value)} but got ${JSON.stringify(value1)}`,
+							});
+						}
 					}
 					return success_message({ result: true });
 				}
@@ -280,15 +336,19 @@ class BackgroundMessageHandler {
 			case ConditionTargetType.URL: return location.href;
 			case ConditionTargetType.ELEMENT: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT needs element_selector");
-				const element = document.querySelector(target.element_selector);
+				const element = querySelector(target.element_selector);
 				if(element === null) return null;
 				return element.outerHTML;
 			}
 			case ConditionTargetType.ELEMENT_ATTRIBUTE: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs element_selector");
 				if(!target.attribute) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs attribute");
-				const element = document.querySelector(target.element_selector);
+				const element = querySelector(target.element_selector);
+				console.log("get_condition_target_value element", element);
+				
 				if(element === null) return null;
+				console.log("get_condition_target_value (element as HTMLInputElement).value", (element as HTMLInputElement).value);
+				if(target.attribute === "value") (element as HTMLInputElement).value;
 				return element.getAttribute(target.attribute);
 			}
 		}
@@ -306,6 +366,18 @@ class BackgroundMessageHandler {
 			case ConditionType.CONTAINS_NOT: return !value1.includes(value2);
 		}
 		throw new Error("Unknown ConditionType:"+type);
+	}
+
+	new_value_set_method(set_method: ActionSetMethod, value: string) {
+		switch (parseInt(set_method as any) as ActionSetMethod) {
+			case ActionSetMethod.DATE_NOW_PLUS_DAYS: {
+				const days = parseInt(value);
+				if(isNaN(days)) throw new Error("value needs to be a number for DATE_NOW_PLUS_DAYS");
+				const new_date = new Date(new Date().getTime() + 86400000 * days);
+				return dateToLocaleString(new_date, this.shared.data.datetime_locale);
+			}
+			default: return String(value ?? "");
+		}
 	}
 
 	async startElementSelector(): Promise<string | null> {
@@ -512,7 +584,7 @@ function paste_cleaner(shared: SharedData) {
 }
 
 export default defineContentScript({
-	matches: ['https://siam.service-now.com/*', '*://*.service-now.com/*', "file:///*"],
+	matches: ["<all_urls>", 'https://siam.service-now.com/*', '*://*.service-now.com/*', "file:///*"],
 	allFrames: true,
 	async main() {
 		LOGGER.debug('Content script started in', window.location.href);
@@ -530,17 +602,17 @@ export default defineContentScript({
 		}, true);
 
 		// Tracker 2
-		setTimeout(function () {
-			for (const element of querySelectorAll("textarea")) {
+		setInterval(function () {
+			for (const element of querySelectorAll("textarea:not([focus_tracked])")) {
+				console.log("focus_tracked", element.id);
 				element.addEventListener('focus', (event) => {
-					const target = event.target;
-					if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-						lastFocusedElement = target;
-						LOGGER.debug("Focused element tracked", { type: target.constructor.name });
-					}
+					const target = event.target as HTMLTextAreaElement;
+					lastFocusedElement = target;
+					LOGGER.debug("Focused element tracked", "type:", target.constructor.name, "id:", target.id);
 				}, true);
+				element.setAttribute("focus_tracked", "1");
 			}
-		}, 100);
+		}, 5000);
 
 		// Get bot_id from background, which creates a record for this content script instance
 		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID });
