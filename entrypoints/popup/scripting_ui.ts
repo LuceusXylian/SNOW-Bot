@@ -1,8 +1,8 @@
-import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference } from "@/components/scripting";
+import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ConditionTarget, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, ActionKind } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
-import { alert_modal, create_formcontrol } from "@/components/ui";
+import { alert_modal, create_formcontrol, create_text_element } from "@/components/ui";
 
 
 export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
@@ -203,15 +203,23 @@ export class ScriptingUI {
 		// Auto generate arguments inputs
 		const arguments_fc_array: (HTMLInputElement|HTMLSelectElement)[] = [];
 		const arguments_container = create_element(container, "div");
+		const action_hint = create_text_element(container, "div", "", { class: "action-hint", style: "margin-top: 0.5rem; color: #ccc; font-size: 0.9rem;" });
 		const action_type_change_event = () => {
 			arguments_container.innerHTML = "";
-			if(action_type_select.value === "") return;
+			action_hint.innerText = "";
+			if (action_type_select.value === "") return;
 			const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
+			if (action_type.kind === ActionKind.VARIABLE) {
+				action_hint.innerText = action_type.name.includes('Get')
+					? 'Get variable value and optionally store it in another local variable.'
+					: action_type.name.includes('Persistent')
+						? 'Persistent variables are stored across extension sessions.'
+						: 'Define a variable name and value. Local variables exist only during this script run.';
+			}
 			console.debug("action_type_select", action_type_select);
 			console.debug("action_type_select.value", action_type_select.value);
 			console.debug("action_type", action_type);
-			
-	
+
 			for (let index = 0; index < action_type.available_arguments.length; index++) {
 				const argument = action_type.available_arguments[index];
 				let argument_value: string;

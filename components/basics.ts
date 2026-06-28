@@ -123,6 +123,7 @@ export interface SharedDataInner {
 	triggers: Trigger[],
 	button_grids: ButtonGrid[],
 	button_grid_index: number,
+	persistent_variables: Record<string, string>,
 }
 
 
@@ -360,6 +361,7 @@ export class SharedData {
 			triggers: data.triggers ?? [],
 			button_grids: data.button_grids ?? [],
 			button_grid_index: data.button_grid_index ?? -1,
+			persistent_variables: data.persistent_variables ?? {},
 		};
 	}
 

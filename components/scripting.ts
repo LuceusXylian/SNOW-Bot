@@ -35,6 +35,7 @@ export enum ActionKind {
 	MESSAGE_TYPE = 1,
 	NOTIFY = 2,
 	WAIT = 3,
+	VARIABLE = 4,
 }
 
 export interface ActionType {
@@ -60,6 +61,10 @@ export interface Action {
 		id?: string,
 		text?: string,
 		seconds?: number,
+		name?: string,
+		value?: string,
+		target?: string,
+		[key: string]: any,
 	},
 }
 
@@ -84,6 +89,54 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		name: "Wait",
 		kind: ActionKind.WAIT,
 		available_arguments: [{argument: "seconds", type: "number", required: true}]
+	},
+	{
+		name: "Set Local Variable",
+		kind: ActionKind.VARIABLE,
+		available_arguments: [
+			{ argument: "name", type: "text", required: true },
+			{ argument: "value", type: "text", required: true },
+		],
+	},
+	{
+		name: "Get Local Variable",
+		kind: ActionKind.VARIABLE,
+		available_arguments: [
+			{ argument: "name", type: "text", required: true },
+			{ argument: "target", type: "text", required: false },
+		],
+	},
+	{
+		name: "Set Global Variable",
+		kind: ActionKind.VARIABLE,
+		available_arguments: [
+			{ argument: "name", type: "text", required: true },
+			{ argument: "value", type: "text", required: true },
+		],
+	},
+	{
+		name: "Get Global Variable",
+		kind: ActionKind.VARIABLE,
+		available_arguments: [
+			{ argument: "name", type: "text", required: true },
+			{ argument: "target", type: "text", required: false },
+		],
+	},
+	{
+		name: "Set Persistent Variable",
+		kind: ActionKind.VARIABLE,
+		available_arguments: [
+			{ argument: "name", type: "text", required: true },
+			{ argument: "value", type: "text", required: true },
+		],
+	},
+	{
+		name: "Get Persistent Variable",
+		kind: ActionKind.VARIABLE,
+		available_arguments: [
+			{ argument: "name", type: "text", required: true },
+			{ argument: "target", type: "text", required: false },
+		],
 	},
 ];
 
