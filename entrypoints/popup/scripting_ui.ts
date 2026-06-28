@@ -209,7 +209,7 @@ export class ScriptingUI {
 			if (action_type.kind === ActionKind.SET_VARIABLE) {
 				action_hint.innerText += 'Define a variable name and value. Local variables exist only during this script run. Variables can be used in STRING with ${var}.';
 			} else if (action_type.kind === ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE) {
-				action_hint.innerText += 'Read an element attribute and store it in a variable. Variables can be used in STRING with ${var}.';
+				action_hint.innerText += 'Read an element attribute and store it in a variable. Use "length" as attribute to get the count of selector matches. Variables can be used in STRING with ${var}.';
 			}
 			console.debug("action_type_select", action_type_select);
 			console.debug("action_type_select.value", action_type_select.value);

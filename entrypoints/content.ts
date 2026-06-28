@@ -119,6 +119,11 @@ class BackgroundMessageHandler {
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
 
+					if (attribute === "length") {
+						const target_elements = querySelectorAll(element_selector);
+						return success_message({ value: target_elements.length });
+					}
+
 					const target_element = querySelector(element_selector);
 					if (target_element === null) {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
@@ -133,7 +138,7 @@ class BackgroundMessageHandler {
 
 					return success_message({ value: attributeValue ?? "" });
 				}
-				
+
 				case MessageType.TRIGGER_ELEMENT_EVENT: {
 					const { element_selector, event_type } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
