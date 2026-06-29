@@ -166,7 +166,7 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 	{
 		name: "Notification",
 		kind: ActionKind.NOTIFY,
-		available_arguments: [{argument: "text", type: "text", required: true, use_set_method: false}]
+		available_arguments: [{argument: "value", type: "text", required: true, use_set_method: false}]
 	},
 	{
 		name: "Wait",

@@ -480,7 +480,7 @@ export default defineBackground(() => {
 									break;
 								}
 								case ActionKind.NOTIFY: {
-									if (!action.arguments.text) throw new Error("Error in script#" + script.id + ": action.arguments.text is invalid");
+									if (!action.arguments.value) throw new Error("Error in script#" + script.id + ": action.arguments.value is invalid");
 									const text = resolveActionArgument(action.arguments.value ?? "", local_variables);
 									await progress_report(session_id, script, "info", "NOTIFY: " + text);
 									try {
