@@ -310,10 +310,11 @@ export default defineBackground(() => {
 								case ActionKind.SCRIPT: {
 									if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": script_id is invalid");
 									const action_script = shared.get_script(action.arguments.id);
-									progress_report(session_id, script, "info", "START Action: Script `" + action_script.name + "` from Script `" + script.name + "`.");
+									if (!action_script) throw new Error("Error in script#"+script.id+": missing nested script `"+action.arguments.id+"`");
+									await progress_report(session_id, script, "progress", "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
 									await script_worker(session_id, action_script, bot);
-									progress_report(session_id, script, "info", "DONE  Action: Script `" + action_script.name + "` from Script `" + script.name + "`.");
-									break;
+									await progress_report(session_id, script, "progress", "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
+								break;
 								}
 								case ActionKind.SET_VARIABLE: {
 									const scope = action.arguments.scope;
@@ -354,13 +355,15 @@ export default defineBackground(() => {
 								}
 								case ActionKind.MESSAGE_TYPE: {
 									if (!action.type.message_type) throw new Error("Error in script#" + script.id + ": action.type.message_type is invalid");
-									progress_report(session_id, script, "info", "START Action: " + action.type.name);
+									await progress_report(session_id, script, "info", "START Action: " + action.type.name);
 
 									switch (action.type.message_type) {
 										case MessageType.INSERT_TEMPLATE: {
 											if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": id is invalid");
 											if (!action.arguments.element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
 											const template = shared.get_template(action.arguments.id);
+											if (!template) throw new Error("Error in script#"+script.id+": missing template `"+action.arguments.id+"`");
+
 											const content = resolveActionArgument(template.content, local_variables);
 											const insertData: Record<string, any> = {
 												content: content,
@@ -371,7 +374,11 @@ export default defineBackground(() => {
 												insertData.foreach_selector = foreach_context.foreach_selector;
 												insertData.foreach_index = foreach_context.foreach_index;
 											}
-											await bot.sendMessage(action.type.message_type, insertData);
+											const result = await bot.sendMessage(action.type.message_type, insertData);
+											if (!result.success) {
+												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
+												return;
+											}
 											break;
 										}
 
@@ -419,13 +426,13 @@ export default defineBackground(() => {
 										default:
 											throw new Error("ActionKind.MESSAGE_TYPE:" + action.type.message_type + " is not supported");
 									}
-									progress_report(session_id, script, "info", "DONE  Action: " + action.type.name);
+									await progress_report(session_id, script, "progress", "DONE  Action: " + action.type.name);
 									break;
 								}
 								case ActionKind.NOTIFY: {
 									if (!action.arguments.text) throw new Error("Error in script#" + script.id + ": action.arguments.text is invalid");
 									const text = resolveActionArgument(action.arguments.value ?? "", local_variables);
-									progress_report(session_id, script, "info", "NOTIFY: " + text);
+									await progress_report(session_id, script, "info", "NOTIFY: " + text);
 									try {
 										await browser.notifications.create('notify-' + Date.now(), {
 											type: 'basic',
@@ -441,7 +448,7 @@ export default defineBackground(() => {
 								}
 								case ActionKind.WAIT: {
 									if (!action.arguments.seconds) throw new Error("Error in script#" + script.id + ": action.arguments.seconds is invalid");
-									progress_report(session_id, script, "info", "WAIT: " + action.arguments.seconds + " seconds");
+									await progress_report(session_id, script, "progress", "WAIT: " + action.arguments.seconds + " seconds");
 									await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
 									break;
 								}
