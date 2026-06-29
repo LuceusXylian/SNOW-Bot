@@ -2,7 +2,7 @@ import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
 import { storage } from '#imports';
-import { ActionKind, ForeachContext, Script } from "@/components/scripting";
+import { ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
@@ -216,9 +216,12 @@ export default defineBackground(() => {
 						}
 
 						if (trigger.conditions.length) {
-							// Send conditions to bot (if it has some)
-							const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: trigger.conditions });
-							if(!result.success) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
+							const result = await checkConditions(trigger.conditions, bot, (scope, name) => {
+								if (scope === 'global') return global_variables[name] ?? "";
+								if (scope === 'persistent') return shared?.data?.persistent_variables?.[name] ?? "";
+								return "";
+							});
+							if(!result.success || !result.result) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
 						await progress_report(session_id, script, "info", "Trigger `"+trigger.name+"` conditions fulfilled.");
@@ -260,6 +263,38 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
+		async function checkConditions(conditions: Condition[], bot: BotInstance, getVariableFn: (scope: string, name: string) => string|null): Promise<{ success: boolean; result: boolean; error: string }> {
+			const variableConditions: Condition[] = [];
+			const otherConditions: Condition[] = [];
+			for (const condition of conditions) {
+				if (condition.target.target_type === ConditionTargetType.VARIABLE) {
+					variableConditions.push(condition);
+				} else {
+					otherConditions.push(condition);
+				}
+			}
+			for (const condition of variableConditions) {
+				const scope = condition.target.variable_scope;
+				const name = condition.target.variable_name;
+				if (!scope || !name) {
+					return { success: false, result: false, error: "Variable condition missing scope or name" };
+				}
+				const value = getVariableFn(scope, name);
+				if (!testCondition(condition.type, value, condition.string_value)) {
+					return {
+						success: true,
+						result: false,
+						error: `Variable condition failed: ${scope}:${name} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value)}`,
+					};
+				}
+			}
+			if (otherConditions.length > 0) {
+				const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: otherConditions });
+				return result;
+			}
+			return { success: true, result: true, error: "" };
+		}
+
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
 				const bot = _bot  ?? await COMMANDER.getBotFocus();
@@ -295,7 +330,7 @@ export default defineBackground(() => {
 				for (let index = 0; index < script.lines.length; index++) {
 					const script_line = script.lines[index];
 					if (script_line.conditions.length) {
-						const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: script_line.conditions });
+						const result = await checkConditions(script_line.conditions, bot, (scope, name) => getVariable(scope, name));
 						if (!result.success || !result.result) {
 							await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. One of the conditions is false. "+result.error);
 							return;

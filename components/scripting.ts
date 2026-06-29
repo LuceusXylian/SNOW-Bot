@@ -8,6 +8,7 @@ export enum ConditionType {
 	CONTAINS = 2,
 	CONTAINS_NOT = 3,
 	EXISTS = 4,
+	EXISTS_NOT = 5,
 }
 
 export enum ConditionTargetType {
@@ -16,6 +17,8 @@ export enum ConditionTargetType {
 	/** Element must exist for the `Condition` to succeed */
 	ELEMENT = 2,
 	ELEMENT_ATTRIBUTE = 3,
+	/** Check the value of a variable (local/global/persistent) */
+	VARIABLE = 4,
 }
 export function conditionTargetType_toString(type: ConditionTargetType) {
 	switch (type) {
@@ -23,6 +26,7 @@ export function conditionTargetType_toString(type: ConditionTargetType) {
 		case 1: return "DOMAIN";
 		case 2: return "ELEMENT";
 		case 3: return "ELEMENT_ATTRIBUTE";
+		case 4: return "VARIABLE";
 		default: return "UNKOWN_ConditionTargetType";
 	}
 } 
@@ -31,6 +35,26 @@ export interface ConditionTarget {
 	target_type: ConditionTargetType,
 	element_selector?: string
 	attribute?: string
+	variable_scope?: string
+	variable_name?: string
+}
+
+export function testCondition(type: ConditionType, value1: string|null, value2: string): boolean {
+	if (value1 === null) {
+		if(type === ConditionType.EXISTS_NOT) return true;
+		else return false;
+	}
+
+	switch (type) {
+		case ConditionType.EXISTS: return true;
+		case ConditionType.EXISTS_NOT: return false;
+		case ConditionType.IS: return value1 === value2;
+		case ConditionType.IS_NOT: return value1 !== value2;
+		case ConditionType.CONTAINS: return value1.includes(value2);
+		case ConditionType.CONTAINS_NOT: return !value1.includes(value2);
+	}
+	
+	throw new Error("Unknown ConditionType:"+type);
 }
 
 export interface Condition {

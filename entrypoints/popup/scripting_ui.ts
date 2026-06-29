@@ -111,15 +111,17 @@ export class ScriptingUI {
 				{ title: "Domain", value: String(ConditionTargetType.DOMAIN) },
 				{ title: "Element", value: String(ConditionTargetType.ELEMENT) },
 				{ title: "Element Attribute", value: String(ConditionTargetType.ELEMENT_ATTRIBUTE) },
+				{ title: "Variable", value: String(ConditionTargetType.VARIABLE) },
 			]
 		});
 	
 		const typeSelect = create_formcontrol(container, "select", "type", "Condition Type", { 
-			value: initial?.type.toString() ?? "", 
+			value: initial?.type.toString() ?? String(ConditionType.EXISTS), 
 			class: "fc-container-3",
 			required: true,
 			options: [
 				{ title: "EXISTS", value: String(ConditionType.EXISTS) },
+				{ title: "EXISTS_NOT", value: String(ConditionType.EXISTS_NOT) },
 				{ title: "IS", value: String(ConditionType.IS) },
 				{ title: "IS_NOT", value: String(ConditionType.IS_NOT) },
 				{ title: "CONTAINS", value: String(ConditionType.CONTAINS) },
@@ -130,25 +132,31 @@ export class ScriptingUI {
 		const valueInput = create_formcontrol(container, "text", "string_value", "Value", { value: initial?.string_value ?? "", class: "fc-container-3", required: true });
 		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
 		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "", class: "fc-container-3" });
+		const variableScopeSelect = create_formcontrol(container, "select", "variable_scope", "Variable Scope", {
+			value: initial?.target.variable_scope ?? "local",
+			class: "fc-container-3",
+			required: true,
+			options: [
+				{ title: "local", value: "local" },
+				{ title: "global", value: "global" },
+				{ title: "persistent", value: "persistent" },
+			]
+		});
+		const variableNameInput = create_formcontrol(container, "text", "variable_name", "Variable Name", { value: initial?.target.variable_name ?? "", class: "fc-container-3", required: true });
 		
 		const targetTypeSelect_change = () => {
 			const type = parseInt(targetTypeSelect.value);
-			if (type === ConditionTargetType.ELEMENT || type === ConditionTargetType.ELEMENT_ATTRIBUTE) {
-				element_selector_container.style.display = "";
-			} else {
-				element_selector_container.style.display = "none";
-			}
-			if (type === ConditionTargetType.ELEMENT_ATTRIBUTE) {
-				attribiteInput.parentElement!.style.display = "";
-			} else {
-				attribiteInput.parentElement!.style.display = "none";
-			}
+			const isElem = type === ConditionTargetType.ELEMENT || type === ConditionTargetType.ELEMENT_ATTRIBUTE;
+			element_selector_container.style.display = isElem ? "" : "none";
+			attribiteInput.parentElement!.style.display = type === ConditionTargetType.ELEMENT_ATTRIBUTE ? "" : "none";
+			variableScopeSelect.parentElement!.style.display = type === ConditionTargetType.VARIABLE ? "" : "none";
+			variableNameInput.parentElement!.style.display = type === ConditionTargetType.VARIABLE ? "" : "none";
 		};
 		targetTypeSelect.addEventListener("change", targetTypeSelect_change);
 		targetTypeSelect_change();
 		
 		const typeSelect_change = () => {
-			if (typeSelect.value === String(ConditionType.EXISTS)) {
+			if (typeSelect.value === String(ConditionType.EXISTS) || typeSelect.value === String(ConditionType.EXISTS_NOT)) {
 				valueInput.parentElement!.style.display = "none";
 			} else {
 				valueInput.parentElement!.style.display = "";
@@ -160,12 +168,21 @@ export class ScriptingUI {
 		return {
 			elem: container,
 			get(): Condition {
+				const targetType = parseInt(targetTypeSelect.value);
+				const target: ConditionTarget = {
+					target_type: targetType,
+				};
+				if (targetType === ConditionTargetType.VARIABLE) {
+					target.variable_scope = variableScopeSelect.value;
+					target.variable_name = variableNameInput.value;
+				} else {
+					target.element_selector = element_selector_input.value || undefined;
+					if (targetType === ConditionTargetType.ELEMENT_ATTRIBUTE) {
+						target.attribute = attribiteInput.value || undefined;
+					}
+				}
 				return {
-					target: {
-						target_type: parseInt(targetTypeSelect.value),
-						element_selector: element_selector_input.value || undefined,
-						attribute: attribiteInput.value || undefined
-					},
+					target,
 					type: parseInt(typeSelect.value),
 					string_value: valueInput.value
 				};
@@ -207,9 +224,9 @@ export class ScriptingUI {
 			if (action_type_select.value === "") return;
 			const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
 			if (action_type.kind === ActionKind.SET_VARIABLE) {
-				action_hint.innerText += 'Define a variable name and value. Local variables exist only during this script run. Variables can be used in STRING with ${var}.';
+				action_hint.innerText += 'Define a variable name and value. Local variables exist only during this script run. Variables can be used in STRING with ${local:var}.';
 			} else if (action_type.kind === ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE) {
-				action_hint.innerText += 'Read an element attribute and store it in a variable. Use "length" as attribute to get the count of selector matches. Variables can be used in STRING with ${var}.';
+				action_hint.innerText += 'Read an element attribute and store it in a variable. Use "length" as attribute to get the count of selector matches. Variables can be used in STRING with ${local:var}.';
 			}
 			console.debug("action_type_select", action_type_select);
 			console.debug("action_type_select.value", action_type_select.value);

@@ -13,7 +13,7 @@ export const DEFAULT_DATETIME_LOCALE = "de_DE";
 // Misc
 export const APP_NAME: string = "SNOW Bot";
 export const MAX_LOG_ENTRIES: number = 100;
-export const SCRIPTING_VERSION: number = 1;
+export const SCRIPTING_VERSION: number = 2;
 export const IS_POPUP_QUERY_STRING: string = "?is_popup=0";
 export const TRIGGER_COOLDOWN: number = 1000;
 export const TRIGGER_SESSION_ID: number = -3;

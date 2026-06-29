@@ -22,7 +22,7 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 			- Trigger element events
 			- Send notifications
 			- Wait
-			- TODO: Foreach Element do Actions
+			- Foreach Element do Actions
 	- Triggers
 		- On Conditions met notify background
 		- execute Script on user interactions

@@ -1,7 +1,7 @@
 import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
-import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString } from "@/components/scripting";
+import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
@@ -186,8 +186,7 @@ class BackgroundMessageHandler {
 					for (let c = 0; c < conditions.length; c++) {
 						const condition = conditions[c];
 						const value1 = this.get_condition_target_value(condition.target);
-						if(value1 === null) return error_message("Unable to get value1, abort");
-						const result = this.test_condition(condition.type, value1, condition.string_value);
+						const result = testCondition(condition.type, value1, condition.string_value);
 						if(!result) {
 							const target_type = condition.target.target_type;
 							let target_label = conditionTargetType_toString(target_type);
@@ -412,19 +411,6 @@ class BackgroundMessageHandler {
 			}
 		}
 		throw new Error("Unknown ConditionTargetType:"+target.target_type);
-	}
-
-	test_condition(type: ConditionType, value1: string, value2: string): boolean {
-		LOGGER.log("test_condition", type, "value1", value1, "value2", value2, "RESULT:", value1.includes(value2))
-
-		switch (type) {
-			case ConditionType.EXISTS: return true;
-			case ConditionType.IS: return value1 === value2;
-			case ConditionType.IS_NOT: return value1 !== value2;
-			case ConditionType.CONTAINS: return value1.includes(value2);
-			case ConditionType.CONTAINS_NOT: return !value1.includes(value2);
-		}
-		throw new Error("Unknown ConditionType:"+type);
 	}
 
 	new_value_set_method(set_method: ActionSetMethod, value: string) {
