@@ -493,7 +493,7 @@ export class SharedData {
 }
 
 /** document.querySelector(), but goes also through shadow DOMs */
-export function querySelector(selector: string, rootNode=document.body): HTMLElement|null {
+export function old__querySelector(selector: string, rootNode=document.body): HTMLElement|null {
 	// We ignore the "." delimiter for class because some weird websites uses it in id
 	const selector_id = selector.split("#")[1];
 	const elem = document.getElementById(selector_id);
@@ -534,44 +534,94 @@ export function querySelector(selector: string, rootNode=document.body): HTMLEle
 	return traverser(rootNode);
 }
 
-/** document.querySelectorAll(), but goes also through shadow DOMs */
-export function querySelectorAll(selector: string, rootNode=document.body) {
-	// We ignore the "." delimiter for class because some weird websites uses it in id
-	const selector_id = selector.split("#")[1];
-    const arr: HTMLElement[] = []
-    
+/** document.querySelector(), but also goes through shadow DOMs and slots */
+export function querySelector(selector: string, rootNode: ParentNode = document.body): HTMLElement | null {
+    // We ignore the "." delimiter for class because some weird websites use it in IDs.
+    const selector_id = selector.split("#")[1];
+    const elem = selector_id ? document.getElementById(selector_id) : null;
+    if (elem) return elem;
+
+    const traverser = (node: Element): HTMLElement | null => {
+        if (node.id === selector_id || node.matches(selector)) {
+            return node as HTMLElement;
+        }
+
+        // Traverse slotted content.
+        if (node instanceof HTMLSlotElement) {
+            for (const assigned of node.assignedElements({ flatten: true })) {
+                const ret = traverser(assigned);
+                if (ret) return ret;
+            }
+        }
+
+        // Traverse light DOM.
+        for (const child of node.children) {
+            const ret = traverser(child);
+            if (ret) return ret;
+        }
+
+        // Traverse shadow DOM.
+        if (node.shadowRoot) {
+            for (const child of node.shadowRoot.children) {
+                const ret = traverser(child);
+                if (ret) return ret;
+            }
+        }
+
+        return null;
+    };
+
+    return rootNode instanceof Element
+        ? traverser(rootNode)
+        : Array.from(rootNode.children).reduce<HTMLElement | null>((found, child) => found ?? traverser(child), null);
+}
+
+/** document.querySelectorAll(), but also traverses shadow DOMs and slots */
+export function querySelectorAll(selector: string, rootNode: ParentNode = document.body) {
+    // We ignore the "." delimiter for class because some weird websites use it in ids.
+    const selector_id = selector.split("#")[1];
+
+    const arr: HTMLElement[] = [];
+    const visited = new Set<Element>();
+
     const traverser = (node: Element) => {
-        // 1. decline all nodes that are not elements
-        if(node.nodeType !== Node.ELEMENT_NODE) {
-            return
+        if (visited.has(node)) return;
+        visited.add(node);
+
+        // Add matching node
+        if (node.id === selector_id || node.matches(selector)) {
+            arr.push(node as HTMLElement);
         }
-        
-        // 2. add the node to the array, if it matches the selector
-        if(node.id === selector_id || node.matches(selector)) {
-            arr.push(node as HTMLElement)
+
+        // Traverse light DOM
+        for (const child of node.children) {
+            traverser(child);
         }
-        
-        // 3. loop through the children
-        const children = node.children
-        if (children.length) {
-            for(const child of children) {
-                traverser(child)
+
+        // Traverse shadow DOM
+        if (node.shadowRoot) {
+            for (const child of node.shadowRoot.children) {
+                traverser(child);
             }
         }
-        
-        // 4. check for shadow DOM, and loop through it's children
-        const shadowRoot = node.shadowRoot
-        if (shadowRoot) {
-            const shadowChildren = shadowRoot.children
-            for(const shadowChild of shadowChildren) {
-                traverser(shadowChild)
+
+        // Traverse slotted content
+        if (node instanceof HTMLSlotElement) {
+            for (const assigned of node.assignedElements({ flatten: true })) {
+                traverser(assigned);
             }
+        }
+    };
+
+    if (rootNode instanceof Element) {
+        traverser(rootNode);
+    } else {
+        for (const child of rootNode.children) {
+            traverser(child);
         }
     }
-    
-    traverser(rootNode)
-    
-    return arr
+
+    return arr;
 }
 
 

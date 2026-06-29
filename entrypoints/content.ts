@@ -334,17 +334,24 @@ class BackgroundMessageHandler {
 	
 		// Search through all labels for a match.
 		const labels = Array.from(querySelectorAll('label')) as HTMLLabelElement[];
+		console.log("labels", labels);
 		for (const label of labels) {
 			const labelText = normalizeText(label.textContent || "");
 			if (!labelText) {
 				continue;
 			}
 	
+			console.log("labels normalizedLabel", normalizedLabel);
+			console.log("labels labelText", labelText);
 			if (normalizedLabel === labelText) {
 				// get formcontrol with attribute ´for´
 				const formcontrol_id = label.getAttribute("for");
+				console.log("labels labelText", formcontrol_id);
 				if (formcontrol_id) {
+					console.log("labels formcontrol_id", formcontrol_id);
+					
 					const formcontrol = document.getElementById(formcontrol_id);
+					console.log("labels formcontrol", formcontrol);
 					if (formcontrol) {
 						if (formcontrol instanceof HTMLInputElement) {
 							if (formcontrol.type === "checkbox") {

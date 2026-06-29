@@ -458,7 +458,7 @@ export default defineBackground(() => {
 									if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": id is invalid");
 
 									const foreachScript = shared.get_script(action.arguments.id);
-									progress_report(session_id, script, "info", "START Action: Execute Per Element with `" + foreachScript.name + "`");
+									progress_report(session_id, script, "progress", "START Action: Execute Per Element with `" + foreachScript.name + "`");
 
 									const countResult = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, {
 										element_selector: forEachSelector,
@@ -478,7 +478,7 @@ export default defineBackground(() => {
 											foreach_index: i,
 										});
 									}
-									progress_report(session_id, script, "info", "DONE  Action: Execute Per Element with `" + foreachScript.name + "`");
+									progress_report(session_id, script, "progress", "DONE  Action: Execute Per Element with `" + foreachScript.name + "`");
 									break;
 								}
 								default:
