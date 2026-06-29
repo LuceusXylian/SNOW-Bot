@@ -45,6 +45,41 @@ export default defineBackground(() => {
 		});
 	}
 
+	async function play_audio(source: string, speaker_device: string) {
+		const ctx = new AudioContext();
+		if (ctx.state === 'suspended') {
+			await ctx.resume();
+		}
+		if (speaker_device && speaker_device !== "default" && (ctx as any).setSinkId) {
+			try {
+				await (ctx as any).setSinkId(speaker_device);
+			} catch(err) {
+				// Unsupported or permission denied — fall back to default
+				console.error(err);
+			}
+		}
+		if (source === "beep") {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			osc.type = 'sine';
+			osc.frequency.value = 800;
+			gain.gain.value = 0.3;
+			osc.connect(gain);
+			gain.connect(ctx.destination);
+			osc.start();
+			osc.stop(ctx.currentTime + 2);
+		} else if (source) {
+			const url = browser.runtime.getURL(source as any);
+			const response = await fetch(url);
+			const arrayBuffer = await response.arrayBuffer();
+			const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+			const bufSource = ctx.createBufferSource();
+			bufSource.buffer = audioBuffer;
+			bufSource.connect(ctx.destination);
+			bufSource.start();
+		}
+	}
+
 	browser.tabs.onActivated.addListener((activeInfo) => {
 		LOGGER.debug("Tab activated", activeInfo.tabId);
 		COMMANDER.trackFocusedTab(activeInfo.tabId);
@@ -496,6 +531,20 @@ export default defineBackground(() => {
 									if (shared.data.allow_alert_notify) COMMANDER.sendMessageFocus(MessageType.ALERT, { text: text });
 									break;
 								}
+							case ActionKind.PLAY_AUDIO: {
+								const source = resolveActionArgument(action.arguments.source || shared.data.notify_sound_source, local_variables);
+								await progress_report(session_id, script, "info", "PLAY_AUDIO: " + source);
+								if (!shared.data.notify_sound_enabled) break;
+								if (navigator.userAgent.includes("Firefox")) {
+									await play_audio(source, shared.data.notify_speaker_device);
+								} else {
+									COMMANDER.sendMessageFocus(MessageType.PLAY_AUDIO, {
+										source,
+										speaker_device: shared.data.notify_speaker_device,
+									});
+								}
+								break;
+							}
 								case ActionKind.WAIT: {
 									if (!action.arguments.seconds) throw new Error("Error in script#" + script.id + ": action.arguments.seconds is invalid");
 									await progress_report(session_id, script, "progress", "WAIT: " + action.arguments.seconds + " seconds");

@@ -84,6 +84,7 @@ export enum ActionKind {
 	ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE = 5,
 	/** Runs a script per element found with the element selector */
 	FOREACH_ELEMENT = 6,
+	PLAY_AUDIO = 7,
 }
 
 export enum ActionSetMethod {
@@ -123,6 +124,7 @@ export interface Action {
 		seconds?: number,
 		name?: string,
 		value?: string,
+		source?: string,
 		target?: string,
 		scope?: VariableScope,
 		[key: string]: any,
@@ -167,6 +169,11 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		name: "Notification",
 		kind: ActionKind.NOTIFY,
 		available_arguments: [{argument: "value", type: "text", required: true, use_set_method: false}]
+	},
+	{
+		name: "Play Audio",
+		kind: ActionKind.PLAY_AUDIO,
+		available_arguments: [{argument: "source", type: "text", required: false, use_set_method: false}]
 	},
 	{
 		name: "Wait",

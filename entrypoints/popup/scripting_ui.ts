@@ -1,6 +1,6 @@
 import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ActionSetMethod, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, execute_script, ActionKind } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
-import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING } from "@/components/constants";
+import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { alert_modal, create_formcontrol, create_text_element } from "@/components/ui";
 
@@ -251,6 +251,16 @@ export class ScriptingUI {
 							{ title: "local", value: "local" },
 							{ title: "global", value: "global" },
 							{ title: "persistent", value: "persistent" },
+						],
+					}));
+				} else if (argument.argument === "source") {
+					arguments_fc_array.push(create_formcontrol(arguments_container, "select", "source", "Source", {
+						value: argument_value,
+						class: "fc-container-3",
+						required: argument.required,
+						options: [
+							{ title: "Default audio: "+this.shared.data.notify_sound_source, value: "" },
+							...BUNDLED_SOUNDS.map(s => ({ title: s.name, value: s.type === "beep" ? "beep" : s.path })),
 						],
 					}));
 				} else if (argument.argument === "element_selector") {

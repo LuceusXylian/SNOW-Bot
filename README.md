@@ -38,6 +38,10 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 - Popup navigation with location.hash
 	- if empty it uses persistant stored value
 
+## Permissions
+- `notifications` — Required to show native OS notification popups.
+- Storage, tabs, web navigation, etc. — See `wxt.config.ts` for the full list.
+
 ## Devtools requirements
 - nodejs: https://nodejs.org/en/download/current
 - pnpm: https://pnpm.io/installation#on-posix-systems

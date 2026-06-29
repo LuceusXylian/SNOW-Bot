@@ -1,8 +1,8 @@
 import { SharedData, LogFrom, Logger, BotCommander, LogEntry, dateToISOString } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
-import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING } from '@/components/constants';
-import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal } from '@/components/ui';
+import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS } from '@/components/constants';
+import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal, create_formcontrol } from '@/components/ui';
 import { ChatUI } from './chat_ui';
 import { ScriptingUI } from './scripting_ui';
 import { TriggersUI } from './triggers_ui';
@@ -339,6 +339,48 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			shared.applyStateChange({ [key]: checkbox.checked });
 		});
 	});
+
+	// Settings - notification sound
+	const sound_container = document.getElementById("sound_settings")!;
+	const sound_enabled_row = create_element(sound_container, "div", { class: "checkbox_row" });
+	const sound_enabled_id = "checkbox_settings_notify_sound_enabled";
+	const sound_enabled_checkbox = create_element(sound_enabled_row, "input", { id: sound_enabled_id, type: "checkbox" }) as HTMLInputElement;
+	sound_enabled_checkbox.checked = shared.data.notify_sound_enabled;
+	create_text_element(sound_enabled_row, "label", "Play notification sound", { for: sound_enabled_id });
+	sound_enabled_checkbox.addEventListener("change", () => {
+		shared.applyStateChange({ notify_sound_enabled: sound_enabled_checkbox.checked });
+	});
+
+	const sound_source_select = create_formcontrol(sound_container, "select", "notify_sound_source", "Notification sound", {
+		value: shared.data.notify_sound_source,
+		options: BUNDLED_SOUNDS.map(s => ({ title: s.name, value: s.type === "beep" ? "beep" : s.path })),
+	});
+	sound_source_select.addEventListener("change", () => {
+		shared.applyStateChange({ notify_sound_source: sound_source_select.value });
+	});
+
+	const speaker_device_select = create_formcontrol(sound_container, "select", "notify_speaker_device", "Speaker device", {
+		value: shared.data.notify_speaker_device,
+		options: [{ title: "Default device", value: "default" }],
+	});
+	(async () => {
+		try {
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			const audioOutputs = devices.filter(d => d.kind === "audiooutput");
+			for (const device of audioOutputs) {
+				const option = document.createElement("option");
+				option.value = device.deviceId;
+				option.text = device.label || `Speaker (${device.deviceId.slice(0, 8)}…)`;
+				if (device.deviceId === speaker_device_select.value) option.selected = true;
+				speaker_device_select.appendChild(option);
+			}
+		} catch {
+			// enumerateDevices unavailable — only "Default device" shown
+		}
+		speaker_device_select.addEventListener("change", () => {
+			shared.applyStateChange({ notify_speaker_device: speaker_device_select.value });
+		});
+	})();
 
 	// Scripting
 	const scripting_title = document.getElementById("scripting")!;

@@ -8,7 +8,15 @@ export const DEFAULT_ACTIVE = false;
 export const DEFAULT_ALLOW_PROMPT = true;
 export const DEFAULT_PASTE_CLEANER_ENABLED = true;
 export const DEFAULT_ALLOW_ALERT_NOTIFY = true;
+export const DEFAULT_NOTIFY_SOUND_ENABLED = true;
+export const DEFAULT_NOTIFY_SOUND_SOURCE = "beep";
+export const DEFAULT_NOTIFY_SPEAKER_DEVICE = "default";
 export const DEFAULT_DATETIME_LOCALE = "de_DE";
+
+export const BUNDLED_SOUNDS = [
+    { id: "beep",      name: "Beep",                         type: "beep" },
+    { id: "frostpunk", name: "Work To Do (Frostpunk)",       type: "file", path: "/frostpunk_work_to_do.mp3" },
+] as const;
 
 // Misc
 export const APP_NAME: string = "SNOW Bot";

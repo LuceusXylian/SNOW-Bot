@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE } from "./constants";
+import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
 import { Script, Trigger } from "./scripting";
 
@@ -128,6 +128,9 @@ export interface SharedDataInner {
 	allow_prompt: boolean,
 	paste_cleaner_enabled: boolean,
 	allow_alert_notify: boolean,
+	notify_sound_enabled: boolean,
+	notify_sound_source: string,
+	notify_speaker_device: string,
 	templates: TemplateData[],
 	scripts: Script[],
 	triggers: Trigger[],
@@ -396,6 +399,9 @@ export class SharedData {
 			allow_prompt: data.allow_prompt ?? DEFAULT_ALLOW_PROMPT,
 			paste_cleaner_enabled: data.paste_cleaner_enabled ?? DEFAULT_PASTE_CLEANER_ENABLED,
 			allow_alert_notify: data.allow_alert_notify ?? DEFAULT_ALLOW_ALERT_NOTIFY,
+			notify_sound_enabled: data.notify_sound_enabled ?? DEFAULT_NOTIFY_SOUND_ENABLED,
+			notify_sound_source: data.notify_sound_source ?? DEFAULT_NOTIFY_SOUND_SOURCE,
+			notify_speaker_device: data.notify_speaker_device ?? DEFAULT_NOTIFY_SPEAKER_DEVICE,
 			templates: data.templates ?? [],
 			scripts: data.scripts ?? [],
 			triggers: data.triggers ?? [],
