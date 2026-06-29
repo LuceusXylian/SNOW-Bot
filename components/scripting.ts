@@ -10,6 +10,17 @@ export enum ConditionType {
 	EXISTS = 4,
 	EXISTS_NOT = 5,
 }
+export function conditionType_toString(type: ConditionType) {
+	switch (type) {
+		case 0: return "IS";
+		case 1: return "IS_NOT";
+		case 2: return "CONTAINS";
+		case 3: return "CONTAINS_NOT";
+		case 4: return "EXISTS";
+		case 5: return "EXISTS_NOT";
+		default: return "UNKNOWN_ConditionType";
+	}
+} 
 
 export enum ConditionTargetType {
 	URL = 0,
@@ -27,7 +38,7 @@ export function conditionTargetType_toString(type: ConditionTargetType) {
 		case 2: return "ELEMENT";
 		case 3: return "ELEMENT_ATTRIBUTE";
 		case 4: return "VARIABLE";
-		default: return "UNKOWN_ConditionTargetType";
+		default: return "UNKNOWN_ConditionTargetType";
 	}
 } 
 

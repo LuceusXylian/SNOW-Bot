@@ -217,14 +217,14 @@ export default defineBackground(() => {
 
 						if (trigger.conditions.length) {
 							const result = await checkConditions(trigger.conditions, bot, (scope, name) => {
-								if (scope === 'global') return global_variables[name] ?? "";
-								if (scope === 'persistent') return shared?.data?.persistent_variables?.[name] ?? "";
-								return "";
+								if (scope === 'global') return global_variables[name] ?? null;
+								if (scope === 'persistent') return shared?.data?.persistent_variables?.[name] ?? null;
+								return null;
 							});
 							if(!result.success || !result.result) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
-						await progress_report(session_id, script, "info", "Trigger `"+trigger.name+"` conditions fulfilled.");
+						await progress_report(session_id, script, "progress", "Trigger `"+trigger.name+"` conditions fulfilled.");
 						void script_worker(session_id, script, bot);
 						return success_message({});
 					}
@@ -243,7 +243,7 @@ export default defineBackground(() => {
 		registerMessageHandler(handleMessage);
 
 		// create function to send progress reports
-		async function progress_report(session_id: number|null, script: Script, kind: "progress" | "error" | "info", message: string) {
+		async function progress_report(session_id: number|null, script: Script, kind: "progress" | "error" | "info" | "response", message: string) {
 			LOGGER.log("PROGRESS_REPORT", message);
 			if(session_id === null) return;
 
@@ -263,34 +263,45 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
-		async function checkConditions(conditions: Condition[], bot: BotInstance, getVariableFn: (scope: string, name: string) => string|null): Promise<{ success: boolean; result: boolean; error: string }> {
+		async function checkConditions(conditions: Condition[], bot: BotInstance, getVariableFn: (scope: string, name: string) => string|null, foreach_context?: ForeachContext): Promise<{ success: boolean; result: boolean; error: string }> {
 			const variableConditions: Condition[] = [];
 			const otherConditions: Condition[] = [];
-			for (const condition of conditions) {
+			for (let condIndex = 0; condIndex < conditions.length; condIndex++) {
+				const condition = conditions[condIndex];
 				if (condition.target.target_type === ConditionTargetType.VARIABLE) {
 					variableConditions.push(condition);
 				} else {
 					otherConditions.push(condition);
 				}
 			}
-			for (const condition of variableConditions) {
+			for (let condIndex = 0; condIndex < variableConditions.length; condIndex++) {
+				const condition = variableConditions[condIndex];
 				const scope = condition.target.variable_scope;
 				const name = condition.target.variable_name;
 				if (!scope || !name) {
-					return { success: false, result: false, error: "Variable condition missing scope or name" };
+					return { success: false, result: false, error: "Condition "+condIndex+": Variable condition missing scope or name" };
 				}
 				const value = getVariableFn(scope, name);
 				if (!testCondition(condition.type, value, condition.string_value)) {
 					return {
 						success: true,
 						result: false,
-						error: `Variable condition failed: ${scope}:${name} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value)}`,
+						error: `Condition ${condIndex}: Variable condition failed: ${scope}:${name} ${conditionType_toString(condition.type)} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value)}`,
 					};
 				}
 			}
 			if (otherConditions.length > 0) {
-				const result = await bot.sendMessage(MessageType.CHECK_CONDITIONS, { conditions: otherConditions });
-				return result;
+				const messageData: Record<string, any> = { conditions: otherConditions };
+				if (foreach_context) {
+					messageData.foreach_selector = foreach_context.foreach_selector;
+					messageData.foreach_index = foreach_context.foreach_index;
+				}
+				const response = await bot.sendMessage(MessageType.CHECK_CONDITIONS, messageData);
+				return {
+					success: response.success,
+					result: response.data?.result ?? true,
+					error: response.data?.error ?? "",
+				};
 			}
 			return { success: true, result: true, error: "" };
 		}
@@ -298,7 +309,7 @@ export default defineBackground(() => {
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
 				const bot = _bot  ?? await COMMANDER.getBotFocus();
-				await progress_report(session_id, script, "info", "Script `" + script.name + "` started");
+				await progress_report(session_id, script, "progress", "Script `" + script.name + "` started");
 
 				const local_variables: Record<string, string> = {};
 				function setVariable(scope: string, name: string, value: string) {
@@ -318,22 +329,26 @@ export default defineBackground(() => {
 					}
 				}
 
-				function getVariable(scope: string, name: string): string {
+				function getVariable(scope: string, name: string): string | null {
 					switch (scope) {
-						case 'local': return local_variables[name] ?? "";
-						case 'global': return global_variables[name] ?? "";
-						case 'persistent': return shared.data.persistent_variables[name] ?? "";
-						default: return "";
+						case 'local': return local_variables[name] ?? null;
+						case 'global': return global_variables[name] ?? null;
+						case 'persistent': return shared.data.persistent_variables[name] ?? null;
+						default: return null;
 					}
 				}
 
 				for (let index = 0; index < script.lines.length; index++) {
 					const script_line = script.lines[index];
 					if (script_line.conditions.length) {
-						const result = await checkConditions(script_line.conditions, bot, (scope, name) => getVariable(scope, name));
-						if (!result.success || !result.result) {
-							await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. One of the conditions is false. "+result.error);
+						const result = await checkConditions(script_line.conditions, bot, (scope, name) => getVariable(scope, name), foreach_context);
+						if (!result.success) {
+							await progress_report(session_id, script, "error", "Script `"+script.name+"` line #"+index+" aborted. "+result.error);
 							return;
+						}
+						if (!result.result) {
+							await progress_report(session_id, script, "info", "Script `"+script.name+"`: line #"+index+" skipped — condition false: "+result.error);
+							continue;
 						}
 						await progress_report(session_id, script, "progress", "Script `"+script.name+"`: All conditions are true.");
 					}
@@ -390,7 +405,7 @@ export default defineBackground(() => {
 								}
 								case ActionKind.MESSAGE_TYPE: {
 									if (!action.type.message_type) throw new Error("Error in script#" + script.id + ": action.type.message_type is invalid");
-									await progress_report(session_id, script, "info", "START Action: " + action.type.name);
+									await progress_report(session_id, script, "progress", "START Action: " + action.type.name);
 
 									switch (action.type.message_type) {
 										case MessageType.INSERT_TEMPLATE: {
@@ -498,20 +513,25 @@ export default defineBackground(() => {
 									const countResult = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, {
 										element_selector: forEachSelector,
 										attribute: "length",
+										use_cache: true,
 									});
 									if (!countResult.success) {
 										throw new Error("Failed to count elements: " + countResult.error);
 									}
 									const count = parseInt(countResult.data?.value ?? "0");
 
-									for (let i = 0; i < count; i++) {
-										setVariable("local", "foreach_index", String(i));
-										setVariable("local", "foreach_count", String(count));
-										setVariable("local", "foreach_selector", forEachSelector);
-										await script_worker(session_id, foreachScript, bot, {
-											foreach_selector: forEachSelector,
-											foreach_index: i,
-										});
+									try {
+										for (let i = 0; i < count; i++) {
+											setVariable("local", "foreach_index", String(i));
+											setVariable("local", "foreach_count", String(count));
+											setVariable("local", "foreach_selector", forEachSelector);
+											await script_worker(session_id, foreachScript, bot, {
+												foreach_selector: forEachSelector,
+												foreach_index: i,
+											});
+										}
+									} finally {
+										await bot.sendMessage(MessageType.CLEAR_FOREACH_CACHE, {});
 									}
 									progress_report(session_id, script, "progress", "DONE  Action: Execute Per Element with `" + foreachScript.name + "`");
 									break;
@@ -526,7 +546,7 @@ export default defineBackground(() => {
 					}
 				}
 
-				if (_bot === undefined) progress_report(session_id, script, "info", "Script `" + script.name + "` completed. All actions ended successfully.");
+				if (_bot === undefined) progress_report(session_id, script, "response", "Script `" + script.name + "` completed. All actions ended successfully.");
 			} catch (error) {
 				await report_script_issue(session_id, script, "Script execution failed", error);
 			}

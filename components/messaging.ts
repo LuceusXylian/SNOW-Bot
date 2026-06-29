@@ -19,6 +19,7 @@ export enum MessageType {
 	TRIGGER_FIRED = "TRIGGER_FIRED",
 	ELEMENT_SELECTOR = "ELEMENT_SELECTOR",
 	ALERT = "ALERT",
+	CLEAR_FOREACH_CACHE = "CLEAR_FOREACH_CACHE",
 }
 
 export interface Message {

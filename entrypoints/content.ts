@@ -18,10 +18,25 @@ class BackgroundMessageHandler {
 	element_selector_abort_controller: AbortController[] = [];
 	trigger_watchers: Array<() => void> = [];
 	trigger_timestamp: number = 0;
+	foreach_element_cache: Map<string, { elements: Element[]; elementIds: string[] | null }> | null = null;
 
 	constructor(shared: SharedData, bot_id: number) {
 		this.shared = shared;
 		this.bot_id = bot_id;
+	}
+
+	private getForeachRoot(selector: string, index: string): HTMLElement | null {
+		const cached = this.foreach_element_cache?.get(selector);
+		if (!cached) {
+			const elements = querySelectorAll(selector);
+			return elements[parseInt(index)] as HTMLElement ?? null;
+		}
+		if (cached.elementIds) {
+			const id = cached.elementIds[parseInt(index)];
+			if (id) return document.getElementById(id) as HTMLElement;
+			return null;
+		}
+		return cached.elements[parseInt(index)] as HTMLElement ?? null;
 	}
 
 	async handle(message: Message): Promise<MessageResponse<any>> {
@@ -50,9 +65,9 @@ class BackgroundMessageHandler {
 					let target_element: HTMLTextAreaElement;
 					let rootNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
-						const foreachElements = querySelectorAll(foreach_selector);
-						rootNode = foreachElements[parseInt(foreach_index)];
-						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+						const foreachRoot = this.getForeachRoot(foreach_selector, foreach_index);
+						if (!foreachRoot) return error_message("foreach element not found at index " + foreach_index);
+						rootNode = foreachRoot;
 					}
 					
 					if (element_selector) {
@@ -99,9 +114,9 @@ class BackgroundMessageHandler {
 
 					let rootNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
-						const foreachElements = querySelectorAll(foreach_selector);
-						rootNode = foreachElements[parseInt(foreach_index)];
-						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+						const foreachRoot = this.getForeachRoot(foreach_selector, foreach_index);
+						if (!foreachRoot) return error_message("foreach element not found at index " + foreach_index);
+						rootNode = foreachRoot;
 					}
 
 					const target_element = querySelector(element_selector, rootNode);
@@ -128,19 +143,27 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.GET_ELEMENT_ATTRIBUTE: {
-					const { element_selector, attribute, foreach_selector, foreach_index } = message.data || {};
+					const { element_selector, attribute, foreach_selector, foreach_index, use_cache } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
 
 					let rootNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
-						const foreachElements = querySelectorAll(foreach_selector);
-						rootNode = foreachElements[parseInt(foreach_index)];
-						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+						const foreachRoot = this.getForeachRoot(foreach_selector, foreach_index);
+						if (!foreachRoot) return error_message("foreach element not found at index " + foreach_index);
+						rootNode = foreachRoot;
 					}
 
 					if (attribute === "length") {
 						const target_elements = querySelectorAll(element_selector, rootNode);
+						if (use_cache) {
+							const allIds = target_elements.every(el => el.id);
+							this.foreach_element_cache = new Map();
+							this.foreach_element_cache.set(element_selector, {
+								elements: target_elements,
+								elementIds: allIds ? target_elements.map(el => el.id) : null,
+							});
+						}
 						return success_message({ value: target_elements.length });
 					}
 
@@ -166,9 +189,9 @@ class BackgroundMessageHandler {
 
 					let rootNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
-						const foreachElements = querySelectorAll(foreach_selector);
-						rootNode = foreachElements[parseInt(foreach_index)];
-						if (!rootNode) return error_message("foreach element not found at index " + foreach_index);
+						const foreachRoot = this.getForeachRoot(foreach_selector, foreach_index);
+						if (!foreachRoot) return error_message("foreach element not found at index " + foreach_index);
+						rootNode = foreachRoot;
 					}
 
 					const target_element = querySelector(element_selector, rootNode);
@@ -183,9 +206,15 @@ class BackgroundMessageHandler {
 				case MessageType.CHECK_CONDITIONS: {
 					// All conditions need to be true
 					const conditions = message.data.conditions as Condition[];
+					const { foreach_selector, foreach_index } = message.data || {};
+					let rootNode: ParentNode = document.body;
+					if (foreach_selector && foreach_index !== undefined) {
+						const foreachRoot = this.getForeachRoot(foreach_selector, foreach_index);
+						if (foreachRoot) rootNode = foreachRoot;
+					}
 					for (let c = 0; c < conditions.length; c++) {
 						const condition = conditions[c];
-						const value1 = this.get_condition_target_value(condition.target);
+						const value1 = this.get_condition_target_value(condition.target, rootNode);
 						const result = testCondition(condition.type, value1, condition.string_value);
 						if(!result) {
 							const target_type = condition.target.target_type;
@@ -194,7 +223,7 @@ class BackgroundMessageHandler {
 							if(condition.target.attribute) target_label += " " + condition.target.attribute;
 							return success_message({
 								result: false,
-								error: `The condition failed: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value1)}`,
+								error: `Condition ${c}: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value1)}`,
 							});
 						}
 					}
@@ -223,6 +252,11 @@ class BackgroundMessageHandler {
 				case MessageType.ALERT: {
 					const { text } = message.data || {};
 					alert(text);
+				}
+
+				case MessageType.CLEAR_FOREACH_CACHE: {
+					this.foreach_element_cache = null;
+					return success_message({});
 				}
 
 				default: return error_message(`Unknown message type: ${message.type}`);
@@ -388,20 +422,20 @@ class BackgroundMessageHandler {
 		return userValue?.trim() ?? "";
 	}
 
-	get_condition_target_value(target: ConditionTarget): string|null {
+	get_condition_target_value(target: ConditionTarget, rootNode: ParentNode = document.body): string|null {
 		switch (target.target_type) {
 			case ConditionTargetType.DOMAIN: return location.hostname;
 			case ConditionTargetType.URL: return location.href;
 			case ConditionTargetType.ELEMENT: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT needs element_selector");
-				const element = querySelector(target.element_selector);
+				const element = querySelector(target.element_selector, rootNode);
 				if(element === null) return null;
-				return element.outerHTML;
+				return element.innerText;
 			}
 			case ConditionTargetType.ELEMENT_ATTRIBUTE: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs element_selector");
 				if(!target.attribute) throw new Error("Error in the script: ConditionTargetType.ELEMENT_ATTRIBUTE needs attribute");
-				const element = querySelector(target.element_selector);
+				const element = querySelector(target.element_selector, rootNode);
 				console.log("get_condition_target_value element", element);
 				
 				if(element === null) return null;

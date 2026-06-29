@@ -313,9 +313,7 @@ export class ChatUI extends ScriptingUI {
 		this.statusContainer!.innerText = `Executing ${script.name}...`;
 
 		const response = await execute_script(this, script.id);
-		if (response.success) {
-			this.appendHistory("response", "Response", `Accepted by background for ${script.name}`);
-		} else {
+		if (!response.success) {
 			this.appendHistory("error", "Response", response.error ?? `Failed to execute ${script.name}`);
 		}
 		this.statusContainer!.innerText = response.success ? `Queued ${script.name}` : `Failed to queue ${script.name}`;
