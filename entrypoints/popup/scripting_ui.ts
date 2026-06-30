@@ -5,7 +5,7 @@ import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { alert_modal, create_formcontrol, create_text_element } from "@/components/ui";
 
 
-export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
+export const IS_POPUP = !location.search.includes(IS_POPUP_QUERY_STRING);
 
 export class ScriptingUI {
 	shared: SharedData;
