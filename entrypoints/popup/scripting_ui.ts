@@ -114,6 +114,18 @@ export class ScriptingUI {
 				{ title: "Variable", value: String(ConditionTargetType.VARIABLE) },
 			]
 		});
+		
+		const variableScopeSelect = create_formcontrol(container, "select", "variable_scope", "Variable Scope", {
+			value: initial?.target.variable_scope ?? "local",
+			class: "fc-container-3",
+			required: true,
+			options: [
+				{ title: "local", value: "local" },
+				{ title: "global", value: "global" },
+				{ title: "persistent", value: "persistent" },
+			]
+		});
+		const variableNameInput = create_formcontrol(container, "text", "variable_name", "Variable Name", { value: initial?.target.variable_name ?? "", class: "fc-container-3", required: true });
 	
 		const typeSelect = create_formcontrol(container, "select", "type", "Condition Type", { 
 			value: initial?.type.toString() ?? String(ConditionType.EXISTS), 
@@ -132,17 +144,6 @@ export class ScriptingUI {
 		const valueInput = create_formcontrol(container, "text", "string_value", "Value", { value: initial?.string_value ?? "", class: "fc-container-3", required: true });
 		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
 		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "", class: "fc-container-3" });
-		const variableScopeSelect = create_formcontrol(container, "select", "variable_scope", "Variable Scope", {
-			value: initial?.target.variable_scope ?? "local",
-			class: "fc-container-3",
-			required: true,
-			options: [
-				{ title: "local", value: "local" },
-				{ title: "global", value: "global" },
-				{ title: "persistent", value: "persistent" },
-			]
-		});
-		const variableNameInput = create_formcontrol(container, "text", "variable_name", "Variable Name", { value: initial?.target.variable_name ?? "", class: "fc-container-3", required: true });
 		
 		const targetTypeSelect_change = () => {
 			const type = parseInt(targetTypeSelect.value);

@@ -37,6 +37,7 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 - ButtonGrid: customizable Script launcher
 - Popup navigation with location.hash
 	- if empty it uses persistant stored value
+TODO: if is_popup && import settings -> new tab 
 
 ## Permissions
 - `notifications` — Required to show native OS notification popups.
