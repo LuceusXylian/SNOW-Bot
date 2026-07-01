@@ -1,5 +1,5 @@
 import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect, ScriptMessageContext } from "@/components/basics";
-import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
+import { registerMessageHandler, Message, MessageResponse, MessageType, withTimeout } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
 import { storage } from '#imports';
 import { ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition } from "@/components/scripting";
@@ -432,7 +432,11 @@ export default defineBackground(() => {
 										getAttrData.foreach_selector = foreach_context.foreach_selector;
 										getAttrData.foreach_index = foreach_context.foreach_index;
 									}
-									const result = await bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, getAttrData);
+									const result = await withTimeout(
+										bot.sendMessage(MessageType.GET_ELEMENT_ATTRIBUTE, getAttrData),
+										5000,
+										`Timed out while reading element attribute for selector ${element_selector}`
+									);
 									if (!result.success) {
 										throw new Error("Failed to get element attribute: " + result.error);
 									}

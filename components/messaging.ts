@@ -54,6 +54,20 @@ export async function sendMessage<T>(LOGGER: Logger, message: Message): Promise<
 	}
 }
 
+export async function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<T>((_, reject) => {
+				timeoutId = setTimeout(() => reject(new Error(errorMessage)), ms);
+			}),
+		]);
+	} finally {
+		if (timeoutId) clearTimeout(timeoutId);
+	}
+}
+
 /**
  * Register a message handler in background or content script
  * @param callback Function that handles incoming messages and returns a response

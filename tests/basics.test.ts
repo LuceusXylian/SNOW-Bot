@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { success_message, error_message, SharedData, shouldSendMessageToFrame } from '../components/basics';
+import { withTimeout } from '../components/messaging';
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED } from '../components/constants';
 import { ConditionType, ConditionTargetType } from '../components/scripting';
 
@@ -23,6 +24,21 @@ describe('basics utilities', () => {
     expect(sd.data.allow_prompt).toBe(DEFAULT_ALLOW_PROMPT);
     expect(sd.data.paste_cleaner_enabled).toBe(DEFAULT_PASTE_CLEANER_ENABLED);
     expect(Array.isArray(sd.data.templates)).toBe(true);
+  });
+
+  it('withTimeout rejects when a promise takes too long', async () => {
+    vi.useFakeTimers();
+    try {
+      const slowPromise = new Promise<string>((resolve) => {
+        setTimeout(() => resolve('done'), 100);
+      });
+
+      const assertion = expect(withTimeout(slowPromise, 10, 'message timed out')).rejects.toThrow('message timed out');
+      await vi.advanceTimersByTimeAsync(10);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shouldSendMessageToFrame filters by hostname and URL conditions', () => {
