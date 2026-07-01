@@ -13,7 +13,7 @@ SNOW Bot is a browser extension that gets you notifications and half-automate yo
 		- reports progress to popup
 		- Conditions
 			- IS, IS NOT, CONTAINS, CONTAINS NOT
-			- domain/URL checks
+			- Hostname/URL checks
 			- Element checks
 			- Element attribute checks
 		- Actions

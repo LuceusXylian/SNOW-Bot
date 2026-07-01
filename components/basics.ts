@@ -1,6 +1,6 @@
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
-import { Script, Trigger } from "./scripting";
+import { ConditionType, ConditionTargetType, type Script, type Trigger } from "./scripting";
 
 export enum LogFrom {
 	popup = 0,
@@ -27,11 +27,40 @@ export interface TemplateData {
 	createdAt: number;
 }
 
+export interface ScriptMessageContext {
+	conditions?: Condition[];
+}
+
+export function shouldSendMessageToFrame(frameUrl: string, scriptContext?: ScriptMessageContext): boolean {
+	if (!scriptContext?.conditions?.length) return true;
+
+	const frameHostname = new URL(frameUrl).hostname;
+	for (const condition of scriptContext.conditions) {
+		if (condition.target.target_type === ConditionTargetType.HOSTNAME) {
+			if (condition.type === ConditionType.IS && frameHostname !== condition.string_value) return false;
+			if (condition.type === ConditionType.IS_NOT && frameHostname === condition.string_value) return false;
+			if (condition.type === ConditionType.CONTAINS && !frameHostname.includes(condition.string_value)) return false;
+			if (condition.type === ConditionType.CONTAINS_NOT && frameHostname.includes(condition.string_value)) return false;
+			continue;
+		}
+		if (condition.target.target_type === ConditionTargetType.URL) {
+			const currentUrl = frameUrl;
+			if (condition.type === ConditionType.IS && currentUrl !== condition.string_value) return false;
+			if (condition.type === ConditionType.IS_NOT && currentUrl === condition.string_value) return false;
+			if (condition.type === ConditionType.CONTAINS && !currentUrl.includes(condition.string_value)) return false;
+			if (condition.type === ConditionType.CONTAINS_NOT && currentUrl.includes(condition.string_value)) return false;
+			continue;
+		}
+	}
+	return true;
+}
+
 export interface BotInstance {
 	bot_id: number;
 	tabId: number;
+	hostname: string;
 	is_busy: boolean;
-	sendMessage: (message_type: MessageType, data: Object) => Promise<any>
+	sendMessage: (message_type: MessageType, data: Object, options?: ScriptMessageContext) => Promise<any>
 }
 
 export enum BotSelect {
@@ -158,7 +187,7 @@ export class BotCommander {
 	}
 
 	// @internal only for background
-	add_bot(tabId: number): BotInstance {
+	add_bot(tabId: number, hostname: string): BotInstance {
 		// Check if bot already exists for this tab
 		let botInstance = this.botInstances.find(b => b.tabId === tabId);
 		if (!botInstance) {
@@ -168,46 +197,52 @@ export class BotCommander {
 			botInstance = {
 				bot_id,
 				tabId,
+				hostname,
 				is_busy: false,
-				sendMessage: async function (message_type: MessageType, data: Object) {
+				sendMessage: async function (message_type: MessageType, data: Object, options?: ScriptMessageContext) {
 					this.is_busy = true;
 					
 					try {
-						// First we try the main frame
-						const mf_response = await browser.tabs.sendMessage(this.tabId, {
+						const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
+						if(frames === null) throw new Error("frames should not be null");
+						
+						const filtered_frames = (options?.conditions?.length)
+							? frames.filter((frame) => shouldSendMessageToFrame(frame.url || "", options))
+							: frames;
+
+						if(filtered_frames.length === 0) throw new Error("No bot available with the current conditions");
+						
+						const firstFrame = filtered_frames[0];
+						const first = await browser.tabs.sendMessage(this.tabId, {
 							type: message_type,
 							data: data,
 							frameIndex: 0,
-						});
+						}, { frameId: firstFrame.frameId });
 
-						// we iterate all frames until we get success
-						if (!mf_response.success) {
-							const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
-							if (frames) {
-								// start at 1 to skip main frame
-								for (let f = 1; f < frames.length; f++) {
-									console.log("sendMessage frameIndex "+f, frames[f].url);
-									
-									try {
-										const response = await browser.tabs.sendMessage(this.tabId, {
-											type: message_type,
-											data: data,
-											frameIndex: f
-										}, { frameId: frames[f].frameId });
-		
-										console.log("sendMessage response", response);
-										if (response.success) {
-											this.is_busy = false;
-											return response;
-										}
-									} catch (error) {
-										self.LOGGER.log("sendMessage(", message_type, ", ", data, ") failed for tabId:"+this.tabId+" frameId:"+frames[f].frameId);
+						if (!first.success) {
+							for (let f = 1; f < filtered_frames.length; f++) {
+								const frame = filtered_frames[f];
+								console.log("sendMessage frameIndex "+f, frame.url);
+								
+								try {
+									const response = await browser.tabs.sendMessage(this.tabId, {
+										type: message_type,
+										data: data,
+										frameIndex: f
+									}, { frameId: frame.frameId });
+
+									console.log("sendMessage response", response);
+									if (response.success) {
+										this.is_busy = false;
+										return response;
 									}
+								} catch (error) {
+									self.LOGGER.log("sendMessage(", message_type, ", ", data, ") failed for tabId:"+this.tabId+" frameId:"+frame.frameId);
 								}
 							}
 						}
 						this.is_busy = false;
-						return mf_response;
+						return first;
 					} catch (error) {
 						this.is_busy = false;
 						self.LOGGER.log(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);
@@ -246,7 +281,7 @@ export class BotCommander {
 		return this.botInstances[bot_id];
 	}
 
-	async sendMessage(bot_id: number, message_type: MessageType, data: Object) {
+	async sendMessage(bot_id: number, message_type: MessageType, data: Object, options?: ScriptMessageContext) {
 		if (this.LOGGER.from === LogFrom.popup) {
 			// pass to background
 			return await sendMessage(this.LOGGER, {
@@ -261,7 +296,7 @@ export class BotCommander {
 		}
 
 		// LogFrom.background
-		return this.botInstances[bot_id].sendMessage(message_type, data);
+		return this.botInstances[bot_id].sendMessage(message_type, data, options);
 	}
 
 	/**
@@ -321,7 +356,7 @@ export class BotCommander {
 	/**
 	 * send message to a bot that is not busy and focus the current tab
 	 */
-	async sendMessageFocus(message_type: MessageType, data: Object) {
+	async sendMessageFocus(message_type: MessageType, data: Object, options?: ScriptMessageContext) {
 		if (this.LOGGER.from === LogFrom.popup) {
 			// pass to background
 			return await sendMessage(this.LOGGER, {
@@ -336,10 +371,10 @@ export class BotCommander {
 
 		// LogFrom.background
 		const bot = await this.getBotFocus();
-		return bot.sendMessage(message_type, data);
+		return bot.sendMessage(message_type, data, options);
 	}
 
-	async sendMessageAll(message_type: MessageType, data: Object) {
+	async sendMessageAll(message_type: MessageType, data: Object, options?: ScriptMessageContext) {
 		if (this.LOGGER.from === LogFrom.popup) {
 			// pass to background
 			return await sendMessage(this.LOGGER, {

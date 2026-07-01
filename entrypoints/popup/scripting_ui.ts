@@ -107,8 +107,8 @@ export class ScriptingUI {
 			class: "fc-container-3",
 			required: true,
 			options: [
+				{ title: "Hostname", value: String(ConditionTargetType.HOSTNAME) },
 				{ title: "URL", value: String(ConditionTargetType.URL) },
-				{ title: "Domain", value: String(ConditionTargetType.DOMAIN) },
 				{ title: "Element", value: String(ConditionTargetType.ELEMENT) },
 				{ title: "Element Attribute", value: String(ConditionTargetType.ELEMENT_ATTRIBUTE) },
 				{ title: "Variable", value: String(ConditionTargetType.VARIABLE) },

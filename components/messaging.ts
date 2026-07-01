@@ -1,4 +1,4 @@
-import { Logger } from "@/components/basics";
+import type { Logger, ScriptMessageContext } from "@/components/basics";
 
 export enum MessageType {
 	GET_STATE = 'GET_STATE',
@@ -26,6 +26,7 @@ export enum MessageType {
 export interface Message {
 	type: MessageType;
 	data?: any;
+	script_context?: ScriptMessageContext;
 }
 
 export interface MessageResponse<T> {

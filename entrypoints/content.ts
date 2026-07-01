@@ -1,4 +1,4 @@
-import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
+import { LogFrom, Logger, SharedData, ScriptMessageContext, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
 import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
@@ -156,6 +156,8 @@ class BackgroundMessageHandler {
 
 					if (attribute === "length") {
 						const target_elements = querySelectorAll(element_selector, rootNode);
+						LOGGER.log("MessageType.GET_ELEMENT_ATTRIBUTE length element_selector", element_selector)
+						LOGGER.log("MessageType.GET_ELEMENT_ATTRIBUTE length target_elements", target_elements)
 						if (use_cache) {
 							const allIds = target_elements.every(el => el.id);
 							this.foreach_element_cache = new Map();
@@ -463,7 +465,7 @@ class BackgroundMessageHandler {
 
 	get_condition_target_value(target: ConditionTarget, rootNode: ParentNode = document.body): string|null {
 		switch (target.target_type) {
-			case ConditionTargetType.DOMAIN: return location.hostname;
+			case ConditionTargetType.HOSTNAME: return location.hostname;
 			case ConditionTargetType.URL: return location.href;
 			case ConditionTargetType.ELEMENT: {
 				if(!target.element_selector) throw new Error("Error in the script: ConditionTargetType.ELEMENT needs element_selector");
@@ -733,7 +735,7 @@ export default defineContentScript({
 		}, 5000);
 
 		// Get bot_id from background, which creates a record for this content script instance
-		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID });
+		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID, data: {hostname: location.hostname} });
 		const bot_id: number = get_bot_id_response.data?.bot_id;
 		if (!get_bot_id_response.success) {
 			LOGGER.log("Failed to get bot_id from background", get_bot_id_response);

@@ -1,5 +1,5 @@
 import { MessageType, sendMessage } from "@/components/messaging";
-import { ScriptingUI } from "@/entrypoints/popup/scripting_ui";
+import type { ScriptingUI } from "@/entrypoints/popup/scripting_ui";
 
 
 export enum ConditionType {
@@ -24,7 +24,7 @@ export function conditionType_toString(type: ConditionType) {
 
 export enum ConditionTargetType {
 	URL = 0,
-	DOMAIN = 1,
+	HOSTNAME = 1,
 	/** Element must exist for the `Condition` to succeed */
 	ELEMENT = 2,
 	ELEMENT_ATTRIBUTE = 3,
@@ -34,7 +34,7 @@ export enum ConditionTargetType {
 export function conditionTargetType_toString(type: ConditionTargetType) {
 	switch (type) {
 		case 0: return "URL";
-		case 1: return "DOMAIN";
+		case 1: return "HOSTNAME";
 		case 2: return "ELEMENT";
 		case 3: return "ELEMENT_ATTRIBUTE";
 		case 4: return "VARIABLE";

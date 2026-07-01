@@ -1,4 +1,4 @@
-import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect } from "@/components/basics";
+import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect, ScriptMessageContext } from "@/components/basics";
 import { registerMessageHandler, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
 import { storage } from '#imports';
@@ -127,11 +127,11 @@ export default defineBackground(() => {
 					case MessageType.GET_BOT_ID: {
 						// Content script requests its bot_id
 						const tabId = sender?.tab?.id;
-						if (!tabId) {
-							return error_message("Could not determine tab ID");
-						}
+						if (!tabId) return error_message("Could not determine tab ID");
+						const hostname = message.data.hostname;
+						if (!message.data.hostname) return error_message("Could not determine hostname");
 
-						const bot = COMMANDER.add_bot(tabId);
+						const bot = COMMANDER.add_bot(tabId, hostname);
 						return success_message({ bot_id: bot.bot_id });
 					}
 
@@ -298,7 +298,7 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
-		async function checkConditions(conditions: Condition[], bot: BotInstance, getVariableFn: (scope: string, name: string) => string|null, foreach_context?: ForeachContext): Promise<{ success: boolean; result: boolean; error: string }> {
+		async function checkConditions(conditions: Condition[], bot: BotInstance, getVariableFn: (scope: string, name: string) => string|null, foreach_context?: ForeachContext, script_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; script_context?: ScriptMessageContext }> {
 			const variableConditions: Condition[] = [];
 			const otherConditions: Condition[] = [];
 			for (let condIndex = 0; condIndex < conditions.length; condIndex++) {
@@ -322,6 +322,7 @@ export default defineBackground(() => {
 						success: true,
 						result: false,
 						error: `Condition ${condIndex}: Variable condition failed: ${scope}:${name} ${conditionType_toString(condition.type)} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value)}`,
+						script_context,
 					};
 				}
 			}
@@ -331,14 +332,14 @@ export default defineBackground(() => {
 					messageData.foreach_selector = foreach_context.foreach_selector;
 					messageData.foreach_index = foreach_context.foreach_index;
 				}
-				const response = await bot.sendMessage(MessageType.CHECK_CONDITIONS, messageData);
+				const response = await bot.sendMessage(MessageType.CHECK_CONDITIONS, messageData, script_context);
 				return {
 					success: response.success,
 					result: response.data?.result ?? true,
 					error: response.data?.error ?? "",
 				};
 			}
-			return { success: true, result: true, error: "" };
+			return { success: true, result: true, error: "", script_context };
 		}
 
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
@@ -375,8 +376,9 @@ export default defineBackground(() => {
 
 				for (let index = 0; index < script.lines.length; index++) {
 					const script_line = script.lines[index];
+					let lineContext: ScriptMessageContext = { conditions: script_line.conditions };
 					if (script_line.conditions.length) {
-						const result = await checkConditions(script_line.conditions, bot, (scope, name) => getVariable(scope, name), foreach_context);
+						const result = await checkConditions(script_line.conditions, bot, (scope, name) => getVariable(scope, name), foreach_context, lineContext);
 						if (!result.success) {
 							await progress_report(session_id, script, "error", "Script `"+script.name+"` line #"+index+" aborted. "+result.error);
 							return;
@@ -459,7 +461,7 @@ export default defineBackground(() => {
 												insertData.foreach_selector = foreach_context.foreach_selector;
 												insertData.foreach_index = foreach_context.foreach_index;
 											}
-											const result = await bot.sendMessage(action.type.message_type, insertData);
+											const result = await bot.sendMessage(action.type.message_type, insertData, lineContext);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;
@@ -481,7 +483,7 @@ export default defineBackground(() => {
 												setAttrData.foreach_selector = foreach_context.foreach_selector;
 												setAttrData.foreach_index = foreach_context.foreach_index;
 											}
-											const result = await bot.sendMessage(action.type.message_type, setAttrData);
+											const result = await bot.sendMessage(action.type.message_type, setAttrData, lineContext);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;
@@ -500,7 +502,7 @@ export default defineBackground(() => {
 												triggerData.foreach_selector = foreach_context.foreach_selector;
 												triggerData.foreach_index = foreach_context.foreach_index;
 											}
-											const result = await bot.sendMessage(action.type.message_type, triggerData);
+											const result = await bot.sendMessage(action.type.message_type, triggerData, lineContext);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;

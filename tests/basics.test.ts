@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { success_message, error_message, SharedData } from '../components/basics';
+import { success_message, error_message, SharedData, shouldSendMessageToFrame } from '../components/basics';
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED } from '../components/constants';
+import { ConditionType, ConditionTargetType } from '../components/scripting';
 
 describe('basics utilities', () => {
   it('success_message returns success payload', () => {
@@ -22,5 +23,23 @@ describe('basics utilities', () => {
     expect(sd.data.allow_prompt).toBe(DEFAULT_ALLOW_PROMPT);
     expect(sd.data.paste_cleaner_enabled).toBe(DEFAULT_PASTE_CLEANER_ENABLED);
     expect(Array.isArray(sd.data.templates)).toBe(true);
+  });
+
+  it('shouldSendMessageToFrame filters by hostname and URL conditions', () => {
+    const hostnameConditions = [{
+      target: { target_type: ConditionTargetType.HOSTNAME },
+      type: ConditionType.IS,
+      string_value: 'example.com',
+    }];
+    const urlConditions = [{
+      target: { target_type: ConditionTargetType.URL },
+      type: ConditionType.CONTAINS,
+      string_value: '/tickets',
+    }];
+
+    expect(shouldSendMessageToFrame('https://example.com/page', { conditions: hostnameConditions })).toBe(true);
+    expect(shouldSendMessageToFrame('https://foo.example.com/page', { conditions: hostnameConditions })).toBe(false);
+    expect(shouldSendMessageToFrame('https://example.com/tickets/1', { conditions: urlConditions })).toBe(true);
+    expect(shouldSendMessageToFrame('https://example.com/orders/1', { conditions: urlConditions })).toBe(false);
   });
 });
