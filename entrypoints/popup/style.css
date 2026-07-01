@@ -193,6 +193,15 @@ h5 { border-bottom: 1px solid; margin: 1rem 0 1rem 0; }
 	align-items: stretch;
 }
 
+@keyframes btn-import-pulse {
+	0%, 100% { box-shadow: 0 0 0 0 rgba(86, 141, 243, 0.6); }
+	50% { box-shadow: 0 0 8px 4px rgba(86, 141, 243, 0.3); }
+}
+.btn-import-highlight {
+	outline: 2px solid #568df3;
+	animation: btn-import-pulse 1.5s ease-in-out infinite;
+}
+
 .bgrid_button {
 	display: flex;
 	align-items: center;

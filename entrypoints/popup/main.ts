@@ -13,17 +13,17 @@ const LOGGER = new Logger(LogFrom.popup);
 LOGGER.debug("Popup started");
 
 // #open_new_tab
-export const IS_POPUP = location.search !== IS_POPUP_QUERY_STRING;
+export const IS_POPUP = !location.search.includes(IS_POPUP_QUERY_STRING);
 
-function open_new_tab(hash: string) {
-	window.open(location.protocol+"//"+location.host+location.pathname + IS_POPUP_QUERY_STRING + hash, '_blank');
+function open_new_tab(extra_query_string: string, hash: string) {
+	window.open(location.protocol+"//"+location.host+location.pathname + "?" + IS_POPUP_QUERY_STRING + extra_query_string + hash, '_blank');
 }
 (() => {
 	const controller_title_main = document.getElementById("controller_title_main")!;
 	const new_tab_button = document.getElementById("open_new_tab")!;
 	if (IS_POPUP) {
 		new_tab_button.addEventListener("click", () => {
-			open_new_tab(location.hash);
+			open_new_tab("", location.hash);
 			window.close();
 		});
 	} else {
@@ -284,7 +284,25 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	});
 
 	sharedImportBtn.addEventListener("click", () => {
-		sharedImportInput.click();
+		if (IS_POPUP) {
+			open_new_tab("&import=1", "#settings");
+			window.close();
+		} else {
+			sharedImportInput.click();
+		}
+	});
+
+	const urlParams = new URLSearchParams(location.search);
+	if (urlParams.get('import') === '1') {
+		urlParams.delete('import');
+		const newSearch = urlParams.toString();
+		const newUrl = location.pathname + (newSearch ? '?' + newSearch : '') + location.hash;
+		history.replaceState(null, '', newUrl);
+		sharedImportBtn.focus();
+		sharedImportBtn.classList.add('btn-import-highlight');
+	}
+	controller_goback.addEventListener("click", () => {
+		sharedImportBtn.classList.remove('btn-import-highlight');
 	});
 
 	sharedImportInput.addEventListener("change", async (event) => {
@@ -388,7 +406,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	scripting_title.addEventListener("click", () => {
 		if (IS_POPUP) {
 			// Script Editor should only be used in a free window
-			open_new_tab("#"+scripting_title.id);
+			open_new_tab("", "#"+scripting_title.id);
 			window.close();
 		}
 		scripting_container.innerHTML = "";
@@ -400,7 +418,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const triggers_container = document.getElementById("triggers_container")!;
 	triggers_title.addEventListener("click", () => {
 		if (IS_POPUP) {
-			open_new_tab("#"+triggers_title.id);
+			open_new_tab("", "#"+triggers_title.id);
 			window.close();
 		}
 		triggers_container.innerHTML = "";
