@@ -3,6 +3,7 @@ import { success_message, error_message, SharedData, shouldSendMessageToFrame } 
 import { withTimeout } from '../components/messaging';
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED } from '../components/constants';
 import { ConditionType, ConditionTargetType } from '../components/scripting';
+import { resolveTemplateContent } from '../components/template-resolution';
 
 describe('basics utilities', () => {
   it('success_message returns success payload', () => {
@@ -57,5 +58,26 @@ describe('basics utilities', () => {
     expect(shouldSendMessageToFrame('https://foo.example.com/page', { conditions: hostnameConditions })).toBe(false);
     expect(shouldSendMessageToFrame('https://example.com/tickets/1', { conditions: urlConditions })).toBe(true);
     expect(shouldSendMessageToFrame('https://example.com/orders/1', { conditions: urlConditions })).toBe(false);
+  });
+
+  it('replaces unresolved placeholders with empty strings when prompting is disabled', async () => {
+    const output = await resolveTemplateContent('Hello [Name]', {
+      resolveLabelValue: () => null,
+      allowPrompt: false,
+    });
+
+    expect(output).toBe('Hello ');
+  });
+
+  it('falls back safely when prompt resolution throws', async () => {
+    const output = await resolveTemplateContent('Hello [Name]', {
+      resolveLabelValue: () => null,
+      allowPrompt: true,
+      promptForValue: async () => {
+        throw new Error('prompt blocked');
+      },
+    });
+
+    expect(output).toBe('Hello ');
   });
 });

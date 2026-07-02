@@ -2,6 +2,7 @@ import { LogFrom, Logger, SharedData, ScriptMessageContext, dateToLocaleString, 
 import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
 import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
+import { resolveTemplateContent } from "@/components/template-resolution";
 
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
@@ -369,37 +370,10 @@ class BackgroundMessageHandler {
 	}
 
 	async resolveTemplateContent(template: string): Promise<string> {
-		const matches = Array.from(template.matchAll(SHORTCODE_REGEX));
-		if (matches.length === 0) {
-			return template;
-		}
-	
-		const resolved = new Map<string, string>();
-	
-		for (const match of matches) {
-			const label = match[1].trim();
-			
-			if (!label) {
-				continue;
-			}
-	
-			if (resolved.has(label)) {
-				continue;
-			}
-	
-			const value = this.queryLabelValue(label);
-			if (value !== null) {
-				resolved.set(label, value);
-			} else if(this.shared.data.allow_prompt) {
-				// last resort: prompt() user for value
-				const value = this.promptForTemplateValue(label);
-				resolved.set(label, value);
-			}
-		}
-	
-		return template.replace(SHORTCODE_REGEX, (_full, label) => {
-			const normalized = label.trim();
-			return resolved.get(normalized) ?? "";
+		return resolveTemplateContent(template, {
+			resolveLabelValue: (label) => this.queryLabelValue(label),
+			allowPrompt: this.shared.data.allow_prompt,
+			promptForValue: (label) => this.promptForTemplateValue(label),
 		});
 	}
 	
@@ -459,6 +433,9 @@ class BackgroundMessageHandler {
 	}
 	
 	promptForTemplateValue(labelName: string): string {
+		if (typeof window === "undefined" || typeof window.prompt !== "function") {
+			throw new Error("Prompt is not available in this context");
+		}
 		const userValue = window.prompt(`Enter value for [${labelName}]`);
 		return userValue?.trim() ?? "";
 	}
