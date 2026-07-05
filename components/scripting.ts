@@ -85,6 +85,8 @@ export enum ActionKind {
 	/** Runs a script per element found with the element selector */
 	FOREACH_ELEMENT = 6,
 	PLAY_AUDIO = 7,
+	/** Opens a URL in a new tab or navigates the current tab */
+	OPEN_URL = 8,
 }
 
 export enum ActionSetMethod {
@@ -205,6 +207,14 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		available_arguments: [
 			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
 			{ argument: "id", type: "text", required: true, use_set_method: false, reference: "scripts" },
+		],
+	},
+	{
+		name: "Open URL",
+		kind: ActionKind.OPEN_URL,
+		available_arguments: [
+			{ argument: "url", type: "text", required: true, use_set_method: false },
+			{ argument: "new_tab", type: "select", required: false, use_set_method: false },
 		],
 	},
 ];

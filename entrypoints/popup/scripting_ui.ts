@@ -264,6 +264,16 @@ export class ScriptingUI {
 							...BUNDLED_SOUNDS.map(s => ({ title: s.name, value: s.type === "beep" ? "beep" : s.path })),
 						],
 					}));
+				} else if (argument.argument === "new_tab") {
+					arguments_fc_array.push(create_formcontrol(arguments_container, "select", "new_tab", "Open in new tab", {
+						value: argument_value,
+						class: "fc-container-3",
+						required: argument.required,
+						options: [
+							{ title: "Open in new tab", value: "true" },
+							{ title: "Open in current tab", value: "false" },
+						],
+					}));
 				} else if (argument.argument === "element_selector") {
 					const {element_selector_container, element_selector_input} = this.create_element_selector_fc(arguments_container, argument_value);
 					arguments_fc_array.push(element_selector_input);

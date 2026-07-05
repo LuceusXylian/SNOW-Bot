@@ -551,7 +551,19 @@ export default defineBackground(() => {
 								}
 								break;
 							}
-								case ActionKind.WAIT: {
+								case ActionKind.OPEN_URL: {
+								const url = resolveActionArgument(action.arguments.url ?? "", local_variables);
+								if (!url) throw new Error("Error in script#" + script.id + ": url is invalid");
+								const newTab = action.arguments.new_tab !== "false";
+								await progress_report(session_id, script, "progress", "Opening URL: " + url + (newTab ? " (new tab)" : ""));
+								if (newTab) {
+									await browser.tabs.create({ url, active: true });
+								} else {
+									await browser.tabs.update(bot.tabId, { url });
+								}
+								break;
+							}
+							case ActionKind.WAIT: {
 									if (!action.arguments.seconds) throw new Error("Error in script#" + script.id + ": action.arguments.seconds is invalid");
 									await progress_report(session_id, script, "progress", "WAIT: " + action.arguments.seconds + " seconds");
 									await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
