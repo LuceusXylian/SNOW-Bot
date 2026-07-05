@@ -87,6 +87,10 @@ export enum ActionKind {
 	PLAY_AUDIO = 7,
 	/** Opens a URL in a new tab or navigates the current tab */
 	OPEN_URL = 8,
+	/** Exits only the current script level */
+	EXIT_CURRENT_SCRIPT = 9,
+	/** Exits all script levels (current + callers) */
+	EXIT_ALL_SCRIPTS = 10,
 }
 
 export enum ActionSetMethod {
@@ -216,6 +220,16 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 			{ argument: "url", type: "text", required: true, use_set_method: false },
 			{ argument: "new_tab", type: "select", required: false, use_set_method: false },
 		],
+	},
+	{
+		name: "Exit current Script",
+		kind: ActionKind.EXIT_CURRENT_SCRIPT,
+		available_arguments: [],
+	},
+	{
+		name: "Exit all Scripts",
+		kind: ActionKind.EXIT_ALL_SCRIPTS,
+		available_arguments: [],
 	},
 ];
 

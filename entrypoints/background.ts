@@ -342,6 +342,8 @@ export default defineBackground(() => {
 			return { success: true, result: true, error: "", script_context };
 		}
 
+		class ExitAllScriptsError extends Error {}
+
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
 				const bot = _bot  ?? await COMMANDER.getBotFocus();
@@ -562,8 +564,12 @@ export default defineBackground(() => {
 									await browser.tabs.update(bot.tabId, { url });
 								}
 								break;
-							}
-							case ActionKind.WAIT: {
+								}
+								case ActionKind.EXIT_CURRENT_SCRIPT:
+									return;
+								case ActionKind.EXIT_ALL_SCRIPTS:
+									throw new ExitAllScriptsError();
+								case ActionKind.WAIT: {
 									if (!action.arguments.seconds) throw new Error("Error in script#" + script.id + ": action.arguments.seconds is invalid");
 									await progress_report(session_id, script, "progress", "WAIT: " + action.arguments.seconds + " seconds");
 									await new Promise(resolve => setTimeout(resolve, action.arguments.seconds! * 1000));
@@ -607,6 +613,7 @@ export default defineBackground(() => {
 									break;
 							}
 						} catch (error) {
+							if (error instanceof ExitAllScriptsError) throw error;
 							await report_script_issue(session_id, script, "Script action failed", error);
 							return;
 						}
@@ -615,6 +622,10 @@ export default defineBackground(() => {
 
 				if (_bot === undefined) progress_report(session_id, script, "response", "Script `" + script.name + "` completed. All actions ended successfully.");
 			} catch (error) {
+				if (error instanceof ExitAllScriptsError) {
+					await progress_report(session_id, script, "info", "Script `" + script.name + "` stopped by Exit All.");
+					throw error;
+				}
 				await report_script_issue(session_id, script, "Script execution failed", error);
 			}
 		}
