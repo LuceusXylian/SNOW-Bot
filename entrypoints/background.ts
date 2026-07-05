@@ -2,7 +2,7 @@ import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData
 import { registerMessageHandler, Message, MessageResponse, MessageType, withTimeout } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
 import { storage } from '#imports';
-import { ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition } from "@/components/scripting";
+import { ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition, conditionType_toString } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
@@ -251,11 +251,7 @@ export default defineBackground(() => {
 						}
 
 						if (trigger.conditions.length) {
-							const result = await checkConditions(trigger.conditions, bot, (scope, name) => {
-								if (scope === 'global') return global_variables[name] ?? null;
-								if (scope === 'persistent') return shared?.data?.persistent_variables?.[name] ?? null;
-								return null;
-							});
+							const result = await checkConditions(trigger.conditions, bot, {});
 							if(!result.success || !result.result) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
@@ -298,7 +294,7 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
-		async function checkConditions(conditions: Condition[], bot: BotInstance, getVariableFn: (scope: string, name: string) => string|null, foreach_context?: ForeachContext, script_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; script_context?: ScriptMessageContext }> {
+		async function checkConditions(conditions: Condition[], bot: BotInstance, local_variables: Record<string, string>, foreach_context?: ForeachContext, script_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; script_context?: ScriptMessageContext }> {
 			const variableConditions: Condition[] = [];
 			const otherConditions: Condition[] = [];
 			for (let condIndex = 0; condIndex < conditions.length; condIndex++) {
@@ -316,12 +312,15 @@ export default defineBackground(() => {
 				if (!scope || !name) {
 					return { success: false, result: false, error: "Condition "+condIndex+": Variable condition missing scope or name" };
 				}
-				const value = getVariableFn(scope, name);
-				if (!testCondition(condition.type, value, condition.string_value)) {
+				const value1 = getVariable(local_variables, scope, name);
+				const value2 = resolveActionArgument(condition.string_value, local_variables);
+				const debug_text = `Condition ${condIndex}: Variable ${scope}:${name} ${JSON.stringify(value1)} ${conditionType_toString(condition.type)} ${JSON.stringify(condition.string_value)} ${value2}`;
+				LOGGER.debug(debug_text);
+				if (!testCondition(condition.type, value1, value2)) {
 					return {
 						success: true,
 						result: false,
-						error: `Condition ${condIndex}: Variable condition failed: ${scope}:${name} ${conditionType_toString(condition.type)} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value)}`,
+						error: "Failed "+debug_text,
 						script_context,
 					};
 				}
@@ -343,7 +342,15 @@ export default defineBackground(() => {
 		}
 
 		class ExitAllScriptsError extends Error {}
-
+		
+		function getVariable(local_variables: Record<string, string>, scope: string, name: string): string | null {
+			switch (scope) {
+				case 'local': return local_variables[name] ?? null;
+				case 'global': return global_variables[name] ?? null;
+				case 'persistent': return shared.data.persistent_variables[name] ?? null;
+				default: return null;
+			}
+		}
 		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
 				const bot = _bot  ?? await COMMANDER.getBotFocus();
@@ -367,20 +374,11 @@ export default defineBackground(() => {
 					}
 				}
 
-				function getVariable(scope: string, name: string): string | null {
-					switch (scope) {
-						case 'local': return local_variables[name] ?? null;
-						case 'global': return global_variables[name] ?? null;
-						case 'persistent': return shared.data.persistent_variables[name] ?? null;
-						default: return null;
-					}
-				}
-
 				for (let index = 0; index < script.lines.length; index++) {
 					const script_line = script.lines[index];
 					let lineContext: ScriptMessageContext = { conditions: script_line.conditions };
 					if (script_line.conditions.length) {
-						const result = await checkConditions(script_line.conditions, bot, (scope, name) => getVariable(scope, name), foreach_context, lineContext);
+						const result = await checkConditions(script_line.conditions, bot, local_variables, foreach_context, lineContext);
 						if (!result.success) {
 							await progress_report(session_id, script, "error", "Script `"+script.name+"` line #"+index+" aborted. "+result.error);
 							return;
@@ -389,7 +387,7 @@ export default defineBackground(() => {
 							await progress_report(session_id, script, "info", "Script `"+script.name+"`: line #"+index+" skipped — condition false: "+result.error);
 							continue;
 						}
-						await progress_report(session_id, script, "progress", "Script `"+script.name+"`: All conditions are true.");
+						await progress_report(session_id, script, "progress", "Script `"+script.name+"`: line #"+index+" — All conditions are true.");
 					}
 
 					for (let actionIndex = 0; actionIndex < script_line.actions.length; actionIndex++) {
@@ -442,7 +440,7 @@ export default defineBackground(() => {
 									if (!result.success) {
 										throw new Error("Failed to get element attribute: " + result.error);
 									}
-									const value = result.data?.value ?? "";
+									const value = result.data?.value.toString() ?? "";
 									setVariable(scope, name, value);
 									break;
 								}
