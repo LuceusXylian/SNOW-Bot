@@ -1,5 +1,5 @@
-import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE } from "./constants";
-import { MessageType, sendMessage } from "./messaging";
+import { SEND_MESSAGE_TIMEOUT_MS, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE } from "./constants";
+import { MessageType, sendMessage, withTimeout } from "./messaging";
 import { ConditionType, ConditionTargetType, type Script, type Trigger } from "./scripting";
 
 export enum LogFrom {
@@ -34,24 +34,23 @@ export interface ScriptMessageContext {
 export function shouldSendMessageToFrame(frameUrl: string, scriptContext?: ScriptMessageContext): boolean {
 	if (!scriptContext?.conditions?.length) return true;
 
-	const frameHostname = new URL(frameUrl).hostname;
+	console.log("shouldSendMessageToFrame frameUrl ", frameUrl);
+	console.log("shouldSendMessageToFrame scriptContext?.conditions ", scriptContext?.conditions);
 	for (const condition of scriptContext.conditions) {
+		let value1;
 		if (condition.target.target_type === ConditionTargetType.HOSTNAME) {
-			if (condition.type === ConditionType.IS && frameHostname !== condition.string_value) return false;
-			if (condition.type === ConditionType.IS_NOT && frameHostname === condition.string_value) return false;
-			if (condition.type === ConditionType.CONTAINS && !frameHostname.includes(condition.string_value)) return false;
-			if (condition.type === ConditionType.CONTAINS_NOT && frameHostname.includes(condition.string_value)) return false;
+			value1 = new URL(frameUrl).hostname;
+		} else if (condition.target.target_type === ConditionTargetType.URL) {
+			value1 = frameUrl;
+		} else {
 			continue;
 		}
-		if (condition.target.target_type === ConditionTargetType.URL) {
-			const currentUrl = frameUrl;
-			if (condition.type === ConditionType.IS && currentUrl !== condition.string_value) return false;
-			if (condition.type === ConditionType.IS_NOT && currentUrl === condition.string_value) return false;
-			if (condition.type === ConditionType.CONTAINS && !currentUrl.includes(condition.string_value)) return false;
-			if (condition.type === ConditionType.CONTAINS_NOT && currentUrl.includes(condition.string_value)) return false;
-			continue;
-		}
+
+		const ret = testCondition(condition.type, value1, condition.string_value);
+		console.log("shouldSendMessageToFrame testCondition", value1, conditionType_toString(condition.type), condition.string_value, " = ", ret);
+		if (!ret) return false;
 	}
+	console.log("shouldSendMessageToFrame frameUrl TRUE", frameUrl);
 	return true;
 }
 
@@ -207,17 +206,21 @@ export class BotCommander {
 						if(frames === null) throw new Error("frames should not be null");
 						
 						const filtered_frames = (options?.conditions?.length)
-							? frames.filter((frame) => shouldSendMessageToFrame(frame.url || "", options))
+							? frames.filter((frame) => shouldSendMessageToFrame(frame.url, options))
 							: frames;
 
 						if(filtered_frames.length === 0) throw new Error("No bot available with the current conditions");
 						
 						const firstFrame = filtered_frames[0];
-						const first = await browser.tabs.sendMessage(this.tabId, {
-							type: message_type,
-							data: data,
-							frameIndex: 0,
-						}, { frameId: firstFrame.frameId });
+						const first = await withTimeout(
+							browser.tabs.sendMessage(this.tabId, {
+								type: message_type,
+								data: data,
+								frameIndex: 0,
+							}, { frameId: firstFrame.frameId }),
+							SEND_MESSAGE_TIMEOUT_MS,
+							`sendMessage timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${this.tabId} frameId:${firstFrame.frameId}`
+						);
 
 						if (!first.success) {
 							for (let f = 1; f < filtered_frames.length; f++) {
@@ -225,11 +228,15 @@ export class BotCommander {
 								console.log("sendMessage frameIndex "+f, frame.url);
 								
 								try {
-									const response = await browser.tabs.sendMessage(this.tabId, {
-										type: message_type,
-										data: data,
-										frameIndex: f
-									}, { frameId: frame.frameId });
+									const response = await withTimeout(
+										browser.tabs.sendMessage(this.tabId, {
+											type: message_type,
+											data: data,
+											frameIndex: f
+										}, { frameId: frame.frameId }),
+										SEND_MESSAGE_TIMEOUT_MS,
+										`sendMessage timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${this.tabId} frameId:${frame.frameId}`
+									);
 
 									console.log("sendMessage response", response);
 									if (response.success) {
@@ -392,10 +399,14 @@ export class BotCommander {
 		let promises = [];
 
 		for (const botInstance of this.botInstances) {
-			promises[promises.length] = browser.tabs.sendMessage(botInstance.tabId, {
-				type: message_type,
-				data: data,
-			}).catch((error) => {
+			promises[promises.length] = withTimeout(
+				browser.tabs.sendMessage(botInstance.tabId, {
+					type: message_type,
+					data: data,
+				}),
+				SEND_MESSAGE_TIMEOUT_MS,
+				`sendMessageAll timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${botInstance.tabId}`
+			).catch((error) => {
 				this.LOGGER.log(`Failed to send message of type:${message_type} to bot ${botInstance.bot_id} on tab ${botInstance.tabId}. data:`, data, "error:", error);
 			});
 		}

@@ -251,7 +251,12 @@ export default defineBackground(() => {
 						}
 
 						if (trigger.conditions.length) {
-							const result = await checkConditions(trigger.conditions, bot, {});
+							const frame_conditions = trigger.conditions.filter((condition) =>
+								condition.target.target_type === ConditionTargetType.HOSTNAME ||
+								condition.target.target_type === ConditionTargetType.URL
+							);
+							const lineContext: ScriptMessageContext = frame_conditions.length ? { conditions: frame_conditions } : {};
+							const result = await checkConditions(trigger.conditions, bot, {}, undefined, lineContext);
 							if(!result.success || !result.result) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
@@ -376,7 +381,11 @@ export default defineBackground(() => {
 
 				for (let index = 0; index < script.lines.length; index++) {
 					const script_line = script.lines[index];
-					let lineContext: ScriptMessageContext = { conditions: script_line.conditions };
+					const frame_conditions = script_line.conditions.filter((condition) =>
+						condition.target.target_type === ConditionTargetType.HOSTNAME ||
+						condition.target.target_type === ConditionTargetType.URL
+					);
+					const lineContext: ScriptMessageContext = frame_conditions.length ? { conditions: frame_conditions } : {};
 					if (script_line.conditions.length) {
 						const result = await checkConditions(script_line.conditions, bot, local_variables, foreach_context, lineContext);
 						if (!result.success) {
