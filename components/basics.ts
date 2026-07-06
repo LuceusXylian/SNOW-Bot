@@ -1,6 +1,6 @@
 import { SEND_MESSAGE_TIMEOUT_MS, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE } from "./constants";
 import { MessageType, sendMessage, withTimeout } from "./messaging";
-import { ConditionType, ConditionTargetType, type Script, type Trigger } from "./scripting";
+import { testCondition, ConditionTargetType, conditionType_toString, type Script, type Trigger } from "./scripting";
 
 export enum LogFrom {
 	popup = 0,
