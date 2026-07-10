@@ -232,7 +232,7 @@ export class BotCommander {
 										browser.tabs.sendMessage(this.tabId, {
 											type: message_type,
 											data: data,
-											frameIndex: f
+											frameId: frame.frameId
 										}, { frameId: frame.frameId }),
 										SEND_MESSAGE_TIMEOUT_MS,
 										`sendMessage timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${this.tabId} frameId:${frame.frameId}`
@@ -243,6 +243,7 @@ export class BotCommander {
 										this.is_busy = false;
 										return response;
 									}
+									await sleep(100) //give a little breathing time for content so it can render, so it does not crash
 								} catch (error) {
 									self.LOGGER.log("sendMessage(", message_type, ", ", data, ") failed for tabId:"+this.tabId+" frameId:"+frame.frameId);
 								}
@@ -718,5 +719,10 @@ export function dateToLocaleString(date: Date, locale: string): string {
 	
 		default: return dateToISOString(date);
 	}
+}
+
+/** Pauses execution for the specified number of milliseconds */
+export async function sleep(milisecs: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, milisecs));
 }
 

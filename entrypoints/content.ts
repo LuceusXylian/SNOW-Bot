@@ -41,7 +41,7 @@ class BackgroundMessageHandler {
 	}
 
 	async handle(message: Message): Promise<MessageResponse<any>> {
-		LOGGER.debug(`frameIndex:${(message as any).frameIndex} | ${document.title} | Received message: ${message.type}`, message);
+		LOGGER.debug(`frameId:${(message as any).frameId} | ${document.title} | Received message: ${message.type}`, message);
 	
 		try {
 			if (message.type === MessageType.UPDATE_SHARED_DATA) {
