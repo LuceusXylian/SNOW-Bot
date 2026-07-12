@@ -1,5 +1,5 @@
 # SNOW-Bot
-SNOW Bot is a browser extension that gets you notifications and half-automate your workflow
+Browser automation assistant for form filling, scriptable workflows, and task automation.
 
 
 ## Features
