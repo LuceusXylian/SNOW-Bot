@@ -147,6 +147,7 @@ class BackgroundMessageHandler {
 					const { element_selector, attribute, foreach_selector, foreach_index, use_cache } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
+					const attribute_lcase = (attribute as string).toLowerCase();
 
 					let rootNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
@@ -155,7 +156,7 @@ class BackgroundMessageHandler {
 						rootNode = foreachRoot;
 					}
 
-					if (attribute === "length") {
+					if (attribute_lcase === "length") {
 						const target_elements = querySelectorAll(element_selector, rootNode);
 						LOGGER.log("MessageType.GET_ELEMENT_ATTRIBUTE length element_selector", element_selector)
 						LOGGER.log("MessageType.GET_ELEMENT_ATTRIBUTE length target_elements", target_elements)
@@ -176,8 +177,14 @@ class BackgroundMessageHandler {
 					}
 
 					let attributeValue: string | null = null;
-					if (attribute === "value" && (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement)) {
+					if (attribute_lcase === "value" && (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement)) {
 						attributeValue = target_element.value;
+					} else if(attribute_lcase === "innertext") {
+						attributeValue = target_element.innerText;
+					} else if(attribute_lcase === "innerhtml") {
+						attributeValue = target_element.innerHTML;
+					} else if(attribute_lcase === "outerhtml") {
+						attributeValue = target_element.outerHTML;
 					} else {
 						attributeValue = target_element.getAttribute(attribute);
 					}
