@@ -18,7 +18,9 @@ Browser automation assistant for form filling, scriptable workflows, and task au
 			- Element attribute checks
 		- Actions
 			- Templates: execute insert
+				- TODO: execute, but save content to variable
 			- Set element attribute, including "value" for formcontrols
+				- TODO: set innertext / innerhtml
 			- Trigger element events
 			- Send notifications
 			- Wait
