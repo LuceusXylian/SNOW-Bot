@@ -317,9 +317,11 @@ export class ScriptingUI {
 
 						// add select for template
 						const template_fc = this.build_fc_reference(arguments_container, "id", "templates", argument_value);
-						set_method_fc.addEventListener("change", () => {
+						const template_change_event = () => {
 							template_fc.style.display = set_method_fc.value === ActionSetMethod.TEMPLATE.toString()? "" : "none";
-						});
+						};
+						template_change_event();
+						set_method_fc.addEventListener("change", template_change_event);
 						arguments_fc_array.push(template_fc);
 					}
 
