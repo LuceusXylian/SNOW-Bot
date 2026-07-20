@@ -97,6 +97,7 @@ export enum ActionSetMethod {
 	// Set string with optional ${VAR} variables
 	STRING = 0,
 	DATE_NOW_PLUS_DAYS = 1,
+	TEMPLATE = 2,
 }
 
 export enum VariableScope {
@@ -153,6 +154,25 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		available_arguments: [{argument: "id", type: "text", required: true, use_set_method: false, reference: "templates"}, { argument: "element_selector", type: "text", required: true, use_set_method: false }]
 	},
 	{
+		name: "Set Variable",
+		kind: ActionKind.SET_VARIABLE,
+		available_arguments: [
+			{ argument: "scope", type: "text", required: true, use_set_method: false },
+			{ argument: "name", type: "text", required: true, use_set_method: false },
+			{ argument: "value", type: "textarea", required: true, use_set_method: true },
+		],
+	},
+	{
+		name: "Assign Variable from Element Attribute",
+		kind: ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE,
+		available_arguments: [
+			{ argument: "scope", type: "text", required: true, use_set_method: false },
+			{ argument: "name", type: "text", required: true, use_set_method: false },
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
+			{ argument: "attribute", type: "text", required: true, use_set_method: false },
+		],
+	},
+	{
 		name: "SetElementAttribute",
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.SET_ELEMENT_ATTRIBUTE,
@@ -185,25 +205,6 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		name: "Wait",
 		kind: ActionKind.WAIT,
 		available_arguments: [{argument: "seconds", type: "number", required: true, use_set_method: false}]
-	},
-	{
-		name: "Assign Variable from Element Attribute",
-		kind: ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE,
-		available_arguments: [
-			{ argument: "scope", type: "text", required: true, use_set_method: false },
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
-			{ argument: "attribute", type: "text", required: true, use_set_method: false },
-		],
-	},
-	{
-		name: "Set Variable",
-		kind: ActionKind.SET_VARIABLE,
-		available_arguments: [
-			{ argument: "scope", type: "text", required: true, use_set_method: false },
-			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "value", type: "textarea", required: true, use_set_method: false },
-		],
 	},
 	{
 		name: "Execute Per Element",

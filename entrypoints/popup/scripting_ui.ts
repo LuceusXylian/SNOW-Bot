@@ -190,6 +190,24 @@ export class ScriptingUI {
 			}
 		};
 	}
+
+	build_fc_reference(arguments_container: HTMLElement, name: string, referenceKey: keyof SharedDataInner, value: string) {
+		const referenceArray = this.shared.data[referenceKey] as Reference[];
+		const reference_options: { value: string, title: string }[] = [];
+		for (let index = 0; index < referenceArray.length; index++) {
+			const reference = referenceArray[index];
+			reference_options.push({ title: reference.name, value: reference.id.toString() });
+		}
+
+		let placeholder: string = referenceKey;
+		if(placeholder.endsWith("s")) placeholder = placeholder.substring(0, placeholder.length -1);
+		return create_formcontrol(arguments_container, "select", name, "Select "+placeholder, {
+			value: value,
+			class: "fc-container-3",
+			required: true,
+			options: reference_options
+		})
+	}
 	
 	/**
 	 * Builds a form for editing an Action.
@@ -280,36 +298,29 @@ export class ScriptingUI {
 					const {element_selector_container, element_selector_input} = this.create_element_selector_fc(arguments_container, argument_value);
 					arguments_fc_array.push(element_selector_input);
 				} else if (argument.reference && this.shared.data[referenceKey] !== undefined) {
-					const referenceArray = this.shared.data[referenceKey] as Reference[];
-					const reference_options: { value: string, title: string }[] = [];
-					for (let index = 0; index < referenceArray.length; index++) {
-						const reference = referenceArray[index];
-						reference_options.push({ title: reference.name, value: reference.id.toString() });
-					}
-
-					let placeholder: string = argument.reference;
-					if(placeholder.endsWith("s")) placeholder = placeholder.substring(0, placeholder.length -1);
 					arguments_fc_array.push(
-						create_formcontrol(arguments_container, "select", argument.argument, "Select "+placeholder, {
-							value: argument_value,
-							class: "fc-container-3",
-							required: true,
-							options: reference_options
-						})
+						this.build_fc_reference(arguments_container, argument.argument, referenceKey, argument_value)
 					)
 				} else {
 					if (argument.use_set_method) {
-						arguments_fc_array.push(
-							create_formcontrol(arguments_container, "select", "set_method", "set method", {
-								value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STRING.toString(),
-								class: "fc-container-3",
-								required: true,
-								options: [
-									{ title: "STRING", value: ActionSetMethod.STRING.toString() },
-									{ title: "DATE_NOW_PLUS_DAYS", value: ActionSetMethod.DATE_NOW_PLUS_DAYS.toString() },
-								]
-							})
-						)
+						const set_method_fc = create_formcontrol(arguments_container, "select", "set_method", "set method", {
+							value: initial?.arguments.set_method?.toString() ?? ActionSetMethod.STRING.toString(),
+							class: "fc-container-3",
+							required: true,
+							options: [
+								{ title: "STRING", value: ActionSetMethod.STRING.toString() },
+								{ title: "DATE_NOW_PLUS_DAYS", value: ActionSetMethod.DATE_NOW_PLUS_DAYS.toString() },
+								{ title: "TEMPLATE", value: ActionSetMethod.TEMPLATE.toString() },
+							]
+						})
+						arguments_fc_array.push(set_method_fc);
+
+						// add select for template
+						const template_fc = this.build_fc_reference(arguments_container, "id", "templates", argument_value);
+						set_method_fc.addEventListener("change", () => {
+							template_fc.style.display = set_method_fc.value === ActionSetMethod.TEMPLATE.toString()? "" : "none";
+						});
+						arguments_fc_array.push(template_fc);
 					}
 
 					arguments_fc_array.push(

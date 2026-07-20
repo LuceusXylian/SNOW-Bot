@@ -1,8 +1,7 @@
 import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect, ScriptMessageContext } from "@/components/basics";
 import { registerMessageHandler, Message, MessageResponse, MessageType, withTimeout } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
-import { storage } from '#imports';
-import { ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition, conditionType_toString } from "@/components/scripting";
+import { ActionSetMethod, ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition, conditionType_toString } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
@@ -418,8 +417,18 @@ export default defineBackground(() => {
 									if (!scope) throw new Error("Error in script#" + script.id + ": variable scope is invalid");
 									if (!name) throw new Error("Error in script#" + script.id + ": variable name is invalid");
 
-									const value = resolveActionArgument(action.arguments.value ?? "", local_variables);
-									setVariable(scope, name, value);
+									if (action.arguments.set_method === ActionSetMethod.TEMPLATE) {
+										// send INSERT_TEMPLTE with return_content option
+										const template = shared.get_template(action.arguments.id as string);
+										const response = await bot.sendMessage(MessageType.INSERT_TEMPLATE, { content: template.content, return_content: true });
+										if (!response.success) {
+											throw new Error("Failed to resolve templte content: " + response.error);
+										}
+										setVariable(scope, name, response.data.resolvedContent);
+									} else {
+										const value = resolveActionArgument(action.arguments.value ?? "", local_variables);
+										setVariable(scope, name, value);
+									}
 									break;
 								}
 								case ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE: {

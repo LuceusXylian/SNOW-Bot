@@ -61,8 +61,13 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content, element_selector, delete_insert, foreach_selector, foreach_index } = message.data || {};
+					const { content, element_selector, delete_insert, foreach_selector, foreach_index, return_content } = message.data || {};
 					if (!content) return error_message("No template content provided");
+					if (return_content) {
+						const resolvedContent = await this.resolveTemplateContent(content);
+						return success_message({ resolvedContent: resolvedContent });
+					}
+
 					let target_element: HTMLTextAreaElement;
 					let rootNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
