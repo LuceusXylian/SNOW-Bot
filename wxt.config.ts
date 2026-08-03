@@ -28,4 +28,9 @@ export default defineConfig({
 			}
 		}
 	},
+	webExt: {
+		binaries: {
+			win_chrome: "C:\\chromium\\chrome.exe"
+		}
+	},
 });

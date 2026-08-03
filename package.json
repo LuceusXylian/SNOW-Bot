@@ -8,6 +8,7 @@
     "dev": "wxt -b firefox",
     "dev:firefox": "wxt -b firefox",
     "dev:chrome": "wxt",
+    "dev:win_chrome": "wxt -b win_chrome",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "build:chrome": "wxt build",
