@@ -12,6 +12,14 @@ export const DEFAULT_NOTIFY_SOUND_ENABLED = true;
 export const DEFAULT_NOTIFY_SOUND_SOURCE = "beep";
 export const DEFAULT_NOTIFY_SPEAKER_DEVICE = "default";
 export const DEFAULT_DATETIME_LOCALE = "de_DE";
+export const DEFAULT_BUTTON_GRID_COLS = 3;
+export const DEFAULT_BUTTON_GRID_COLS_FIREFOX = 4;
+
+export function get_default_button_grid_cols() {
+	return (() => typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent))()
+	? DEFAULT_BUTTON_GRID_COLS_FIREFOX
+	: DEFAULT_BUTTON_GRID_COLS;
+}
 
 export const BUNDLED_SOUNDS = [
     { id: "beep",      name: "Beep",                         type: "beep" },

@@ -57,6 +57,8 @@ button.fc-reset { cursor: pointer; user-select: none; }
 .fc-b { display: block; width: initial; min-width: none; }
 .fc-small { font-size: .8em; padding: 4px; }
 .fc-margin { margin: .4rem; }
+.fc-col { display: inline-block; }
+.fc-container-1 { display: inline-block; width: calc(100% - .4rem * 2); }
 .fc-container-2 { display: inline-block; width: calc(50% - .4rem * 2); }
 .fc-container-3 { display: inline-block; width: calc(33.33% - .4rem * 2); }
 .fc-container-4 { display: inline-block; width: calc(25% - .4rem * 2); }
@@ -117,6 +119,9 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 .btn-edit:hover { background-color: #568df3; }
 .btn-delete:hover { background-color: #d32f2f; }
 .btn-insert:hover { background-color: #388e3c; }
+
+.scriptline-form, .condition-form, .action-form { position: relative; }
+.float_delete_btn { position: absolute; top: -4px; right: -4px; margin: 0; }
 
 /* Chat UI */
 .chat-history { min-height: 220px; max-height: 100vh; overflow: auto; padding: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; background: rgba(0, 0, 0, 0.18); display: flex; flex-direction: column; gap: 0.5rem; }

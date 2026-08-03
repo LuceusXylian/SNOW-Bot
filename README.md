@@ -48,4 +48,6 @@ Browser automation assistant for form filling, scriptable workflows, and task au
 - nodejs: https://nodejs.org/en/download/current
 - pnpm: https://pnpm.io/installation#on-posix-systems
 
-about:debugging#/runtime/this-firefox
+Browser Debug Pages
+- about:debugging#/runtime/this-firefox
+- chrome://extensions/  

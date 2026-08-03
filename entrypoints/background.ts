@@ -128,7 +128,7 @@ export default defineBackground(() => {
 						const tabId = sender?.tab?.id;
 						if (!tabId) return error_message("Could not determine tab ID");
 						const hostname = message.data.hostname;
-						if (!message.data.hostname) return error_message("Could not determine hostname");
+						if (typeof message.data.hostname !== "string") return error_message("Could not determine hostname");
 
 						const bot = COMMANDER.add_bot(tabId, hostname);
 						return success_message({ bot_id: bot.bot_id });

@@ -1,4 +1,4 @@
-import { SEND_MESSAGE_TIMEOUT_MS, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE } from "./constants";
+import { SEND_MESSAGE_TIMEOUT_MS, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE, get_default_button_grid_cols } from "./constants";
 import { MessageType, sendMessage, withTimeout } from "./messaging";
 import { testCondition, ConditionTargetType, conditionType_toString, type Script, type Trigger } from "./scripting";
 
@@ -164,6 +164,8 @@ export interface SharedDataInner {
 	triggers: Trigger[],
 	button_grids: ButtonGrid[],
 	button_grid_index: number,
+	button_grid_cols: number;
+	button_grid_min_rows: number;
 	datetime_locale: string,
 	persistent_variables: Record<string, string>,
 }
@@ -454,6 +456,8 @@ export class SharedData {
 			triggers: data.triggers ?? [],
 			button_grids: data.button_grids ?? [],
 			button_grid_index: data.button_grid_index ?? -1,
+			button_grid_cols: data.button_grid_cols ?? get_default_button_grid_cols(),
+			button_grid_min_rows: data.button_grid_min_rows ?? 4,
 			datetime_locale: data.datetime_locale ?? DEFAULT_DATETIME_LOCALE,
 			persistent_variables: data.persistent_variables ?? {},
 		};

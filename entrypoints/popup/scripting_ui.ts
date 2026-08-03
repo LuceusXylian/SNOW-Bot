@@ -99,8 +99,12 @@ export class ScriptingUI {
 	 * Builds a form for editing a Condition.
 	 * Returns an object with get/set methods to read/write the condition.
 	 */
-	build_condition_form(parent: HTMLElement, initial?: Condition) {
+	build_condition_form(parent: HTMLElement, initial?: Condition, onRemove?: () => void) {
 		const container = create_element(parent, "div", { class: "condition-form", style: "border:1px solid #ccc;padding:8px;margin:4px;border-radius:4px" });
+		if (onRemove) {
+			const removeBtn = create_text_element(container, "button", "Remove", { class: "float_delete_btn btn-delete fc-b" });
+			removeBtn.addEventListener("click", onRemove);
+		}
 		
 		const targetTypeSelect = create_formcontrol(container, "select", "target_type", "Target Type", { 
 			value: String(initial?.target.target_type ?? ConditionTargetType.URL), 
@@ -213,8 +217,12 @@ export class ScriptingUI {
 	 * Builds a form for editing an Action.
 	 * Returns an object with get/set methods to read/write the action.
 	 */
-	build_action_form(parent: HTMLElement, initial?: Action) {
+	build_action_form(parent: HTMLElement, initial?: Action, onRemove?: () => void) {
 		const container = create_element(parent, "div", { class: "action-form", style: "border:1px solid #ccc;padding:8px;margin:4px;border-radius:4px" });
+		if (onRemove) {
+			const removeBtn = create_text_element(container, "button", "Remove", { class: "float_delete_btn btn-delete fc-b" });
+			removeBtn.addEventListener("click", onRemove);
+		}
 		
 		const action_type_options = [];
 		let action_type_value: string = "";
@@ -339,6 +347,7 @@ export class ScriptingUI {
 		action_type_change_event();
 		
 		return {
+			elem: container,
 			get(): Action {
 				const _arguments: Record<string, string> = {};
 				for (let index = 0; index < arguments_fc_array.length; index++) {
@@ -362,44 +371,83 @@ export class ScriptingUI {
 	 */
 	build_scriptline_form(parent: HTMLElement, initial: ScriptLine|null, onRemove: () => void) {
 		const container = create_element(parent, "div", { class: "scriptline-form", style: "border:2px solid #333;padding:12px;margin:8px 0;border-radius:6px;background:#39495A" });
-		
-		// Header with remove button
-		const header = create_element(container, "div", { style: "display:flex;justify-content:space-between;margin-bottom:12px" });
 		if (onRemove) {
-			const removeBtn = create_text_element(header, "button", "Remove Line", {class: "btn-delete fc-b", style: "margin-left: auto;"});
+			const removeBtn = create_text_element(container, "button", "Remove Line", {class: "float_delete_btn btn-delete fc-b", style: "margin-left: auto;"});
 			(removeBtn as HTMLButtonElement).addEventListener("click", onRemove);
 		}
 		
 		// Conditions section
 		create_text_element(container, "h5", "Conditions");
 		const conditionsContainer = create_element(container, "div", { class: "conditions-list" });
-		const conditionForms: ReturnType<typeof this.build_condition_form>[] = [];
+		const conditionForms: { elem: HTMLElement, get: () => Condition }[] = [];
+		
+		const renderConditions = () => {
+			conditionsContainer.innerHTML = "";
+			conditionForms.forEach((form) => {
+				conditionsContainer.appendChild(form.elem);
+			});
+		};
 		
 		(initial?.conditions ?? []).forEach(cond => {
-			const condForm = this.build_condition_form(conditionsContainer, cond);
+			const condForm = this.build_condition_form(conditionsContainer, cond, () => {
+				const index = conditionForms.findIndex((f) => f.elem === condForm.elem);
+				if (index !== -1) {
+					conditionForms.splice(index, 1);
+					renderConditions();
+				}
+			});
 			conditionForms.push(condForm);
 		});
+		renderConditions();
 		
 		const addCondBtn = create_text_element(container, "button", "+ Add Condition", { class:"fc fc-small", style:"margin-top: 1rem;" });
 		(addCondBtn as HTMLButtonElement).addEventListener("click", () => {
-			const condForm = this.build_condition_form(conditionsContainer);
+			const condForm = this.build_condition_form(conditionsContainer, undefined, () => {
+				const index = conditionForms.findIndex((f) => f.elem === condForm.elem);
+				if (index !== -1) {
+					conditionForms.splice(index, 1);
+					renderConditions();
+				}
+			});
 			conditionForms.push(condForm);
+			renderConditions();
 		});
 		
 		// Actions section
 		create_text_element(container, "h5", "Actions");
 		const actionsContainer = create_element(container, "div", { class: "actions-list" });
-		const actionForms: ReturnType<typeof this.build_action_form>[] = [];
+		const actionForms: { elem: HTMLElement, get: () => Action }[] = [];
+		
+		const renderActions = () => {
+			actionsContainer.innerHTML = "";
+			actionForms.forEach((form) => {
+				actionsContainer.appendChild(form.elem);
+			});
+		};
 		
 		(initial?.actions ?? []).forEach(act => {
-			const actForm = this.build_action_form(actionsContainer, act);
+			const actForm = this.build_action_form(actionsContainer, act, () => {
+				const index = actionForms.findIndex((f) => f.elem === actForm.elem);
+				if (index !== -1) {
+					actionForms.splice(index, 1);
+					renderActions();
+				}
+			});
 			actionForms.push(actForm);
 		});
+		renderActions();
 		
 		const addActionBtn = create_text_element(container, "button", "+ Add Action", { class:"fc fc-small", style:"margin-top: 1rem;" });
 		(addActionBtn as HTMLButtonElement).addEventListener("click", () => {
-			const actForm = this.build_action_form(actionsContainer);
+			const actForm = this.build_action_form(actionsContainer, undefined, () => {
+				const index = actionForms.findIndex((f) => f.elem === actForm.elem);
+				if (index !== -1) {
+					actionForms.splice(index, 1);
+					renderActions();
+				}
+			});
 			actionForms.push(actForm);
+			renderActions();
 		});
 		
 		return {
