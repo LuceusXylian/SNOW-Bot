@@ -1,4 +1,4 @@
-import { SharedData, LogFrom, Logger, BotCommander, LogEntry, dateToISOString } from '@/components/basics';
+import { SharedData, LogFrom, Logger, BotCommander, type LogEntry, dateToISOString } from '@/components/basics';
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS } from '@/components/constants';
@@ -81,20 +81,20 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const title_sub = document.getElementById("title_sub")!;
 	const controller_goback = document.getElementById("controller-goback")!;
 	const menu = document.getElementById("menu")!;
-	const menu_items = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("menu-item");
+	const menu_items = <NodeListOf<HTMLElement>>document.querySelectorAll(".menu-item");
 	var menu_item_selected: HTMLElement | null = null;
 	const hashId = location.hash.slice(1);
 	const stored_index = hashId.length || !IS_POPUP? -1 : await storage.getItem(KEY_POPUP_MENU_INDEX);
 
 	for (let i = 0; i < menu_items.length; i++) {
-		const item = menu_items[i];
+		const item = menu_items[i] as HTMLElement;
 		const index = i;
 		const menu_item_title = item.querySelector(".menu-item-title") as HTMLElement;
 		
 		menu_item_title.addEventListener("click", () => {
 			if (menu_item_selected === null) {
 				menu.classList.add("deeper");
-				item.classList.add("selected");
+				item!.classList.add("selected");
 				header.classList.remove("goback-hidden");
 				menu_item_selected = item;
 				if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, index);
@@ -257,7 +257,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				
 				const table = create_element(logs_container, "table", { style: "width: 100%;" });
 				for (let i = 0; i < response.data.length; i++) {
-					const entry = response.data[i];
+					const entry = response.data[i]!;
 					const row = create_element(table, "tr");
 					const td1 = create_text_element(row, "td", dateToISOString(new Date(entry.timestamp)), { style: "width: 160px;" });
 					const td2 = create_text_element(row, "td", entry.text);
@@ -311,7 +311,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		if (!files || files.length === 0) return;
 
 		try {
-			const fileContent = await load_file_to_string(files[0]);
+			const fileContent = await load_file_to_string(files[0]!);
 			const imported = JSON.parse(fileContent);
 			await shared.applyStateChange(imported);
 			LOGGER.debug("Settings imported successfully", imported);

@@ -1,4 +1,4 @@
-import { Trigger, TriggerEvent, Condition, ConditionTarget, ConditionTargetType, ConditionType } from "@/components/scripting";
+import type { Trigger, TriggerEvent, Condition } from "@/components/scripting";
 import { MessageType, sendMessage } from "@/components/messaging";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { alert_modal, create_element, create_text_element, create_formcontrol } from "@/components/ui";

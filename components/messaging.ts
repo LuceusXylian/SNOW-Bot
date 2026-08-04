@@ -44,7 +44,7 @@ export async function sendMessage<T>(LOGGER: Logger, message: Message): Promise<
 	LOGGER.debug(message);
 	try {
 		const response = await browser.runtime.sendMessage(message);
-		return response || { success: true };
+		return response;
 	} catch (error) {
 		LOGGER.log(error);
 		return {

@@ -1,7 +1,7 @@
-import { LogFrom, Logger, SharedData, ScriptMessageContext, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
-import { registerMessageHandler, sendMessage, Message, MessageResponse, MessageType } from "@/components/messaging";
+import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
+import { registerMessageHandler, sendMessage, type Message, type MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data } from '@/components/client';
-import { Trigger, Condition, ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
+import { type Trigger, type Condition, type ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
 import { resolveTemplateContent } from "@/components/template-resolution";
 
 const LOGGER = new Logger(LogFrom.content);
@@ -228,7 +228,7 @@ class BackgroundMessageHandler {
 						if (foreachRoot) rootNode = foreachRoot;
 					}
 					for (let c = 0; c < conditions.length; c++) {
-						const condition = conditions[c];
+						const condition = conditions[c]!;
 						const value1 = this.get_condition_target_value(condition.target, rootNode);
 						const result = testCondition(condition.type, value1, condition.string_value);
 						const target_type = condition.target.target_type;
@@ -258,8 +258,8 @@ class BackgroundMessageHandler {
 						return error_message("No element selected");
 					} else {
 						// a element has been selected from another content. we abort here
-						for (let index = 0; index < this.element_selector_abort_controller.length; index++) {
-							this.element_selector_abort_controller[index].abort();
+						for (const abort_controller of this.element_selector_abort_controller) {
+							abort_controller.abort();
 						}
 						return success_message({});
 					}
@@ -268,11 +268,13 @@ class BackgroundMessageHandler {
 			case MessageType.ALERT: {
 				const { text } = message.data || {};
 				alert(text);
+				return success_message({});
 			}
 
 			case MessageType.PLAY_AUDIO: {
 				const { source, speaker_device } = message.data || {};
 				this.play_audio(source, speaker_device).catch(() => {});
+				return success_message({});
 			}
 
 			case MessageType.CLEAR_FOREACH_CACHE: {
@@ -507,7 +509,7 @@ class BackgroundMessageHandler {
 
 			const revertStyles = () => {
 				for (let index = 0; index < previousElements.length; index++) {
-					const element = previousElements[index];
+					const element = previousElements[index]!;
 					const originalStyle = originalStyles.get(element);
 					if (originalStyle !== undefined) {
 						element.style.cssText = originalStyle;
@@ -725,7 +727,8 @@ export default defineContentScript({
 		}, 5000);
 
 		// Get bot_id from background, which creates a record for this content script instance
-		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID, data: {hostname: location.hostname} });
+		const hostname = location.hostname? location.hostname : location.protocol;
+		const get_bot_id_response = await sendMessage<any>(LOGGER, { type: MessageType.GET_BOT_ID, data: {hostname: hostname} });
 		const bot_id: number = get_bot_id_response.data?.bot_id;
 		if (!get_bot_id_response.success) {
 			LOGGER.log("Failed to get bot_id from background", get_bot_id_response);

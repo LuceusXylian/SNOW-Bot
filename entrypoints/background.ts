@@ -1,7 +1,7 @@
-import { LogFrom, Logger, SharedData, SharedDataInner, BotInstance, TemplateData, BotCommander, error_message, BotSelect, ScriptMessageContext } from "@/components/basics";
-import { registerMessageHandler, Message, MessageResponse, MessageType, withTimeout } from "@/components/messaging";
-import { KEY_SHARED_DATA, APP_NAME, TRIGGER_SESSION_ID } from "@/components/constants";
-import { ActionSetMethod, ActionKind, Condition, ConditionTargetType, ForeachContext, Script, testCondition, conditionType_toString } from "@/components/scripting";
+import { LogFrom, Logger, SharedData, type SharedDataInner, type BotInstance, BotCommander, error_message, BotSelect, type ScriptMessageContext } from "@/components/basics";
+import { registerMessageHandler, type Message, type MessageResponse, MessageType, withTimeout } from "@/components/messaging";
+import { KEY_SHARED_DATA, APP_NAME } from "@/components/constants";
+import { ActionSetMethod, ActionKind, type Condition, ConditionTargetType, type ForeachContext, type Script, testCondition, conditionType_toString } from "@/components/scripting";
 
 const LOGGER = new Logger(LogFrom.background);
 LOGGER.debug("start");
@@ -125,8 +125,13 @@ export default defineBackground(() => {
 
 					case MessageType.GET_BOT_ID: {
 						// Content script requests its bot_id
-						const tabId = sender?.tab?.id;
+						console.log("sender", sender);
+						if (!sender) return error_message("Could not determine sender");
+						
+						const tabId = sender.tab?.id;
 						if (!tabId) return error_message("Could not determine tab ID");
+						// const frame = sender.frame;
+						// if (!tabId) return error_message("Could not determine tab ID");
 						const hostname = message.data.hostname;
 						if (typeof message.data.hostname !== "string") return error_message("Could not determine hostname");
 
@@ -302,7 +307,7 @@ export default defineBackground(() => {
 			const variableConditions: Condition[] = [];
 			const otherConditions: Condition[] = [];
 			for (let condIndex = 0; condIndex < conditions.length; condIndex++) {
-				const condition = conditions[condIndex];
+				const condition = conditions[condIndex]!;
 				if (condition.target.target_type === ConditionTargetType.VARIABLE) {
 					variableConditions.push(condition);
 				} else {
@@ -310,7 +315,7 @@ export default defineBackground(() => {
 				}
 			}
 			for (let condIndex = 0; condIndex < variableConditions.length; condIndex++) {
-				const condition = variableConditions[condIndex];
+				const condition = variableConditions[condIndex]!;
 				const scope = condition.target.variable_scope;
 				const name = condition.target.variable_name;
 				if (!scope || !name) {
@@ -379,7 +384,7 @@ export default defineBackground(() => {
 				}
 
 				for (let index = 0; index < script.lines.length; index++) {
-					const script_line = script.lines[index];
+					const script_line = script.lines[index]!;
 					const frame_conditions = script_line.conditions.filter((condition) =>
 						condition.target.target_type === ConditionTargetType.HOSTNAME ||
 						condition.target.target_type === ConditionTargetType.URL
@@ -399,7 +404,7 @@ export default defineBackground(() => {
 					}
 
 					for (let actionIndex = 0; actionIndex < script_line.actions.length; actionIndex++) {
-						const action = script_line.actions[actionIndex];
+						const action = script_line.actions[actionIndex]!;
 						try {
 							switch (action.type.kind) {
 								case ActionKind.SCRIPT: {

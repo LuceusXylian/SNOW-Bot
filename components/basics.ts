@@ -57,6 +57,7 @@ export function shouldSendMessageToFrame(frameUrl: string, scriptContext?: Scrip
 export interface BotInstance {
 	bot_id: number;
 	tabId: number;
+	// frameIds: number[]; Idea: instead of sending to all frames, send only to registered frames, to avoid so send to dead frames
 	hostname: string;
 	is_busy: boolean;
 	sendMessage: (message_type: MessageType, data: Object, options?: ScriptMessageContext) => Promise<any>
@@ -213,7 +214,7 @@ export class BotCommander {
 
 						if(filtered_frames.length === 0) throw new Error("No bot available with the current conditions");
 						
-						const firstFrame = filtered_frames[0];
+						const firstFrame = filtered_frames[0]!;
 						const first = await withTimeout(
 							browser.tabs.sendMessage(this.tabId, {
 								type: message_type,
@@ -226,7 +227,7 @@ export class BotCommander {
 
 						if (!first.success) {
 							for (let f = 1; f < filtered_frames.length; f++) {
-								const frame = filtered_frames[f];
+								const frame = filtered_frames[f]!;
 								console.log("sendMessage frameIndex "+f, frame.url);
 								
 								try {
@@ -286,9 +287,9 @@ export class BotCommander {
 	}
 
 	// @internal only for background
-	set_busy(bot_id: number, is_busy: boolean) {
-		this.botInstances[bot_id].is_busy = is_busy;
-		return this.botInstances[bot_id];
+	set_busy(bot_id: number, is_busy: boolean): BotInstance {
+		this.botInstances[bot_id]!.is_busy = is_busy;
+		return this.botInstances[bot_id]!;
 	}
 
 	async sendMessage(bot_id: number, message_type: MessageType, data: Object, options?: ScriptMessageContext) {
@@ -306,7 +307,7 @@ export class BotCommander {
 		}
 
 		// LogFrom.background
-		return this.botInstances[bot_id].sendMessage(message_type, data, options);
+		return this.botInstances[bot_id]!.sendMessage(message_type, data, options);
 	}
 
 	/**
@@ -314,9 +315,10 @@ export class BotCommander {
 	 */
 	async getBot(id: number): Promise<BotInstance> {
 		for (let z = this.botInstances.length -1; z >= 0; z--) {
-			if (this.botInstances[z].bot_id === id) {
-				if (!this.botInstances[z].is_busy) {
-					return this.botInstances[z];
+			const bot = this.botInstances[z]!;
+			if (bot.bot_id === id) {
+				if (!bot.is_busy) {
+					return bot;
 				}
 				break;			
 			}
@@ -334,7 +336,7 @@ export class BotCommander {
 				active: true,
 				lastFocusedWindow: true,
 			});
-			if(focusedTabs[0].id !== undefined) focusedTabId = focusedTabs[0].id;
+			if(focusedTabs[0]!.id !== undefined) focusedTabId = focusedTabs[0]!.id;
 		} catch (error) {
 			this.LOGGER.debug("Unable to query focused tab", error);
 		}
@@ -552,7 +554,7 @@ export class SharedData {
 /** document.querySelector(), but goes also through shadow DOMs */
 export function old__querySelector(selector: string, rootNode=document.body): HTMLElement|null {
 	// We ignore the "." delimiter for class because some weird websites uses it in id
-	const selector_id = selector.split("#")[1];
+	const selector_id = selector.split("#")[1]!;
 	const elem = document.getElementById(selector_id);
 	if(elem) return elem;
 

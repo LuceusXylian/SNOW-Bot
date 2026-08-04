@@ -10,7 +10,7 @@ export function create_element<K extends keyof HTMLElementTagNameMap>(parent: HT
 	const elem = parent.appendChild(document.createElement(tag));
 	if (attributes) {
 		for (const key in attributes) {
-			elem.setAttribute(key, attributes[key]);
+			elem.setAttribute(key, attributes[key]!);
 		}
 	}
 	return elem;
@@ -28,7 +28,7 @@ export function create_text_element<K extends keyof HTMLElementTagNameMap>(paren
 	elem.innerText = text;
 	if (attributes) {
 		for (const key in attributes) {
-			elem.setAttribute(key, attributes[key]);
+			elem.setAttribute(key, attributes[key]!);
 		}
 	}
 	return elem;

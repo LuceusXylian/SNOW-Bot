@@ -10,7 +10,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 		{ value: "-1", title: "All Scripts" }
 	];
 	for (let index = 0; index < shared.data.button_grids.length; index++) {
-		const grid = shared.data.button_grids[index];
+		const grid = shared.data.button_grids[index]!;
 		options.push({ value: index.toString(), title: grid.title });
 	}
 
@@ -47,7 +47,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 					create_formcontrol(container, "text", "title", "ButtonGrid title", { autocomplete_off: true }).focus();
 				});
 				
-				shared.data.button_grids.push({ title: result.title, buttons: [] });
+				shared.data.button_grids.push({ title: result.title!, buttons: [] });
 				shared.applyStateChange({
 					button_grids: shared.data.button_grids,
 					button_grid_index: shared.data.button_grids.length -1,
@@ -74,7 +74,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 		if (button_grid_index === -1) {
 			// Get all scripts as buttons
 			for (let b = 0; b < shared.data.scripts.length; b++) {
-				const script = shared.data.scripts[b];
+				const script = shared.data.scripts[b]!;
 				const button = create_text_element(buttons_container, "button", button_text(script.name), { class: "fc fc-margin bgrid_button", style: fc_container_style });
 				button.addEventListener("click", () => {
 					sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
@@ -84,11 +84,11 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			}
 		} else {
 			// Custom Grid
-			const grid = shared.data.button_grids[button_grid_index];
+			const grid = shared.data.button_grids[button_grid_index]!;
 			
 			for (let b = 0; b < cols*rows; b++) {
 				const index = b;
-				const entry = grid.buttons[b];
+				const entry = grid.buttons[b]!;
 				const text = entry?.text? button_text(entry.text) : "";
 				const button = create_text_element(buttons_container, "button", text, { class: "fc fc-margin bgrid_button", style: fc_container_style });
 				button.addEventListener("click", async () => {
@@ -103,13 +103,14 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 							create_formcontrol(container, "select", "script_id", "Script", { value: entry.script_id?.toString()??"", options: script_options });
 						});
 
+						const button_grid_button = shared.data.button_grids[button_grid_index]!.buttons[index]!;
 						if (result.text === "") {
-							const script = shared.get_script(result.script_id);
-							shared.data.button_grids[button_grid_index].buttons[index].text = script.name;
+							const script = shared.get_script(result.script_id!);
+							button_grid_button.text = script.name;
 						} else {
-							shared.data.button_grids[button_grid_index].buttons[index].text = result.text;
+							button_grid_button.text = result.text!;
 						}
-						shared.data.button_grids[button_grid_index].buttons[index].script_id = result.script_id;
+						button_grid_button.script_id = result.script_id!;
 						await shared.applyStateChange({ button_grids: shared.data.button_grids });
 						buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
 					} else if(entry && entry.script_id !== null) {

@@ -1,4 +1,5 @@
-import { Script, execute_script } from "@/components/scripting";
+import { execute_script } from "@/components/scripting";
+import type { Script } from "@/components/scripting";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { create_element, create_text_element } from "@/components/ui";
 import { MessageType, registerMessageHandler } from "@/components/messaging";
@@ -59,7 +60,7 @@ export class ChatUI extends ScriptingUI {
 	}
 	
 	// SESSION_ID to know which controller should be notified for progress reports
-	readonly SESSION_ID: number = new Date().getTime();
+	override readonly SESSION_ID: number = new Date().getTime();
 
 	private appendHistory(kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
 		if (!this.historyContainer) {
@@ -111,7 +112,7 @@ export class ChatUI extends ScriptingUI {
 			this.highlightedSuggestionIndex = (this.highlightedSuggestionIndex + direction + this.filteredScripts.length) % this.filteredScripts.length;
 		}
 
-		const highlightedScript = this.filteredScripts[this.highlightedSuggestionIndex];
+		const highlightedScript = this.filteredScripts[this.highlightedSuggestionIndex]!;
 		this.selectedScriptId = highlightedScript.id;
 		this.updateSuggestionHighlight();
 	}

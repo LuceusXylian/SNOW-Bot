@@ -1,4 +1,4 @@
-import { Script, Trigger, ScriptLine, Condition, ConditionType, ConditionTargetType, ActionSetMethod, Action, ActionType, SCRIPTING_ACTIONS_TYPES, Reference, execute_script, ActionKind } from "@/components/scripting";
+import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
@@ -48,7 +48,7 @@ export class ScriptingUI {
 		var render_script_list = () => {
 			tbody.innerHTML = "";
 			for (let index = 0; index < this.shared.data.scripts.length; index++) {
-				const script = this.shared.data.scripts[index];
+				const script = this.shared.data.scripts[index]!;
 				const tr = create_element(tbody, "tr");
 				create_text_element(tr, "td", script.id.toString());
 				create_text_element(tr, "td", script.name);
@@ -199,7 +199,7 @@ export class ScriptingUI {
 		const referenceArray = this.shared.data[referenceKey] as Reference[];
 		const reference_options: { value: string, title: string }[] = [];
 		for (let index = 0; index < referenceArray.length; index++) {
-			const reference = referenceArray[index];
+			const reference = referenceArray[index]!;
 			reference_options.push({ title: reference.name, value: reference.id.toString() });
 		}
 
@@ -227,7 +227,7 @@ export class ScriptingUI {
 		const action_type_options = [];
 		let action_type_value: string = "";
 		for (let index = 0; index < SCRIPTING_ACTIONS_TYPES.length; index++) {
-			const type_name = SCRIPTING_ACTIONS_TYPES[index].name;
+			const type_name = SCRIPTING_ACTIONS_TYPES[index]!.name;
 			action_type_options.push({ title: type_name, value: index.toString() });
 			if (initial && type_name === initial?.type.name) {
 				action_type_value = index.toString();
@@ -249,7 +249,7 @@ export class ScriptingUI {
 			action_hint.innerText = "";
 			arguments_fc_array.length = 0;
 			if (action_type_select.value === "") return;
-			const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)];
+			const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)]!;
 			if (action_type.kind === ActionKind.SET_VARIABLE) {
 				action_hint.innerText += 'Define a variable name and value. Local variables exist only during this script run. Variables can be used in STRING with ${local:var}.';
 			} else if (action_type.kind === ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE) {
@@ -262,7 +262,7 @@ export class ScriptingUI {
 			console.debug("action_type", action_type);
 
 			for (let index = 0; index < action_type.available_arguments.length; index++) {
-				const argument = action_type.available_arguments[index];
+				const argument = action_type.available_arguments[index]!;
 				let argument_value: string;
 				if (initial) {
 					argument_value = (initial.arguments as any)[argument.argument as any] ?? "";
@@ -351,14 +351,14 @@ export class ScriptingUI {
 			get(): Action {
 				const _arguments: Record<string, string> = {};
 				for (let index = 0; index < arguments_fc_array.length; index++) {
-					const fc = arguments_fc_array[index];
+					const fc = arguments_fc_array[index]!;
 					_arguments[fc.name] = fc.value;
 				}
 				console.log("_arguments", _arguments);
 				
 	
 				return {
-					type: SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)],
+					type: SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)]!,
 					arguments: _arguments,
 				};
 			}
@@ -488,19 +488,26 @@ export class ScriptingUI {
 				if (idx > 0) {
 					const upBtn = create_text_element(controls, "button", "↑", {class:"fc fc-small", style: "width: auto;"});
 					(upBtn as HTMLButtonElement).addEventListener("click", () => {
-						[linesForms[idx], linesForms[idx - 1]] = [linesForms[idx - 1], linesForms[idx]];
-						renderLines();
+						const current = linesForms[idx];
+						const previous = linesForms[idx - 1];
+						if (current && previous) {
+							[linesForms[idx], linesForms[idx - 1]] = [previous, current];
+							renderLines();
+						}
 					});
 				}
 				
 				if (idx < linesForms.length - 1) {
 					const downBtn = create_text_element(controls, "button", "↓", {class:"fc fc-small", style: "width: auto;"});
 					(downBtn as HTMLButtonElement).addEventListener("click", () => {
-						[linesForms[idx], linesForms[idx + 1]] = [linesForms[idx + 1], linesForms[idx]];
-						renderLines();
+						const current = linesForms[idx];
+						const next = linesForms[idx + 1];
+						if (current && next) {
+							[linesForms[idx], linesForms[idx + 1]] = [next, current];
+							renderLines();
+						}
 					});
 				}
-				
 				wrapper.appendChild(item.elem);
 			});
 		};

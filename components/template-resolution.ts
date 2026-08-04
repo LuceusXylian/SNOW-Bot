@@ -15,7 +15,7 @@ export async function resolveTemplateContent(template: string, options: Template
   const resolved = new Map<string, string>();
 
   for (const match of matches) {
-    const label = match[1].trim();
+    const label = match[1]!.trim();
     if (!label || resolved.has(label)) {
       continue;
     }
