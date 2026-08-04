@@ -1,9 +1,11 @@
-import { create_element, create_text_element, create_modal } from '@/components/ui';
+import { create_element, create_text_element, create_modal, FadingChatModal } from '@/components/ui';
 
 
 let button_edit_mode = false;
 export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: BotCommander, buttongrid_container: HTMLElement) {
 	buttongrid_container.innerHTML = "";
+	const SESSION_ID: number = new Date().getTime();
+	const fading_chat_modal = new FadingChatModal();
 
 	const options: { value: string, title: string }[] = [
 		{ value: "new", title: "--- Create new Button Grid ---" }, 
@@ -76,10 +78,8 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			for (let b = 0; b < shared.data.scripts.length; b++) {
 				const script = shared.data.scripts[b]!;
 				const button = create_text_element(buttons_container, "button", button_text(script.name), { class: "fc fc-margin bgrid_button", style: fc_container_style });
-				button.addEventListener("click", () => {
-					sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-						script_id: script.id
-					}});
+				button.addEventListener("click", async () => {
+					execute_script_bgrid(script);
 				});
 			}
 		} else {
@@ -114,9 +114,8 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 						await shared.applyStateChange({ button_grids: shared.data.button_grids });
 						buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
 					} else if(entry && entry.script_id !== null) {
-						sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-							script_id: entry.script_id
-						}});
+						const script = shared.get_script(entry.script_id);
+						execute_script_bgrid(script);
 					}
 				});
 			}
@@ -131,6 +130,31 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 	button_grid_rows_fc.addEventListener("change", create_buttons);
 	button_grid_rows_fc.addEventListener("keyup", create_buttons);
 	create_buttons();
+
+	
+	async function execute_script_bgrid(script: Script) {
+		fading_chat_modal.fadeIn();
+		const response = await execute_script(LOGGER, SESSION_ID, script.id);
+		// show fading modal with command bubble
+		try {
+			if (!response.success) {
+				fading_chat_modal.append_chat_bubble("error", "Response", response.error ?? `Failed to execute ${script.name}`, script.id);
+			}
+			fading_chat_modal.fadeOut();
+		} catch (err) {
+			console.error("show_fading_chat_modal failed", err);
+		}
+	}
+
+	registerMessageHandler(async (message) => {
+		if (message.type === MessageType.PROGRESS_REPORT) {
+			if (message.data && message.data.session_id === SESSION_ID && message.data.message) {
+				console.log("message.data", message.data);
+				fading_chat_modal.set_chat_bubble(message.data.kind, message.data.kind, message.data.message, String(message.data.meta ?? ""));
+			}
+		}
+		return { success: true };
+	});
 }
 
 function button_text(text: string) {

@@ -1,5 +1,5 @@
 import { MessageType, sendMessage } from "@/components/messaging";
-import type { ScriptingUI } from "@/entrypoints/popup/scripting_ui";
+import type { Logger } from "@/components/basics";
 
 
 export enum ConditionType {
@@ -271,8 +271,8 @@ export interface ForeachContext {
 }
 
 // Send message from popup to background to start a script
-export function execute_script(self: ScriptingUI, script_id: string) {
-	return sendMessage(self.LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-		session_id: self.SESSION_ID, script_id: script_id
+export function execute_script(LOGGER: Logger, SESSION_ID: number, script_id: string) {
+	return sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
+		session_id: SESSION_ID, script_id: script_id
 	}});
 }

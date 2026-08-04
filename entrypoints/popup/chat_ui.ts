@@ -1,7 +1,7 @@
 import { execute_script } from "@/components/scripting";
 import type { Script } from "@/components/scripting";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
-import { create_element, create_text_element } from "@/components/ui";
+import { create_chat_bubble, create_element, create_text_element } from "@/components/ui";
 import { MessageType, registerMessageHandler } from "@/components/messaging";
 import { ScriptingUI } from "./scripting_ui";
 
@@ -67,13 +67,7 @@ export class ChatUI extends ScriptingUI {
 			return;
 		}
 
-		const row = create_element(this.historyContainer, "div", { class: `chat-history-entry chat-history-${kind}` });
-		const header = create_element(row, "div", { class: "chat-history-header" });
-		create_text_element(header, "span", title, { class: "chat-history-title" });
-		if (meta) {
-			create_text_element(header, "span", meta, { class: "chat-history-meta" });
-		}
-		create_text_element(row, "div", text, { class: "chat-history-text" });
+		create_chat_bubble(this.historyContainer, kind, title, text, meta);
 		this.historyContainer.scrollTop = this.historyContainer.scrollHeight;
 	}
 
@@ -313,7 +307,7 @@ export class ChatUI extends ScriptingUI {
 		this.executeButton.disabled = true;
 		this.statusContainer!.innerText = `Executing ${script.name}...`;
 
-		const response = await execute_script(this, script.id);
+		const response = await execute_script(this.LOGGER, this.SESSION_ID, script.id);
 		if (!response.success) {
 			this.appendHistory("error", "Response", response.error ?? `Failed to execute ${script.name}`);
 		}

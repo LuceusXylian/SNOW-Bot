@@ -61,8 +61,19 @@ export function save_as_file(content: string, filename: string) {
 }
 
 function fadeIn(element: HTMLElement) {
+	element.style.display = "";
 	requestAnimationFrame(() => {
 		element.style.opacity = '1';
+	});
+};
+
+function fadeOut(element: HTMLElement): Promise<void> {
+	return new Promise((resolve) => {
+		element.style.opacity = '0';
+		element.addEventListener('transitionend', () => {
+			element.style.display = "none";
+			resolve();
+		}, { once: true });
 	});
 };
 
@@ -274,3 +285,54 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
     return input_element;
 }
 
+export function create_chat_bubble(parent: HTMLElement, kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
+	const row = create_element(parent, "div", { class: `chat-history-entry chat-history-${kind}` });
+	const header = create_element(row, "div", { class: "chat-history-header" });
+	create_text_element(header, "span", title, { class: "chat-history-title" });
+	if (meta) {
+		create_text_element(header, "span", meta, { class: "chat-history-meta" });
+	}
+	create_text_element(row, "div", text, { class: "chat-history-text" });
+}
+
+export class FadingChatModal {
+	modal: HTMLDivElement;
+	content: HTMLDivElement;
+	constructor() {
+		this.modal = create_element(document.body, "div", { class: "modal", style: "display: none; opacity: 0; pointer-events: none;" });
+		this.content = create_element(this.modal, 'div');
+		this.content.style.color = '#fff';
+		this.content.style.borderRadius = '10px';
+		this.content.style.maxHeight = '90%';
+		this.content.style.overflow = 'auto';
+		this.content.style.padding = '8px';
+		this.content.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.2)';
+		this.content.style.position = 'fixed';
+		this.content.style.left = '0px';
+		this.content.style.right = '0px';
+		this.content.style.bottom = '0px';
+		this.content.style.pointerEvents = 'none';
+	}
+
+	fadeIn() {
+		this.content.innerHTML = "";
+		if (this.modal.style.display === "none") {
+			fadeIn(this.modal);
+		}
+	}
+	fadeOut() {
+		setTimeout(() => {
+			fadeOut(this.modal);
+		}, 8000);
+	}
+
+	set_chat_bubble(kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
+		this.content.innerHTML = "";
+		this.append_chat_bubble(kind, title, text, meta);
+	}
+
+	append_chat_bubble(kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
+		const container = create_element(this.content, 'div', { class: "bg-color", style: "border-radius: 8px; overflow: hidden; margin-top: 10px;" });
+		create_chat_bubble(container, kind, title, text, meta);
+	}
+}

@@ -70,7 +70,7 @@ export class ScriptingUI {
 					render_script_list();
 				});
 				create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
-					execute_script(this, script.id)
+					execute_script(this.LOGGER, this.SESSION_ID, script.id)
 				});
 			}
 		}
