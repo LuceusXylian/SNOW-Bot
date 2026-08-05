@@ -82,9 +82,59 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const controller_goback = document.getElementById("controller-goback")!;
 	const menu = document.getElementById("menu")!;
 	const menu_items = <NodeListOf<HTMLElement>>document.querySelectorAll(".menu-item");
+	const scripting_container = document.getElementById("scripting_container")!;
+	const triggers_container = document.getElementById("triggers_container")!;
+	const buttongrid_container = document.getElementById("buttongrid_container")!;
+	const chat_container = document.getElementById("chat_container")!;
 	var menu_item_selected: HTMLElement | null = null;
 	const hashId = location.hash.slice(1);
-	const stored_index = hashId.length || !IS_POPUP? -1 : await storage.getItem(KEY_POPUP_MENU_INDEX);
+	const shouldUsePopupMenuIndex = IS_POPUP && !hashId.length;
+	const stored_index = shouldUsePopupMenuIndex ? await storage.getItem(KEY_POPUP_MENU_INDEX) ?? -1 : -1;
+
+	function openSection(item: HTMLElement, menu_item_title: HTMLElement, index: number) {
+		menu.classList.add("deeper");
+		item.classList.add("selected");
+		header.classList.remove("goback-hidden");
+		menu_item_selected = item;
+
+		const sectionId = menu_item_title.id;
+		if (IS_POPUP && (sectionId === "scripting" || sectionId === "triggers")) {
+			open_new_tab("", "#" + sectionId);
+			window.close();
+			return;
+		}
+
+		if (IS_POPUP) {
+			storage.setItem(KEY_POPUP_MENU_INDEX, index);
+		}
+
+		title_sub.innerText = menu_item_title.innerText;
+		location.hash = sectionId;
+
+		switch (sectionId) {
+			case "templates":
+				renderTemplates();
+				break;
+			case "scripting":
+				scripting_container.innerHTML = "";
+				new ScriptingUI(shared, LOGGER, COMMANDER).build_scripting_list(scripting_container);
+				break;
+			case "triggers":
+				triggers_container.innerHTML = "";
+				new TriggersUI(shared, LOGGER, COMMANDER).build_triggers_list(triggers_container);
+				break;
+			case "buttongrid":
+				buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
+				break;
+			case "chat":
+				chat_container.innerHTML = "";
+				new ChatUI(shared, LOGGER, COMMANDER).build(chat_container);
+				break;
+			case "logs":
+				renderLogs();
+				break;
+		}
+	}
 
 	for (let i = 0; i < menu_items.length; i++) {
 		const item = menu_items[i] as HTMLElement;
@@ -93,13 +143,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		
 		menu_item_title.addEventListener("click", () => {
 			if (menu_item_selected === null) {
-				menu.classList.add("deeper");
-				item!.classList.add("selected");
-				header.classList.remove("goback-hidden");
-				menu_item_selected = item;
-				if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, index);
-				title_sub.innerText = menu_item_title.innerText;
-				location.hash = menu_item_title.id;
+				openSection(item, menu_item_title, index);
 			}
 		});
 
@@ -117,7 +161,9 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			menu_item_selected.classList.remove("selected");
 			header.classList.add("goback-hidden");
 			menu_item_selected = null;
-			if(IS_POPUP) storage.setItem(KEY_POPUP_MENU_INDEX, null);
+			if (IS_POPUP) {
+				storage.setItem(KEY_POPUP_MENU_INDEX, null);
+			}
 			title_sub.innerHTML = "";
 		}
 	});
@@ -225,14 +271,9 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		template_form_spoiler.classList.remove("active");
 	});
 
-	// Initial render
-	renderTemplates();
-
 	// Logs
-	const log_menu_title = document.getElementById("logs")!;
 	const logs_container = document.getElementById("logs_container")!;
-	log_menu_title.addEventListener("click", async function() {
-		// Load logs
+	async function renderLogs() {
 		logs_container.innerHTML = "";
 		const response = await sendMessage<LogEntry[]>(LOGGER, {
 			type: MessageType.GET_LOGS,
@@ -245,7 +286,6 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			} else {
 				const export_button = create_text_element(logs_container, "button", "Export Logs", { class:"btn-edit", style:"margin-left: 0.5rem;" });
 				export_button.addEventListener("click", () => {
-					// Export response.data as file "SNOW_BOT_logs_{current_datetime}.txt"
 					const now = new Date();
 					const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
 					const filename = `SNOW_BOT_logs_${dateTime}.txt`;
@@ -259,15 +299,15 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				for (let i = 0; i < response.data.length; i++) {
 					const entry = response.data[i]!;
 					const row = create_element(table, "tr");
-					const td1 = create_text_element(row, "td", dateToISOString(new Date(entry.timestamp)), { style: "width: 160px;" });
-					const td2 = create_text_element(row, "td", entry.text);
+					create_text_element(row, "td", dateToISOString(new Date(entry.timestamp)), { style: "width: 160px;" });
+					create_text_element(row, "td", entry.text);
 				}
 			}
 
 		} else {
 			LOGGER.log("Failed to get logs", response);
 		}
-	});
+	}
 
 	// Settings - Export/Import
 	const sharedExportBtn = document.getElementById("shared-export-btn")!;
@@ -400,43 +440,5 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		});
 	})();
 
-	// Scripting
-	const scripting_title = document.getElementById("scripting")!;
-	const scripting_container = document.getElementById("scripting_container")!;
-	scripting_title.addEventListener("click", () => {
-		if (IS_POPUP) {
-			// Script Editor should only be used in a free window
-			open_new_tab("", "#"+scripting_title.id);
-			window.close();
-		}
-		scripting_container.innerHTML = "";
-		new ScriptingUI(shared, LOGGER, COMMANDER).build_scripting_list(scripting_container);
-	});
-
-	// Triggers
-	const triggers_title = document.getElementById("triggers")!;
-	const triggers_container = document.getElementById("triggers_container")!;
-	triggers_title.addEventListener("click", () => {
-		if (IS_POPUP) {
-			open_new_tab("", "#"+triggers_title.id);
-			window.close();
-		}
-		triggers_container.innerHTML = "";
-		new TriggersUI(shared, LOGGER, COMMANDER).build_triggers_list(triggers_container);
-	});
-
-	// ButtonGrid
-	const buttongrid_title = document.getElementById("buttongrid")!;
-	const buttongrid_container = document.getElementById("buttongrid_container")!;
-	buttongrid_title.addEventListener("click", () => {
-		buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
-	});
-
-	// Chat
-	const chat_title = document.getElementById("chat")!;
-	const chat_container = document.getElementById("chat_container")!;
-	chat_title.addEventListener("click", () => {
-		chat_container.innerHTML = "";
-		new ChatUI(shared, LOGGER, COMMANDER).build(chat_container);
-	});
+	// Section containers are handled from openSection() by menu click.
 }

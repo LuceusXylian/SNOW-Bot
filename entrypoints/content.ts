@@ -7,7 +7,6 @@ import { resolveTemplateContent } from "@/components/template-resolution";
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
 let lastFocusedElement: HTMLElement | null = null;
-const SHORTCODE_REGEX = /\[(.+?)\]/g;
 
 
 /**
@@ -126,6 +125,7 @@ class BackgroundMessageHandler {
 					}
 
 					const target_element = querySelector(element_selector, rootNode);
+					LOGGER.debug("target_element", target_element);
 					if (target_element === null) {
 						return error_message("target_element is null, because the element_selector `"+element_selector+"` is unable to find the element");
 					}
@@ -288,6 +288,8 @@ class BackgroundMessageHandler {
 			LOGGER.log("Error handling message", error);
 			return error_message(error instanceof Error ? error.message : String(error));
 		}
+
+		return error_message("return message not implemented");
 	}
 
 	async play_audio(source: string, speaker_device: string) {
@@ -706,6 +708,8 @@ export default defineContentScript({
 
 		// Track focused elements for template insertion
 		document.addEventListener('focus', (event) => {
+			console.log("focus", event.target);
+			
 			const target = event.target;
 			if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
 				lastFocusedElement = target;

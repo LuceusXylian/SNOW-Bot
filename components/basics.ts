@@ -600,7 +600,12 @@ export function querySelector(selector: string, rootNode: ParentNode = document.
     const elem = selector_id ? document.getElementById(selector_id) : null;
     if (elem) return elem;
 
+    const visited = new Set<Element>();
+
     const traverser = (node: Element): HTMLElement | null => {
+        if (visited.has(node)) return null;
+        visited.add(node);
+
         if (node.id === selector_id || node.matches(selector)) {
             return node as HTMLElement;
         }
@@ -630,9 +635,16 @@ export function querySelector(selector: string, rootNode: ParentNode = document.
         return null;
     };
 
-    return rootNode instanceof Element
-        ? traverser(rootNode)
-        : Array.from(rootNode.children).reduce<HTMLElement | null>((found, child) => found ?? traverser(child), null);
+    if (rootNode instanceof Element) {
+        return traverser(rootNode);
+    }
+
+    for (const child of rootNode.children) {
+        const ret = traverser(child);
+        if (ret) return ret;
+    }
+
+    return null;
 }
 
 /** document.querySelectorAll(), but also traverses shadow DOMs and slots */
@@ -652,22 +664,22 @@ export function querySelectorAll(selector: string, rootNode: ParentNode = docume
             arr.push(node as HTMLElement);
         }
 
-        // Traverse light DOM
+        // Traverse slotted content first to avoid re-entering the same nodes later.
+        if (node instanceof HTMLSlotElement) {
+            for (const assigned of node.assignedElements({ flatten: true })) {
+                traverser(assigned);
+            }
+        }
+
+        // Traverse light DOM.
         for (const child of node.children) {
             traverser(child);
         }
 
-        // Traverse shadow DOM
+        // Traverse shadow DOM.
         if (node.shadowRoot) {
             for (const child of node.shadowRoot.children) {
                 traverser(child);
-            }
-        }
-
-        // Traverse slotted content
-        if (node instanceof HTMLSlotElement) {
-            for (const assigned of node.assignedElements({ flatten: true })) {
-                traverser(assigned);
             }
         }
     };
