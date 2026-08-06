@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<link rel="stylesheet" href="../popup/style.css" />
+	<title>SNOW Bot Documentation</title>
+	<style>
+		.documentation {
+			padding: 0 10px;
+		}
+		h1 { margin-bottom: 0; font-size: 20px; font-weight: 700; }
+		h2 { margin-bottom: 0; font-size: 18px; font-weight: 700; }
+		h1 + p, h2 + p { margin: 0; }
+		ul, ol { margin-top: 0; }
+	</style>
+</head>
+<body>
+	<main class="documentation">
+		<h1>SNOW Bot User Guide</h1>
+		<p>SNOW Bot is a browser automation assistant for form filling, recurring workflows, and browser-triggered actions. Use the popup to manage templates, scripts, triggers, button shortcuts, and chat-driven commands.</p>
+
+		<h2>1. Enable the Bot</h2>
+		<p>Open the extension popup and click the power button at the top right to toggle <strong>running</strong> mode. The bot must be enabled before templates or scripts can execute.</p>
+
+		<h2>2. Templates</h2>
+		<p>Templates let you insert reusable text into web inputs or textareas.</p>
+		<ul>
+			<li><strong>Create a template:</strong> enter a name and content, then click <em>Save Template</em>.</li>
+			<li><strong>Edit a template:</strong> click <em>Edit</em> next to the template, update fields, and save.</li>
+			<li><strong>Delete a template:</strong> click <em>Delete</em>.</li>
+			<li><strong>Insert a template:</strong> focus a page input or textarea, then click <em>Execute Insert</em> on the saved template.</li>
+		</ul>
+		<p>Templates support shortcodes in the form <code>[FieldName]</code>. When executed, SNOW Bot tries to resolve each shortcode by matching it to page label text and then inserting the corresponding field value.</p>
+
+		<h2>3. Script Editor</h2>
+		<p>The <strong>Script Editor</strong> lets you build custom automation workflows with conditions and actions.</p>
+		<ul>
+			<li><strong>Conditions</strong> check page state, URL, hostname, element values, or attributes.</li>
+			<li><strong>Actions</strong> interact with the page: insert templates, set or get element attributes, trigger events, send notifications, wait, or loop over matching elements.</li>
+			<li><strong>Run scripts</strong> from the editor or using triggers and button grid shortcuts.</li>
+		</ul>
+		<p>Scripts are useful for multi-step interactions such as filling fields, clicking buttons, or validating page content before continuing.</p>
+
+		<h2>4. Triggers</h2>
+		<p>Triggers run scripts automatically when specified conditions are met.</p>
+		<ul>
+			<li><strong>Page event triggers:</strong> fire when the browser sees a matching URL, hostname, or element state.</li>
+			<li><strong>Timer triggers:</strong> run scripts every few seconds if enabled.</li>
+			<li><strong>Trigger actions:</strong> can execute scripts when the trigger conditions are satisfied.</li>
+		</ul>
+		<p>Use triggers for scheduled checks or to launch workflows automatically when you open or interact with a page.</p>
+
+		<h2>5. Button Grid</h2>
+		<p>The <strong>Button Grid</strong> gives you a quick-launch panel for scripts.</p>
+		<ul>
+			<li>Create button profiles and assign scripts to each button.</li>
+			<li>Use the grid to execute scripts with one click.</li>
+			<li>Customize grid size and button layout to fit your workflow.</li>
+		</ul>
+
+		<h2>6. Chat</h2>
+		<p>The <strong>Chat</strong> section provides a searchable interface for script execution.</p>
+		<ul>
+			<li>Search for scripts by name or keyword.</li>
+			<li>Execute scripts directly from the chat interface.</li>
+			<li>View progress updates and results in the chat history area.</li>
+		</ul>
+
+		<h2>7. Logs</h2>
+		<p>The <strong>Logs</strong> section shows recent activity and execution history. Use it to troubleshoot failed scripts or confirm that actions ran.</p>
+
+		<h2>8. Settings</h2>
+		<p>Under <strong>Settings</strong>, you can import or export your stored configuration and automation definitions as JSON.</p>
+		<ul>
+			<li><strong>Export Settings:</strong> save your templates, scripts, triggers, and button grid profiles.</li>
+			<li><strong>Import Settings:</strong> restore or transfer settings between browsers.</li>
+		</ul>
+
+		<h2>9. Best Practices</h2>
+		<ul>
+			<li>Keep the bot enabled before attempting automation.</li>
+			<li>Focus the target input or textarea before executing a template.</li>
+			<li>Use clear CSS selectors in scripts and triggers to target page elements reliably.</li>
+			<li>Test scripts on the target page to confirm the correct behavior before relying on automation.</li>
+		</ul>
+
+		<h2>10. Troubleshooting</h2>
+		<ul>
+			<li>If a template does not insert, ensure the bot is running and the page field is focused.</li>
+			<li>If a script does not run, check the trigger conditions and page hostname/URL filters.</li>
+			<li>Review the <strong>Logs</strong> page for error messages and execution details.</li>
+		</ul>
+	</main>
+</body>
+</html>

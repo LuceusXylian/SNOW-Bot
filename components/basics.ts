@@ -206,7 +206,7 @@ export class BotCommander {
 					
 					try {
 						const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
-						if(frames === null) throw new Error("frames should not be null");
+						if(frames === null) return self.remove_bot(bot_id, "it has no frames");
 						
 						const filtered_frames = (options?.conditions?.length)
 							? frames.filter((frame) => shouldSendMessageToFrame(frame.url, options))
@@ -256,7 +256,11 @@ export class BotCommander {
 						return first;
 					} catch (error) {
 						this.is_busy = false;
-						self.LOGGER.log(`Failed to send message of type:${message_type} to bot ${this.bot_id} on tab ${this.tabId}. data:`, data, "error:", error);
+						console.log("error", error);
+						
+						if (error === "Error: Could not establish connection. Receiving end does not exist.") {
+							self.remove_bot(bot_id, `it failed to receive message of type:${message_type} on tab ${this.tabId}. data:`, data, "error:", error);
+						}
 						return error_message("Failed to send message: "+String(error));
 					}
 				}
@@ -267,6 +271,11 @@ export class BotCommander {
 
 		this.trackFocusedTab(tabId);
 		return botInstance;
+	}
+
+	remove_bot(bot_id: number, ...reason: any[]) {
+		this.LOGGER.log("Bot #" + this.botInstances[bot_id]?.bot_id + " removed because ", reason)
+		delete this.botInstances[bot_id];
 	}
 
 	// @internal only for background
@@ -404,16 +413,7 @@ export class BotCommander {
 		let promises = [];
 
 		for (const botInstance of this.botInstances) {
-			promises[promises.length] = withTimeout(
-				browser.tabs.sendMessage(botInstance.tabId, {
-					type: message_type,
-					data: data,
-				}),
-				SEND_MESSAGE_TIMEOUT_MS,
-				`sendMessageAll timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${botInstance.tabId}`
-			).catch((error) => {
-				this.LOGGER.log(`Failed to send message of type:${message_type} to bot ${botInstance.bot_id} on tab ${botInstance.tabId}. data:`, data, "error:", error);
-			});
+			promises[promises.length] = botInstance.sendMessage(message_type, data, options);
 		}
 
 		for (let i = 0; i < promises.length; i++) {

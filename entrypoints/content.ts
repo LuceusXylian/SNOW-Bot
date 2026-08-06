@@ -7,7 +7,21 @@ import { resolveTemplateContent } from "@/components/template-resolution";
 const LOGGER = new Logger(LogFrom.content);
 // Track last focused input/textarea/select element
 let lastFocusedElement: HTMLElement | null = null;
+function focuser(event: Event) {
+	const target = event.target as Element;
 
+	if (
+		target instanceof HTMLInputElement ||
+		target instanceof HTMLTextAreaElement ||
+		target instanceof HTMLSelectElement
+	) {
+		lastFocusedElement = target;
+		LOGGER.debug("Focused element tracked", {
+			type: target.constructor.name,
+			id: target.id,
+		});
+	}
+}
 
 /**
  * Handler for messages from background script
@@ -394,55 +408,49 @@ class BackgroundMessageHandler {
 		});
 	}
 	
-	queryLabelValue(labelName: string): string | null {
-		const normalizedLabel = normalizeText(labelName);
-	
+	queryLabelValue(labelShortcode: string): string | null {
 		// Search through all labels for a match.
 		const labels = Array.from(querySelectorAll('label')) as HTMLLabelElement[];
 		console.log("labels", labels);
-		for (const label of labels) {
-			const labelText = normalizeText(label.textContent || "");
-			if (!labelText) {
-				continue;
-			}
-	
-			console.log("labels normalizedLabel", normalizedLabel);
-			console.log("labels labelText", labelText);
-			if (normalizedLabel === labelText) {
-				// get formcontrol with attribute ´for´
-				const formcontrol_id = label.getAttribute("for");
-				console.log("labels labelText", formcontrol_id);
-				if (formcontrol_id) {
-					console.log("labels formcontrol_id", formcontrol_id);
-					
-					const formcontrol = document.getElementById(formcontrol_id);
-					console.log("labels formcontrol", formcontrol);
-					if (formcontrol) {
-						if (formcontrol instanceof HTMLInputElement) {
-							if (formcontrol.type === "checkbox") {
-								return formcontrol.checked.toString();
-							}
-							if (formcontrol.type === "radio") {
+		
+		for(const label of labelShortcode.split("|")) {
+			const findLabel = normalizeText(label);
+
+			for (const label of labels) {
+				const labelText = normalizeText(label.textContent || "");
+				if (!labelText) {
+					continue;
+				}
+		
+				console.log("labels findLabel", findLabel);
+				console.log("labels labelText", labelText);
+				if (findLabel === labelText) {
+					// get formcontrol with attribute ´for´
+					const formcontrol_id = label.getAttribute("for");
+					console.log("labels labelText", formcontrol_id);
+					if (formcontrol_id) {
+						console.log("labels formcontrol_id", formcontrol_id);
+						
+						const formcontrol = querySelector("#"+formcontrol_id);
+						console.log("labels formcontrol", formcontrol);
+						if (formcontrol) {
+							if (formcontrol instanceof HTMLInputElement) {
+								if (formcontrol.type === "checkbox") {
+									return formcontrol.checked.toString();
+								}
+								if (formcontrol.type === "radio") {
+									return formcontrol.value.trim() || null;
+								}
 								return formcontrol.value.trim() || null;
 							}
-							return formcontrol.value.trim() || null;
+							if (formcontrol instanceof HTMLTextAreaElement || formcontrol instanceof HTMLSelectElement) {
+								return formcontrol.value.trim() || null;
+							}
+							return formcontrol.textContent?.trim() || null;
 						}
-						if (formcontrol instanceof HTMLTextAreaElement || formcontrol instanceof HTMLSelectElement) {
-							return formcontrol.value.trim() || null;
-						}
-						return formcontrol.textContent?.trim() || null;
 					}
+					break;
 				}
-				break;
-			}
-		}
-	
-		// Fallback: try to locate a label-text span directly.
-		const spans = Array.from(querySelectorAll('span.label-text')) as HTMLElement[];
-		for (const span of spans) {
-			const spanText = normalizeText(span.textContent || "");
-			if (spanText.includes(normalizedLabel) || normalizedLabel.includes(spanText)) {
-				return span.textContent?.trim() || null;
 			}
 		}
 	
@@ -707,28 +715,45 @@ export default defineContentScript({
 		paste_cleaner(shared);
 
 		// Track focused elements for template insertion
-		document.addEventListener('focus', (event) => {
-			console.log("focus", event.target);
-			
-			const target = event.target;
-			if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-				lastFocusedElement = target;
-				LOGGER.debug("Focused element tracked", { type: target.constructor.name });
+		function registerFocusTracker(root: Document | ShadowRoot) {
+			root.addEventListener("focus", focuser, true);
+		}
+		
+		// Document
+		registerFocusTracker(document);
+		document.addEventListener("focusin", focuser, true);
+		
+		// Existing shadow roots
+		document.querySelectorAll("*").forEach((el) => {
+			if ((el as HTMLElement).shadowRoot) {
+				registerFocusTracker((el as HTMLElement).shadowRoot!);
 			}
-		}, true);
+		});
+		
+		// Future shadow roots
+		const origAttachShadow = Element.prototype.attachShadow;
+		
+		Element.prototype.attachShadow = function (
+			init: ShadowRootInit
+		): ShadowRoot {
+			const shadowRoot = origAttachShadow.call(this, init);
+		
+			registerFocusTracker(shadowRoot);
+		
+			return shadowRoot;
+		};
 
 		// Tracker 2
-		setInterval(function () {
-			for (const element of querySelectorAll("textarea:not([focus_tracked])")) {
-				console.log("focus_tracked", element.id);
-				element.addEventListener('focus', (event) => {
-					const target = event.target as HTMLTextAreaElement;
-					lastFocusedElement = target;
-					LOGGER.debug("Focused element tracked", "type:", target.constructor.name, "id:", target.id);
-				}, true);
-				element.setAttribute("focus_tracked", "1");
-			}
-		}, 5000);
+        setInterval(function () {
+            for (const element of querySelectorAll("textarea:not([focus_tracked])")) {
+                console.log("focus_tracked", element.id);
+                element.addEventListener('focus', () => {
+                    lastFocusedElement = element;
+                    LOGGER.debug("Focused element tracked", "type:", element.constructor.name, "id:", element.id);
+                }, true);
+                element.setAttribute("focus_tracked", "1");
+            }
+        }, 5000);
 
 		// Get bot_id from background, which creates a record for this content script instance
 		const hostname = location.hostname? location.hostname : location.protocol;

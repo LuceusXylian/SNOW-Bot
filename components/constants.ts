@@ -33,4 +33,4 @@ export const SCRIPTING_VERSION: number = 1;
 export const IS_POPUP_QUERY_STRING: string = "is_popup=0";
 export const TRIGGER_COOLDOWN: number = 1000;
 export const TRIGGER_SESSION_ID: number = -3;
-export const SEND_MESSAGE_TIMEOUT_MS = 1500;
+export const SEND_MESSAGE_TIMEOUT_MS = 100000;

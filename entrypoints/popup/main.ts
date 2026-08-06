@@ -30,6 +30,11 @@ function open_new_tab(extra_query_string: string, hash: string) {
 		controller_title_main.classList.remove("popup");
 		new_tab_button.style.display = "none";
 	}
+
+	const open_documentation = document.getElementById("open_documentation")!;
+	open_documentation.addEventListener("click", () => {
+		window.open("documentation.html", '_blank');
+	});
 })();
 
 // Fetch state from background and initialize UI

@@ -126,12 +126,11 @@ export default defineBackground(() => {
 					case MessageType.GET_BOT_ID: {
 						// Content script requests its bot_id
 						console.log("sender", sender);
-						if (!sender) return error_message("Could not determine sender");
+						if (!sender) throw new Error("Could not determine sender");
+						if (!sender.tab) throw new Error("Could not determine sender.tab");
+						if (!sender.tab.id) throw new Error("Could not determine sender.tab.id");
 						
-						const tabId = sender.tab?.id;
-						if (!tabId) return error_message("Could not determine tab ID");
-						// const frame = sender.frame;
-						// if (!tabId) return error_message("Could not determine tab ID");
+						const tabId = sender.tab.id;
 						const hostname = message.data.hostname;
 						if (typeof message.data.hostname !== "string") return error_message("Could not determine hostname");
 
