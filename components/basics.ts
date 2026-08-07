@@ -1,5 +1,5 @@
 import { SEND_MESSAGE_TIMEOUT_MS, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE, get_default_button_grid_cols } from "./constants";
-import { MessageType, sendMessage, withTimeout } from "./messaging";
+import { MessageType, sendMessage } from "./messaging";
 import { testCondition, ConditionTargetType, conditionType_toString, type Script, type Trigger } from "./scripting";
 
 export enum LogFrom {
@@ -215,15 +215,11 @@ export class BotCommander {
 						if(filtered_frames.length === 0) throw new Error("No bot available with the current conditions");
 						
 						const firstFrame = filtered_frames[0]!;
-						const first = await withTimeout(
-							browser.tabs.sendMessage(this.tabId, {
+						const first = await browser.tabs.sendMessage(this.tabId, {
 								type: message_type,
 								data: data,
-								frameIndex: 0,
-							}, { frameId: firstFrame.frameId }),
-							SEND_MESSAGE_TIMEOUT_MS,
-							`sendMessage timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${this.tabId} frameId:${firstFrame.frameId}`
-						);
+								frameId: firstFrame.frameId
+							}, { frameId: firstFrame.frameId });
 
 						if (!first.success) {
 							for (let f = 1; f < filtered_frames.length; f++) {
@@ -231,15 +227,11 @@ export class BotCommander {
 								console.log("sendMessage frameIndex "+f, frame.url);
 								
 								try {
-									const response = await withTimeout(
-										browser.tabs.sendMessage(this.tabId, {
-											type: message_type,
-											data: data,
-											frameId: frame.frameId
-										}, { frameId: frame.frameId }),
-										SEND_MESSAGE_TIMEOUT_MS,
-										`sendMessage timed out after ${SEND_MESSAGE_TIMEOUT_MS}ms for tabId:${this.tabId} frameId:${frame.frameId}`
-									);
+									const response = await browser.tabs.sendMessage(this.tabId, {
+										type: message_type,
+										data: data,
+										frameId: frame.frameId
+									}, { frameId: frame.frameId });
 
 									console.log("sendMessage response", response);
 									if (response.success) {
@@ -325,6 +317,8 @@ export class BotCommander {
 	async getBot(id: number): Promise<BotInstance> {
 		for (let z = this.botInstances.length -1; z >= 0; z--) {
 			const bot = this.botInstances[z]!;
+			this.LOGGER.debug("bot", bot);
+			
 			if (bot.bot_id === id) {
 				if (!bot.is_busy) {
 					return bot;
@@ -395,40 +389,39 @@ export class BotCommander {
 		return bot.sendMessage(message_type, data, options);
 	}
 
-	async sendMessageAll(message_type: MessageType, data: Object, options?: ScriptMessageContext) {
-		if (this.LOGGER.from === LogFrom.popup) {
-			// pass to background
-			return await sendMessage(this.LOGGER, {
-				type: MessageType.RELAY_COMMAND,
-				data: {
-					bot_select: BotSelect.ALL,
-					type: message_type,
-					data: data
-				}
-			});
-		}
+	/** Send message to all tabs and frames */
+	async sendMessageAll(message_type: MessageType, data: Object) {
+		if (this.LOGGER.from !== LogFrom.background) throw new Error("sendMessageAll can only be used from background");
 
 		// LogFrom.background
-		let success = true;
-		let promises = [];
-
+		const promises = [];
 		for (const botInstance of this.botInstances) {
-			promises[promises.length] = botInstance.sendMessage(message_type, data, options);
-		}
+			const tabId = botInstance.tabId;
+			const frames = await browser.webNavigation.getAllFrames({ tabId });
+			if(frames === null) {
+				this.LOGGER.debug("MessageType.ELEMENT_SELECTOR: Unable to get frames for botInstance #"+botInstance.bot_id);
+				continue;
+			}
 
-		for (let i = 0; i < promises.length; i++) {
-			try {
-				await promises[i];
-			} catch (error) {
-				success = false;
-			}			
+			for (const frame of frames) {
+				const p = browser.tabs.sendMessage(
+					tabId, {
+						type: message_type,
+						frameId: frame.frameId,
+						data,
+					}, { frameId: frame.frameId })
+					.then((resp: any) => {
+						if (resp && resp.success) {
+							return resp;
+						}
+						// treat non-selector replies as rejection so Promise.any will ignore them
+						return Promise.reject(resp);
+					})
+					.catch((err: any) => Promise.reject(err));
+				promises.push(p);
+			}
 		}
-		
-		if (success) {
-			return success_message({});
-		} else {
-			return error_message("Failed to notify all bots of state change: "+String(this));
-		}
+		return await Promise.any(promises);
 	}
 }
 
@@ -695,6 +688,40 @@ export function querySelectorAll(selector: string, rootNode: ParentNode = docume
     return arr;
 }
 
+/** returns Node[] with document and all shadowRoots childreen */
+export function getAllNodeRoots(rootNode: ParentNode = document.body) {
+    const arr: HTMLElement[] = [document as any];
+    const visited = new Set<Element>();
+
+    const traverser = (node: Element, is_container: boolean) => {
+        if (visited.has(node)) return;
+        visited.add(node);
+		if(is_container) arr.push(node as HTMLElement);
+
+        // Traverse light DOM.
+        for (const child of node.children) {
+            traverser(child, false);
+        }
+
+        // Traverse shadow DOM.
+        if (node.shadowRoot) {
+            for (const child of node.shadowRoot.children) {
+                traverser(child, true);
+            }
+        }
+    };
+
+    if (rootNode instanceof Element) {
+        traverser(rootNode, false);
+    } else {
+        for (const child of rootNode.children) {
+            traverser(child, false);
+        }
+    }
+
+    return arr;
+}
+
 
 /** Pads a number by 2 digits */
 function pad2(n: number) {
@@ -744,3 +771,7 @@ export async function sleep(milisecs: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, milisecs));
 }
 
+export function is_numeric_char(text: string, index: number): boolean {
+	const code = text.charCodeAt(index);
+	return code >= 102 && code <= 111;
+}

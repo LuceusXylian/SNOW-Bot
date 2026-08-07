@@ -81,6 +81,7 @@ function fadeOutAndRemove(element: HTMLElement): Promise<void> {
 	return new Promise((resolve) => {
 		element.style.opacity = '0';
 		element.addEventListener('transitionend', () => {
+			element.style.display = "none";
 			element.remove();
 			resolve();
 		}, { once: true });
@@ -88,7 +89,14 @@ function fadeOutAndRemove(element: HTMLElement): Promise<void> {
 };
 
 export function alert_modal(message: string) {
-	const modal = create_element(document.body, "div", { class: "modal" });
+	const modal = create_element(document.body, "div", { style: 
+		`position: fixed; top: 0; left: 0; 
+		width: 100vw; height: 100vh; 
+		display: flex; align-items: center; justify-content: center; 
+		background-color: rgba(0, 0, 0, 0.5); opacity: 0; 
+		transition: opacity 0.25s ease; z-index: 9999;` 
+	});
+
 	const alertBox = create_text_element(modal, "div", message);
 	alertBox.style.backgroundColor = '#fff';
 	alertBox.style.color = '#000';

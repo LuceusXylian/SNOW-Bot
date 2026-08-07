@@ -41,7 +41,7 @@ function open_new_tab(extra_query_string: string, hash: string) {
 (async () => {
 	try {
 		const COMMANDER = new BotCommander(LOGGER);
-		const shared = await get_shared_data(LOGGER, COMMANDER);
+		const shared = await get_shared_data(LOGGER, COMMANDER, 1000);
 		await init(COMMANDER, shared);
 	} catch (error) {
 		LOGGER.log("Failed to initialize popup", error);

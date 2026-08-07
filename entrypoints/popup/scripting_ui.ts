@@ -88,7 +88,7 @@ export class ScriptingUI {
 			element_selector_btn.addEventListener("click", async () => {
 				alert_modal("Go to the window and click on a element");
 				// We send the signal to all content that we want to select a element.
-				const result = await sendMessage<any>(this.LOGGER, { type: MessageType.ELEMENT_SELECTOR, data: {} });
+				const result = await sendMessage<any>(this.LOGGER, { type: MessageType.ELEMENT_SELECTOR, data: {session_id: this.SESSION_ID} });
 				element_selector_input.value = result.data!.selector;
 			});
 		}

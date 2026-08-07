@@ -112,7 +112,8 @@ export default defineBackground(() => {
 
 					case MessageType.GET_STATE:
 						// Return current shared data
-						return success_message(shared.export());
+						LOGGER.debug("shared.export()", shared.export())
+						return success_message(JSON.stringify(shared.export(), null));
 
 					case MessageType.UPDATE_SHARED_DATA: {
 						// Update active state
@@ -149,26 +150,16 @@ export default defineBackground(() => {
 					case MessageType.ELEMENT_SELECTOR: {
 						// Broadcast start signal to all bots and wait for first successful selector reply
 						const { session_id } = message.data || {};
-						const promises: Promise<{ bot: BotInstance, selector: string }>[] = [];
-						for (const botInstance of (COMMANDER as any).botInstances) {
-							const p = botInstance.sendMessage(MessageType.ELEMENT_SELECTOR, { session_id, active: true })
-								.then((resp: any) => {
-									if (resp && resp.success && resp.data?.selector) {
-										return { bot: botInstance, selector: resp.data.selector };
-									}
-									// treat non-selector replies as rejection so Promise.any will ignore them
-									return Promise.reject(resp);
-								})
-								.catch((err: any) => Promise.reject(err));
-							promises.push(p);
-						}
 
 						try {
 							// Wait for the first bot that returns a selector
-							const winner = await Promise.any(promises);
+							const winner = await COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR,
+								{ session_id, active: true }
+							);
+							LOGGER.debug("ELEMENT_SELECTOR winner", winner)
 							// Tell all bots to stop selection mode (abort others)
 							await COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR, { session_id, active: false });
-							return success_message({ selector: winner.selector, bot_id: winner.bot.bot_id });
+							return success_message({ selector: winner.data.selector });
 						} catch (error) {
 							// No bot returned a selector — ensure all are aborted
 							await COMMANDER.sendMessageAll(MessageType.ELEMENT_SELECTOR, { session_id, active: false });
@@ -185,7 +176,9 @@ export default defineBackground(() => {
 						switch (bot_select) {
 							case BotSelect.BOT_ID: return COMMANDER.sendMessage(message.data.bot_id, message.data.type, message.data.data);
 							case BotSelect.ACTIVE_TAB: return COMMANDER.sendMessageFocus(message.data.type, message.data.data);
-							case BotSelect.ALL: return COMMANDER.sendMessageAll(message.data.type, message.data.data);
+							case BotSelect.ALL: 
+								await COMMANDER.sendMessageAll(message.data.type, message.data.data);
+								return success_message({});
 							default: return error_message("RELAY_COMMAND: Unknown BotSelect:" + bot_select);
 						}
 					}
