@@ -87,10 +87,9 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 			// Custom Grid
 			const grid = shared.data.button_grids[button_grid_index]!;
 			
-			for (let b = 0; b < cols*rows; b++) {
-				const index = b;
-				const entry = grid.buttons[b]!;
-				const text = entry?.text? button_text(entry.text) : "";
+			for (let index = 0; index < cols*rows; index++) {
+				const entry = grid.buttons[index] ?? { text: "", script_id: null };
+				const text = entry.text ? button_text(entry.text) : "";
 				const button = create_text_element(buttons_container, "button", text, { class: "fc fc-margin bgrid_button", style: fc_container_style });
 				button.addEventListener("click", async () => {
 					if (button_edit_mode) {
@@ -101,10 +100,14 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 							for (const script of shared.data.scripts) {
 								script_options.push({ value: script.id.toString(), title: script.name });
 							}
-							create_formcontrol(container, "select", "script_id", "Script", { value: entry.script_id?.toString()??"", options: script_options });
+							create_formcontrol(container, "select", "script_id", "Script", { value: entry.script_id?.toString() ?? "", options: script_options });
 						});
 
-						const button_grid_button = shared.data.button_grids[button_grid_index]!.buttons[index]!;
+						let button_grid_button = shared.data.button_grids[button_grid_index]!.buttons[index];
+						if (!button_grid_button) {
+							button_grid_button = { text: "", script_id: null };
+							shared.data.button_grids[button_grid_index]!.buttons[index] = button_grid_button;
+						}
 						if (result.text === "") {
 							const script = shared.get_script(result.script_id!);
 							button_grid_button.text = script.name;
@@ -114,7 +117,7 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 						button_grid_button.script_id = result.script_id!;
 						await shared.applyStateChange({ button_grids: shared.data.button_grids });
 						buttongrid_ui(shared, LOGGER, COMMANDER, buttongrid_container);
-					} else if(entry && entry.script_id !== null) {
+					} else if (entry.script_id !== null) {
 						const script = shared.get_script(entry.script_id);
 						execute_script_bgrid(script);
 					}

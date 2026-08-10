@@ -287,10 +287,11 @@ export class ScriptingUI {
 						value: argument_value,
 						class: "fc-container-3",
 						required: argument.required,
+						empty_is_value: true,
 						options: [
 							{ title: "Default audio: "+this.shared.data.notify_sound_source, value: "" },
 							...BUNDLED_SOUNDS.map(s => ({ title: s.name, value: s.type === "beep" ? "beep" : s.path })),
-						],
+						]
 					}));
 				} else if (argument.argument === "new_tab") {
 					arguments_fc_array.push(create_formcontrol(arguments_container, "select", "new_tab", "Open in new tab", {

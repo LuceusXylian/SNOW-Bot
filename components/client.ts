@@ -12,9 +12,41 @@ export async function get_shared_data(LOGGER: Logger, COMMANDER: BotCommander, r
 	
 		return new SharedData(LOGGER, COMMANDER, JSON.parse(response.data as string));
 	} catch (error) {
-		// probebly connection error because background is not ready yet, so we try again in 10 seconds
+		// probebly connection error because background is not ready yet, so we try again later
 		return await new Promise(resolve => setTimeout(async () => {
 			resolve(await get_shared_data(LOGGER, COMMANDER, retry_in));
 		}, retry_in))
+	}
+}
+
+export async function play_audio(source: string | ArrayBuffer, speaker_device: string) {
+	console.log("play_audio source", source);
+
+	const ctx = new AudioContext();
+	if (ctx.state === 'suspended') {
+		await ctx.resume();
+	}
+	if (speaker_device && speaker_device !== "default" && (ctx as any).setSinkId) {
+		try { await (ctx as any).setSinkId(speaker_device); } catch {}
+	}
+
+	if (source === "beep") {
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = 'sine';
+		osc.frequency.value = 800;
+		gain.gain.value = 0.3;
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start();
+		osc.stop(ctx.currentTime + 0.15);
+	} else if (source) {
+		const arrayBuffer = source as ArrayBuffer;
+
+		const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+		const bufSource = ctx.createBufferSource();
+		bufSource.buffer = audioBuffer;
+		bufSource.connect(ctx.destination);
+		bufSource.start();
 	}
 }

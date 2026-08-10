@@ -209,6 +209,7 @@ interface FormControlOptionals {
     options?: { value: string, title: string }[];
     required?: boolean;
     disabled?: boolean;
+    empty_is_value?: boolean;
     autocomplete_off?: boolean;
     value?: string;
 	class?: string;
@@ -218,10 +219,11 @@ let create_formcontrol_i = 0;
 
 export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(parent: HTMLElement, type: K, name: string, placeholder: string|null, optionals: FormControlOptionals): FormcontrolTypeNameMap[K] {
     const container = create_element(parent, "div", { class: "fc-container" });
+	const empty_is_value = optionals.empty_is_value === true;
     let input_element: FormcontrolTypeNameMap[K];
     if (type === "select") {
         input_element = create_element(container, "select", { class: "fc" }) as FormcontrolTypeNameMap[K];
-        if (placeholder !== null) {
+        if (placeholder !== null && !empty_is_value) {
             const option = create_element(input_element, "option", { value: "", class: "placeholder", style: "display: none" });
             option.innerText = placeholder;
         }
@@ -261,18 +263,20 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
         const label = create_element(container, "label", { class: "labeled_input" });
         label.innerText = placeholder;
         label.setAttribute("for", input_element.id);
-        if (input_element.value === "") {
-            label.style.display = "none";
-        }
-        const toggle_label = () => {
-            if (input_element.value === "") {
-                label.style.display = "none";
-            } else {
-                label.style.display = "";
-            }
-        }
-        input_element.addEventListener("keyup", toggle_label);
-        input_element.addEventListener("change", toggle_label);
+		if(!empty_is_value) {
+			if (input_element.value === "") {
+				label.style.display = "none";
+			}
+			const toggle_label = () => {
+				if (input_element.value === "") {
+					label.style.display = "none";
+				} else {
+					label.style.display = "";
+				}
+			}
+			input_element.addEventListener("keyup", toggle_label);
+			input_element.addEventListener("change", toggle_label);
+		}
     }
 
     if (optionals.required) {

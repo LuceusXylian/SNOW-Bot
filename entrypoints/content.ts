@@ -1,6 +1,6 @@
 import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, type Message, type MessageResponse, MessageType } from "@/components/messaging";
-import { get_shared_data } from '@/components/client';
+import { get_shared_data, play_audio } from '@/components/client';
 import { type Trigger, type Condition, type ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
 import { resolveTemplateContent } from "@/components/template-resolution";
 
@@ -286,9 +286,23 @@ class BackgroundMessageHandler {
 			}
 
 			case MessageType.PLAY_AUDIO: {
-				const { source, speaker_device } = message.data || {};
-				this.play_audio(source, speaker_device).catch(() => {});
-				return success_message({});
+				const { source, speaker_device, audio_base64 } = message.data || {};
+				try {
+					if (audio_base64) {
+						const binaryString = atob(audio_base64);
+						const len = binaryString.length;
+						const bytes = new Uint8Array(len);
+						for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+						const arrayBuffer = bytes.buffer;
+						await play_audio(arrayBuffer as any, speaker_device);
+					} else {
+						play_audio(source, speaker_device);
+					}
+					return success_message({});
+				} catch (error) {
+					LOGGER.log(error);
+					return error_message(error as string);
+				}
 			}
 
 			case MessageType.CLEAR_FOREACH_CACHE: {
@@ -304,40 +318,6 @@ class BackgroundMessageHandler {
 		}
 
 		return error_message("return message not implemented");
-	}
-
-	async play_audio(source: string, speaker_device: string) {
-		try {
-			const ctx = new AudioContext();
-			if (ctx.state === 'suspended') {
-				await ctx.resume();
-			}
-			if (speaker_device && speaker_device !== "default" && (ctx as any).setSinkId) {
-				try { await (ctx as any).setSinkId(speaker_device); } catch {}
-			}
-			if (source === "beep") {
-				const osc = ctx.createOscillator();
-				const gain = ctx.createGain();
-				osc.type = 'sine';
-				osc.frequency.value = 800;
-				gain.gain.value = 0.3;
-				osc.connect(gain);
-				gain.connect(ctx.destination);
-				osc.start();
-				osc.stop(ctx.currentTime + 0.15);
-			} else if (source) {
-				const url = browser.runtime.getURL(source as any);
-				const response = await fetch(url);
-				const arrayBuffer = await response.arrayBuffer();
-				const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-				const bufSource = ctx.createBufferSource();
-				bufSource.buffer = audioBuffer;
-				bufSource.connect(ctx.destination);
-				bufSource.start();
-			}
-		} catch {
-			// Audio playback failed — silently degrade
-		}
 	}
 
 	dispose_trigger_watchers() {
