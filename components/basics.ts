@@ -537,6 +537,11 @@ export class SharedData {
 		return script;
 	}
 
+	// Get scripts that are hide=false
+	get_scripts_list(): Script[] {
+		return this.data.scripts.filter((s) => !s.hide);
+	}
+
 	get_trigger(id: string) {
 		const trigger = this.data.triggers.find((s) => s.id === id);
 		if(!trigger) throw new Error("Trigger with ID:"+id+" does not exist");

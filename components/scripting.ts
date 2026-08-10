@@ -244,6 +244,7 @@ export interface Script {
 	version: number,
 	id: string,
 	name: string,
+	hide: boolean,
 	lines: ScriptLine[],
 }
 

@@ -218,3 +218,14 @@ h5 { border-bottom: 1px solid; margin: 1rem 0 1rem 0; }
 	overflow: hidden;
 	box-sizing: border-box;
 }
+
+.row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+  
+.col {
+	display: flex;
+	flex-direction: column;
+}

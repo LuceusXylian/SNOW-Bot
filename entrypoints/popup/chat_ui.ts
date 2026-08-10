@@ -178,7 +178,7 @@ export class ChatUI extends ScriptingUI {
 	private getFilteredScripts(query: string) {
 		const normalized = query.trim();
 		if (normalized.length === 0) {
-			return this.shared.data.scripts.slice(0, 8);
+			return this.shared.get_scripts_list().slice(0, 8);
 		}
 		const lowered = normalized.toLowerCase();
 		return this.shared.data.scripts.filter((script) => {

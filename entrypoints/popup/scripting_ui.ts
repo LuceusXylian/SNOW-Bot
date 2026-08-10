@@ -472,7 +472,13 @@ export class ScriptingUI {
 			if(initial) title_sub.innerHTML += " ID: "+initial.id;
 		}
 	
-		const nameInput = create_formcontrol(container, "text", "script_name", "Script Name", { value: initial?.name ?? "", required: true });
+		const title_row = create_element(container, "div", { class:"row" });
+		const nameInput = create_formcontrol(title_row, "text", "script_name", "Script Name", { value: initial?.name ?? "", required: true });
+		nameInput.parentElement!.style.cssText = "flex-grow: 1;	margin-top: 0";
+		const hide_checkbox_container = create_element(title_row, "label", { style:"width: 110px;" });
+		const hide_checkbox = create_element(hide_checkbox_container, "input", { class:"", type: "checkbox" });
+		if(initial) hide_checkbox.checked = initial.hide;
+		create_text_element(hide_checkbox_container, "span", " hide in ButtonGrid/Chat");
 		
 		// ScriptLines section
 		const linesContainer = create_element(container, "div", { class: "scriptlines-container", style: "padding: 8px;" });
@@ -550,6 +556,7 @@ export class ScriptingUI {
 				version: SCRIPTING_VERSION,
 				id: initial?.id ?? "SCRIPT"+new Date().getTime(),
 				name: name,
+				hide: hide_checkbox.checked,
 				lines: linesForms.map(f => f.form.get())
 			});
 			on_set();

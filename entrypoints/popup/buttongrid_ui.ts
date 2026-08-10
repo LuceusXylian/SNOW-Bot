@@ -75,8 +75,9 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 
 		if (button_grid_index === -1) {
 			// Get all scripts as buttons
-			for (let b = 0; b < shared.data.scripts.length; b++) {
-				const script = shared.data.scripts[b]!;
+			const scripts = shared.get_scripts_list();
+			for (let b = 0; b < scripts.length; b++) {
+				const script = scripts[b]!;
 				const button = create_text_element(buttons_container, "button", button_text(script.name), { class: "fc fc-margin bgrid_button", style: fc_container_style });
 				button.addEventListener("click", async () => {
 					execute_script_bgrid(script);
