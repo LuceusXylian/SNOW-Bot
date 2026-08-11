@@ -114,32 +114,32 @@ export interface ActionType {
 	 *  If reference is set then we get automaticly a select with data from SharedData
 	 *  we expect that the object has the `id` and `name` attributes. The expected value to return of the select is the argument.
 	 */
-	available_arguments: { argument: string, type: "text"|"number"|"textarea"|"select", required: boolean, use_set_method: boolean, reference?: "scripts"|"templates" }[]
+	available_arguments: { argument: string, type: "text"|"number"|"textarea"|"select"|"checkbox", required: boolean, use_set_method: boolean, reference?: "scripts"|"templates" }[]
 }
 
 export interface Reference {
 	id: string,
 	name: string,
 }
-
 export interface Action {
-	type: ActionType,
-	arguments: {
-		element_selector?: string,
-		id?: string,
-		text?: string,
-		seconds?: number,
-		name?: string,
-		value?: string,
-		source?: string,
-		target?: string,
-		scope?: VariableScope,
-		[key: string]: any,
-		attribute?: string,
-		event_type?: string,
-		set_method?: ActionSetMethod;
-	},
+    type: ActionType,
+    arguments: {
+        element_selector?: string,
+        id?: string,
+        text?: string,
+        seconds?: number,
+        name?: string,
+        value?: string,
+        source?: string,
+        target?: string,
+        scope?: VariableScope,
+        [key: string]: any,
+        attribute?: string,
+        event_type?: string,
+        set_method?: ActionSetMethod;
+    },
 }
+
 
 export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 	{
@@ -151,7 +151,12 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		name: "InsertTemplate",
 		kind: ActionKind.MESSAGE_TYPE,
 		message_type: MessageType.INSERT_TEMPLATE,
-		available_arguments: [{argument: "id", type: "text", required: true, use_set_method: false, reference: "templates"}, { argument: "element_selector", type: "text", required: true, use_set_method: false }]
+		available_arguments: [
+			{ argument: "id", type: "text", required: true, use_set_method: false, reference: "templates" },
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
+			{ argument: "dispatch_input", type: "checkbox", required: false, use_set_method: false },
+			{ argument: "dispatch_change", type: "checkbox", required: false, use_set_method: false },
+		]
 	},
 	{
 		name: "Set Variable",
@@ -180,6 +185,8 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
 			{ argument: "attribute", type: "text", required: true, use_set_method: false },
 			{ argument: "value", type: "text", required: false, use_set_method: true },
+			{ argument: "dispatch_input", type: "checkbox", required: false, use_set_method: false },
+			{ argument: "dispatch_change", type: "checkbox", required: false, use_set_method: false },
 		]
 	},
 	{

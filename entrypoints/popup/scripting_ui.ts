@@ -306,6 +306,14 @@ export class ScriptingUI {
 				} else if (argument.argument === "element_selector") {
 					const {element_selector_container, element_selector_input} = this.create_element_selector_fc(arguments_container, argument_value);
 					arguments_fc_array.push(element_selector_input);
+				} else if (argument.type === "checkbox") {
+					const checkboxChecked = argument_value === "true" || argument_value === "on" || argument_value === "1" || argument_value === "";
+					arguments_fc_array.push(create_formcontrol(arguments_container, "checkbox", argument.argument, argument.argument, {
+						value: argument_value,
+						class: "fc-container-3",
+						required: argument.required,
+						checked: checkboxChecked,
+					}));
 				} else if (argument.reference && this.shared.data[referenceKey] !== undefined) {
 					arguments_fc_array.push(
 						this.build_fc_reference(arguments_container, argument.argument, referenceKey, argument_value)

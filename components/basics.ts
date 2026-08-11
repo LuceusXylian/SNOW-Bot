@@ -593,12 +593,20 @@ export function old__querySelector(selector: string, rootNode=document.body): HT
 
 /** document.querySelector(), but also goes through shadow DOMs and slots */
 export function querySelector(selector: string, rootNode: ParentNode = document.body): HTMLElement | null {
+    const selectors = selector.split("|").map((value) => value.trim());
+    const visited = new Set<Element>();
+
+	for (const alt of selectors) {
+		const result = __querySelector(alt, visited, rootNode);
+		if (result) return result;
+	}
+	return null;
+}
+function __querySelector(selector: string, visited: Set<Element>, rootNode: ParentNode = document.body): HTMLElement | null {
     // We ignore the "." delimiter for class because some weird websites use it in IDs.
     const selector_id = selector.split("#")[1];
     const elem = selector_id ? document.getElementById(selector_id) : null;
     if (elem) return elem;
-
-    const visited = new Set<Element>();
 
     const traverser = (node: Element): HTMLElement | null => {
         if (visited.has(node)) return null;
@@ -647,11 +655,20 @@ export function querySelector(selector: string, rootNode: ParentNode = document.
 
 /** document.querySelectorAll(), but also traverses shadow DOMs and slots */
 export function querySelectorAll(selector: string, rootNode: ParentNode = document.body) {
+    const selectors = selector.split("|").map((value) => value.trim());
+    const visited = new Set<Element>();
+	const elements: HTMLElement[] = [];
+	for (const alt of selectors) {
+		for (const element of __querySelectorAll(alt, visited, rootNode)) {
+			elements.push(element);
+		}
+	}
+	return elements;
+}
+function __querySelectorAll(selector: string, visited: Set<Element>, rootNode: ParentNode = document.body) {
     // We ignore the "." delimiter for class because some weird websites use it in ids.
     const selector_id = selector.split("#")[1];
-
     const arr: HTMLElement[] = [];
-    const visited = new Set<Element>();
 
     const traverser = (node: Element) => {
         if (visited.has(node)) return;

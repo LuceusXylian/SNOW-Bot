@@ -203,6 +203,7 @@ interface FormcontrolTypeNameMap {
     "text": HTMLInputElement;
     "number": HTMLInputElement;
     "textarea": HTMLTextAreaElement;
+    "checkbox": HTMLInputElement;
 }
 
 interface FormControlOptionals {
@@ -212,6 +213,7 @@ interface FormControlOptionals {
     empty_is_value?: boolean;
     autocomplete_off?: boolean;
     value?: string;
+    checked?: boolean;
 	class?: string;
 }
 
@@ -253,33 +255,38 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
     }
     input_element.id = "formcontrol" + create_formcontrol_i + "_" + name;
     input_element.name = name;
-    if(optionals.value) input_element.value = optionals.value.toString();
+    if (optionals.value) input_element.value = optionals.value.toString();
+    if (type === "checkbox" && optionals.checked) {
+        (input_element as HTMLInputElement).checked = true;
+    }
     if(optionals.required) input_element.required = true;
     if(optionals.disabled) input_element.disabled = true;
     if(optionals.autocomplete_off) input_element.autocomplete = "off";
 
-    if (placeholder !== null) {
-        input_element.setAttribute("placeholder", placeholder);
-        const label = create_element(container, "label", { class: "labeled_input" });
-        label.innerText = placeholder;
-        label.setAttribute("for", input_element.id);
-		if(!empty_is_value) {
-			if (input_element.value === "") {
-				label.style.display = "none";
-			}
-			const toggle_label = () => {
+	if (placeholder !== null) {
+		const label = create_element(container, "label", { class: "labeled_input" });
+		label.innerText = placeholder;
+		label.setAttribute("for", input_element.id);
+		if (type !== "checkbox") {
+			input_element.setAttribute("placeholder", placeholder);
+			if(!empty_is_value) {
 				if (input_element.value === "") {
 					label.style.display = "none";
-				} else {
-					label.style.display = "";
 				}
+				const toggle_label = () => {
+					if (input_element.value === "") {
+						label.style.display = "none";
+					} else {
+						label.style.display = "";
+					}
+				}
+				input_element.addEventListener("keyup", toggle_label);
+				input_element.addEventListener("change", toggle_label);
 			}
-			input_element.addEventListener("keyup", toggle_label);
-			input_element.addEventListener("change", toggle_label);
 		}
-    }
+	}
 
-    if (optionals.required) {
+	if (optionals.required) {
         input_element.addEventListener("change", () => {
             input_element.value = input_element.value.trim();
             if (input_element.value === "") {
@@ -293,8 +300,8 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
 	if (optionals.class) {
 		container.className += " "+optionals.class;
 	}
-    create_formcontrol_i++;
-    return input_element;
+	create_formcontrol_i++;
+	return input_element as FormcontrolTypeNameMap[K];
 }
 
 export function create_chat_bubble(parent: HTMLElement, kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {

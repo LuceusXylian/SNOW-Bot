@@ -441,6 +441,8 @@ export default defineBackground(() => {
 												content: content,
 												element_selector: action.arguments.element_selector,
 												delete_insert: true,
+												dispatch_input: action.arguments.dispatch_input,
+												dispatch_change: action.arguments.dispatch_change,
 											};
 											if (foreach_context) {
 												insertData.foreach_selector = foreach_context.foreach_selector;
@@ -463,6 +465,8 @@ export default defineBackground(() => {
 												attribute: action.arguments.attribute,
 												set_method: action.arguments.set_method,
 												value: value,
+												dispatch_input: action.arguments.dispatch_input,
+												dispatch_change: action.arguments.dispatch_change,
 											};
 											if (foreach_context) {
 												setAttrData.foreach_selector = foreach_context.foreach_selector;

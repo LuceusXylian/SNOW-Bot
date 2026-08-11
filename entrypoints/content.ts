@@ -74,7 +74,7 @@ class BackgroundMessageHandler {
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {
-					const { content, element_selector, delete_insert, foreach_selector, foreach_index, return_content } = message.data || {};
+					const { content, element_selector, delete_insert, foreach_selector, foreach_index, return_content, dispatch_input, dispatch_change } = message.data || {};
 					if (!content) return error_message("No template content provided");
 					if (return_content) {
 						const resolvedContent = await this.resolveTemplateContent(content);
@@ -116,8 +116,8 @@ class BackgroundMessageHandler {
 							target_element.setSelectionRange(newPos, newPos);
 						}
 
-						target_element.dispatchEvent(new Event("input", { bubbles: true }));
-						target_element.dispatchEvent(new Event("change", { bubbles: true }));
+						if (dispatch_input !== false) target_element.dispatchEvent(new Event("input", { bubbles: true }));
+						if (dispatch_change !== false) target_element.dispatchEvent(new Event("change", { bubbles: true }));
 
 						LOGGER.debug("Template inserted successfully", { resolvedContent });
 						return success_message({ inserted: true, resolvedContent });
@@ -127,7 +127,7 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.SET_ELEMENT_ATTRIBUTE: {
-					const { element_selector, attribute, value, set_method, foreach_selector, foreach_index } = message.data || {};
+					const { element_selector, attribute, value, set_method, foreach_selector, foreach_index, dispatch_input, dispatch_change } = message.data || {};
 					if (!element_selector) return error_message("No element selector provided");
 					if (!attribute) return error_message("No attribute provided");
 
@@ -152,8 +152,8 @@ class BackgroundMessageHandler {
 					if (attribute === "value") {
 						if (target_element instanceof HTMLInputElement || target_element instanceof HTMLTextAreaElement || target_element instanceof HTMLSelectElement) {
 							target_element.value = new_value;
-							target_element.dispatchEvent(new Event("input", { bubbles: true }));
-							target_element.dispatchEvent(new Event("change", { bubbles: true }));
+							if (dispatch_input !== false) target_element.dispatchEvent(new Event("input", { bubbles: true }));
+							if (dispatch_change !== false) target_element.dispatchEvent(new Event("change", { bubbles: true }));
 							return success_message({ updated: true });
 						}
 					}
