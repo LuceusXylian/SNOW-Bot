@@ -221,6 +221,11 @@ let create_formcontrol_i = 0;
 
 export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(parent: HTMLElement, type: K, name: string, placeholder: string|null, optionals: FormControlOptionals): FormcontrolTypeNameMap[K] {
     const container = create_element(parent, "div", { class: "fc-container" });
+	const type_is_checkbox = type === "checkbox";
+	if (type_is_checkbox) {
+		container.style.cssText = "display: inline-block; width: min-content; vertical-align: bottom;";
+	}
+
 	const empty_is_value = optionals.empty_is_value === true;
     let input_element: FormcontrolTypeNameMap[K];
     if (type === "select") {
@@ -256,7 +261,7 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
     input_element.id = "formcontrol" + create_formcontrol_i + "_" + name;
     input_element.name = name;
     if (optionals.value) input_element.value = optionals.value.toString();
-    if (type === "checkbox" && optionals.checked) {
+    if (type_is_checkbox && optionals.checked) {
         (input_element as HTMLInputElement).checked = true;
     }
     if(optionals.required) input_element.required = true;
@@ -267,7 +272,9 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
 		const label = create_element(container, "label", { class: "labeled_input" });
 		label.innerText = placeholder;
 		label.setAttribute("for", input_element.id);
-		if (type !== "checkbox") {
+		if (type_is_checkbox) {
+			container.style.minWidth = label.clientWidth+"px";
+		} else {
 			input_element.setAttribute("placeholder", placeholder);
 			if(!empty_is_value) {
 				if (input_element.value === "") {
