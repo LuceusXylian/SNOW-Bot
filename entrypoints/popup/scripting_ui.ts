@@ -77,22 +77,57 @@ export class ScriptingUI {
 		render_script_list();
 	}
 	
-	create_element_selector_fc(parent: HTMLElement, element_selector: string) {
-		const element_selector_container = create_element(parent, "div", { class: "fc-container fc-container-3" });
-		const element_selector_input = create_formcontrol(element_selector_container, "text", "element_selector", "Element Selector", { value: element_selector, class: "", required: true });
-		if(!IS_POPUP) {
-			const element_selector_btn = create_text_element(element_selector_container!, "button", ">", { class: "fc fc-small fc-container", style: "width: 32px; margin: 0 0 0 0.5rem;" });
-			element_selector_input.parentElement!.style.width = "calc(100% - "+element_selector_btn.style.width+" - 0.5rem)";
-			element_selector_input.parentElement!.style.display = "inline-block";
-			element_selector_input.parentElement!.style.margin = "0";
-			element_selector_btn.addEventListener("click", async () => {
-				alert_modal("Go to the window and click on a element");
-				// We send the signal to all content that we want to select a element.
-				const result = await sendMessage<any>(this.LOGGER, { type: MessageType.ELEMENT_SELECTOR, data: {session_id: this.SESSION_ID} });
-				element_selector_input.value = result.data!.selector;
-			});
+	create_element_selector_fc(parent: HTMLElement, element_selector_list: string) {
+		const col_container = create_element(parent, "div", { class: "fc-container-3" });
+		const fc_container = create_element(col_container, "div");
+		const element_selector_inputs: HTMLInputElement[] = [];
+		const selector_array = element_selector_list.split("|");
+		let more_extra = selector_array.length > 1;
+
+		const __create_element_selector_fc = (parent: HTMLElement, element_selector: string) => {
+			const element_selector_container = create_element(parent, "div", { class: "fc-container" });
+			if (more_extra) {
+				const or_col = create_text_element(element_selector_container!, "div", "OR", { class: "fc-container", style: "display: inline-block; width: 32px; margin-top: 0;" });
+				const delete_btn = create_text_element(element_selector_container!, "button", "🗑︎", { class: "fc fc-small fc-container", style: "width: 32px; margin: 0 0.5rem 0 0;" });
+				delete_btn.addEventListener("click", () => {
+					element_selector_container.remove();
+					const index = element_selector_inputs.indexOf(element_selector_input);
+					if (index !== -1) {
+						element_selector_inputs.splice(index, 1);
+					}
+				});
+			}
+			const element_selector_input = create_formcontrol(element_selector_container, "text", "element_selector", "Element Selector", { value: element_selector, class: "", required: true });
+			if(!IS_POPUP) {
+				const element_selector_btn = create_text_element(element_selector_container!, "button", ">", { class: "fc fc-small fc-container", style: "width: 32px; margin: 0 0 0 0.5rem;" });
+				element_selector_input.parentElement!.style.width = "calc(100% - "+(more_extra? "118px" : element_selector_btn.style.width)+" - 0.5rem)";
+				element_selector_input.parentElement!.style.display = "inline-block";
+				element_selector_input.parentElement!.style.margin = "0";
+				element_selector_btn.addEventListener("click", async () => {
+					alert_modal("Go to the window and click on a element");
+					// We send the signal to all content that we want to select a element.
+					const result = await sendMessage<any>(this.LOGGER, { type: MessageType.ELEMENT_SELECTOR, data: {session_id: this.SESSION_ID} });
+					element_selector_input.value = result.data!.selector;
+				});
+			}
+			return element_selector_input;
 		}
-		return {element_selector_container, element_selector_input};
+
+		for(const selector of selector_array) {
+			element_selector_inputs.push(__create_element_selector_fc(fc_container, selector));
+			more_extra = true;
+		}
+
+		const add_or_btn = create_text_element(col_container!, "button", "OR", { class: "fc fc-small fc-container", style: "width: 32px; margin: .5rem 0 0 0.5rem;" });
+		add_or_btn.addEventListener("click", () => {
+			more_extra = true;
+			element_selector_inputs.push(__create_element_selector_fc(fc_container, ""));
+		})
+
+		function get_element_selector_list() {
+			return element_selector_inputs.map((input) => input.value).join("|");
+		}
+		return {col_container, get_element_selector_list};
 	}
 	
 	/**
@@ -146,13 +181,13 @@ export class ScriptingUI {
 		});
 		
 		const valueInput = create_formcontrol(container, "text", "string_value", "Value", { value: initial?.string_value ?? "", class: "fc-container-3", required: true });
-		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
+		const {col_container, get_element_selector_list} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
 		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "", class: "fc-container-3" });
 		
 		const targetTypeSelect_change = () => {
 			const type = parseInt(targetTypeSelect.value);
 			const isElem = type === ConditionTargetType.ELEMENT || type === ConditionTargetType.ELEMENT_ATTRIBUTE;
-			element_selector_container.style.display = isElem ? "" : "none";
+			col_container.style.display = isElem ? "" : "none";
 			attribiteInput.parentElement!.style.display = type === ConditionTargetType.ELEMENT_ATTRIBUTE ? "" : "none";
 			variableScopeSelect.parentElement!.style.display = type === ConditionTargetType.VARIABLE ? "" : "none";
 			variableNameInput.parentElement!.style.display = type === ConditionTargetType.VARIABLE ? "" : "none";
@@ -181,7 +216,7 @@ export class ScriptingUI {
 					target.variable_scope = variableScopeSelect.value;
 					target.variable_name = variableNameInput.value;
 				} else {
-					target.element_selector = element_selector_input.value || undefined;
+					target.element_selector = get_element_selector_list() || undefined;
 					if (targetType === ConditionTargetType.ELEMENT_ATTRIBUTE) {
 						target.attribute = attribiteInput.value || undefined;
 					}
@@ -242,8 +277,9 @@ export class ScriptingUI {
 		
 		// Auto generate arguments inputs
 		const arguments_fc_array: (HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement)[] = [];
-		const arguments_container = create_element(container, "div");
+		let arguments_container = create_element(container, "div");
 		const action_hint = create_text_element(container, "div", "", { class: "action-hint", style: "margin-top: 0.5rem; color: #ccc; font-size: 0.9rem;" });
+		let get_element_selector: (()=>string)|null = null;
 		const action_type_change_event = () => {
 			arguments_container.innerHTML = "";
 			action_hint.innerText = "";
@@ -304,8 +340,9 @@ export class ScriptingUI {
 						],
 					}));
 				} else if (argument.argument === "element_selector") {
-					const {element_selector_container, element_selector_input} = this.create_element_selector_fc(arguments_container, argument_value);
-					arguments_fc_array.push(element_selector_input);
+					const {get_element_selector_list} = this.create_element_selector_fc(arguments_container, argument_value);
+					get_element_selector = get_element_selector_list;
+					arguments_container = create_element(arguments_container, "div", { class: "fc-container-6", style: "vertical-align: top;" });
 				} else if (argument.type === "checkbox") {
 					const checkboxChecked = argument_value === "true" || argument_value === "on" || argument_value === "1" || argument_value === "";
 					arguments_fc_array.push(create_formcontrol(arguments_container, "checkbox", argument.argument, argument.argument, {
@@ -362,6 +399,9 @@ export class ScriptingUI {
 				for (let index = 0; index < arguments_fc_array.length; index++) {
 					const fc = arguments_fc_array[index]!;
 					_arguments[fc.name] = fc.value;
+				}
+				if (get_element_selector) {
+					_arguments["element_selector"] = get_element_selector();
 				}
 				console.log("_arguments", _arguments);
 				
