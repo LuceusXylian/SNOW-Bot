@@ -95,6 +95,13 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 	const hashId = location.hash.slice(1);
 	const shouldUsePopupMenuIndex = IS_POPUP && !hashId.length;
 	const stored_index = shouldUsePopupMenuIndex ? await storage.getItem(KEY_POPUP_MENU_INDEX) ?? -1 : -1;
+	const configurator_mode_elems = document.querySelectorAll(".configurator_mode") as NodeListOf<HTMLElement>;
+	function use_configuration_mode() {
+		for(const elem of configurator_mode_elems) {
+			elem.style.display = shared.data.configurator_mode? "" : "none";
+		}
+	}
+	use_configuration_mode();
 
 	function openSection(item: HTMLElement, menu_item_title: HTMLElement, index: number) {
 		menu.classList.add("deeper");
@@ -278,172 +285,230 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 
 	// Logs
 	const logs_container = document.getElementById("logs_container")!;
-	async function renderLogs() {
-		logs_container.innerHTML = "";
+	async function get_logs(): Promise<LogEntry[]> {
 		const response = await sendMessage<LogEntry[]>(LOGGER, {
 			type: MessageType.GET_LOGS,
 		});
-
-		LOGGER.debug("GET_LOGS", response)
 		if (response.success && response.data !== undefined) {
-			if (response.data.length === 0) {
-				create_text_element(logs_container, "div", "Logs are empty");
-			} else {
-				const export_button = create_text_element(logs_container, "button", "Export Logs", { class:"btn-edit", style:"margin-left: 0.5rem;" });
-				export_button.addEventListener("click", () => {
-					const now = new Date();
-					const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
-					const filename = `SNOW_BOT_logs_${dateTime}.txt`;
-					const content = response.data!.map(entry => 
-						`[${dateToISOString(new Date(entry.timestamp))}] ${entry.text}`
-					).join('\n');
-					save_as_file(content, filename)
-				});
-				
-				const table = create_element(logs_container, "table", { style: "width: 100%;" });
-				for (let i = 0; i < response.data.length; i++) {
-					const entry = response.data[i]!;
-					const row = create_element(table, "tr");
-					create_text_element(row, "td", dateToISOString(new Date(entry.timestamp)), { style: "width: 160px;" });
-					create_text_element(row, "td", entry.text);
-				}
-			}
-
+			return response.data;
 		} else {
 			LOGGER.log("Failed to get logs", response);
+			throw new Error("Failed to get logs");
+		}
+	}
+	function export_logs(data: LogEntry[]) {
+		const now = new Date();
+		const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+		const filename = `SNOW_BOT_logs_${dateTime}.txt`;
+		const content = data!.map(entry => 
+			`[${dateToISOString(new Date(entry.timestamp))}] ${entry.text}`
+		).join('\n');
+		save_as_file(content, filename);
+	}
+	async function renderLogs() {
+		logs_container.innerHTML = "";
+		const logs = await get_logs();
+		if (logs.length === 0) {
+			create_text_element(logs_container, "div", "Logs are empty");
+		} else {
+			const export_button = create_text_element(logs_container, "button", "Export Logs", { class:"btn-edit", style:"margin-left: 0.5rem;" });
+			export_button.addEventListener("click", () => export_logs(logs!));
+			
+			const table = create_element(logs_container, "table", { style: "width: 100%;" });
+			for (let i = 0; i < logs.length; i++) {
+				const entry = logs[i]!;
+				const row = create_element(table, "tr");
+				create_text_element(row, "td", dateToISOString(new Date(entry.timestamp)), { style: "width: 160px;" });
+				create_text_element(row, "td", entry.text);
+			}
 		}
 	}
 
 	// Settings - Export/Import
-	const sharedExportBtn = document.getElementById("shared-export-btn")!;
-	const sharedImportBtn = document.getElementById("shared-import-btn")!;
-	const sharedImportInput = document.getElementById("shared-import-input") as HTMLInputElement;
-
-	sharedExportBtn.addEventListener("click", () => {
+	const settings_container = document.getElementById("settings_container")!;
+	
+	function export_settings_as_file() {
 		const exported = JSON.stringify(shared.export(), null, 2);
 		const now = new Date();
 		const dateTime = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
 		const filename = `SNOW_BOT_settings_${dateTime}.json`;
 		save_as_file(exported, filename);
 		LOGGER.debug("Settings exported", filename);
-	});
-
-	sharedImportBtn.addEventListener("click", () => {
-		if (IS_POPUP) {
-			open_new_tab("&import=1", "#settings");
-			window.close();
-		} else {
-			sharedImportInput.click();
-		}
-	});
-
-	const urlParams = new URLSearchParams(location.search);
-	if (urlParams.get('import') === '1') {
-		urlParams.delete('import');
-		const newSearch = urlParams.toString();
-		const newUrl = location.pathname + (newSearch ? '?' + newSearch : '') + location.hash;
-		history.replaceState(null, '', newUrl);
-		sharedImportBtn.focus();
-		sharedImportBtn.classList.add('btn-import-highlight');
 	}
-	controller_goback.addEventListener("click", () => {
-		sharedImportBtn.classList.remove('btn-import-highlight');
-	});
 
-	sharedImportInput.addEventListener("change", async (event) => {
-		const target = event.target as HTMLInputElement;
-		const files = target.files;
-		if (!files || files.length === 0) return;
+	function renderSettings() {
+		settings_container.innerHTML = "";
 
-		try {
-			const fileContent = await load_file_to_string(files[0]!);
-			const imported = JSON.parse(fileContent);
-			await shared.applyStateChange(imported);
-			LOGGER.debug("Settings imported successfully", imported);
-			alert("Settings imported successfully!");
-			location.reload();
-		} catch (error) {
-			LOGGER.log("Failed to import settings", error);
-			alert("Failed to import settings. Please check the file format.");
-		} finally {
-			// Reset file input
-			sharedImportInput.value = '';
-		}
-	});
+		const settings_button_row = create_element(settings_container, "div", { style: "margin-bottom: 1rem;" });
+		const sharedImportInput = create_element(settings_button_row, "input", {
+			id: "shared-import-input",
+			type: "file",
+			accept: ".json",
+			style: "display: none;",
+		}) as HTMLInputElement;
 
-	// Settings - general_settings
-	const general_settings = document.getElementById("general_settings")!;
-	const datetime_locale_select = create_formcontrol(general_settings, "select", "datetime_locale", "Datetime locale", { value: shared.data.datetime_locale, options: [
-		{ title: "German format dd.MM.yyyy HH:mm:ss", value: "de_DE" },
-		{ title: "USA format MM/dd/yyyy HH:mm:ss", value: "en_US" },
-		{ title: "ISO 8601 format YYYY-MM-DD hh:mm:ss", value: "ISO" },
-	] });
-	datetime_locale_select.addEventListener("change", () => {
-		shared.applyStateChange({ datetime_locale: datetime_locale_select.value });
-	});
-
-	// Settings - checkbox settings
-	const checkbox_container = document.getElementById("checkbox_settings")!;
-	const settingsAttributes = [
-		{ key: "allow_prompt" as const, label: "Allow prompt() if value could not be determined" },
-		{ key: "paste_cleaner_enabled" as const, label: "Clean paste input (Ctrl+V)" },
-		{ key: "allow_alert_notify" as const, label: "Allow alert() for notifications" },
-	];
-
-	settingsAttributes.forEach(({ key, label }) => {
-		const row = create_element(checkbox_container, "div", { class: "checkbox_row" });
-		const id = `checkbox_settings_${key}`;
-		const checkbox = create_element(row, "input", { id, type: "checkbox" }) as HTMLInputElement;
-		checkbox.checked = shared.data[key];
-
-		create_text_element(row, "label", label, { for: id });
-
-		checkbox.addEventListener("change", () => {
-			shared.applyStateChange({ [key]: checkbox.checked });
+		const sharedExportBtn = create_text_element(settings_button_row, "button", "Export Settings", {
+			id: "shared-export-btn",
+			type: "button",
+			class: "btn-insert",
+			style: "margin-left: .5rem",
 		});
-	});
+		sharedExportBtn.addEventListener("click", export_settings_as_file);
 
-	// Settings - notification sound
-	const sound_container = document.getElementById("sound_settings")!;
-	const sound_enabled_row = create_element(sound_container, "div", { class: "checkbox_row" });
-	const sound_enabled_id = "checkbox_settings_notify_sound_enabled";
-	const sound_enabled_checkbox = create_element(sound_enabled_row, "input", { id: sound_enabled_id, type: "checkbox" }) as HTMLInputElement;
-	sound_enabled_checkbox.checked = shared.data.notify_sound_enabled;
-	create_text_element(sound_enabled_row, "label", "Play notification sound", { for: sound_enabled_id });
-	sound_enabled_checkbox.addEventListener("change", () => {
-		shared.applyStateChange({ notify_sound_enabled: sound_enabled_checkbox.checked });
-	});
+		if (shared.data.configurator_mode) {
+			const sharedExportBtn2 = create_text_element(settings_button_row, "button", "Export Settings (with configurator mode disabled)", {
+				id: "shared-export-btn",
+				type: "button",
+				class: "btn-insert",
+				style: "margin-left: .5rem",
+			});
+			sharedExportBtn2.addEventListener("click", () => {
+				const pre = shared.data.configurator_mode;
+				shared.data.configurator_mode = false;
+				export_settings_as_file();
+				shared.data.configurator_mode = pre;
+			});
+		}
 
-	const sound_source_select = create_formcontrol(sound_container, "select", "notify_sound_source", "Notification sound", {
-		value: shared.data.notify_sound_source,
-		options: BUNDLED_SOUNDS.map(s => ({ title: s.name, value: s.type === "beep" ? "beep" : s.path })),
-	});
-	sound_source_select.addEventListener("change", () => {
-		shared.applyStateChange({ notify_sound_source: sound_source_select.value });
-	});
-
-	const speaker_device_select = create_formcontrol(sound_container, "select", "notify_speaker_device", "Speaker device", {
-		value: shared.data.notify_speaker_device,
-		options: [{ title: "Default device", value: "default" }],
-	});
-	(async () => {
-		try {
-			const devices = await navigator.mediaDevices.enumerateDevices();
-			const audioOutputs = devices.filter(d => d.kind === "audiooutput");
-			for (const device of audioOutputs) {
-				const option = document.createElement("option");
-				option.value = device.deviceId;
-				option.text = device.label || `Speaker (${device.deviceId.slice(0, 8)}…)`;
-				if (device.deviceId === speaker_device_select.value) option.selected = true;
-				speaker_device_select.appendChild(option);
+		const sharedImportBtn = create_text_element(settings_button_row, "button", "Import Settings", {
+			id: "shared-import-btn",
+			type: "button",
+			class: "btn-delete",
+			style: "margin-left: .5rem",
+		});
+		sharedImportBtn.addEventListener("click", () => {
+			if (IS_POPUP) {
+				open_new_tab("&import=1", "#settings");
+				window.close();
+			} else {
+				sharedImportInput.click();
 			}
-		} catch {
-			// enumerateDevices unavailable — only "Default device" shown
-		}
-		speaker_device_select.addEventListener("change", () => {
-			shared.applyStateChange({ notify_speaker_device: speaker_device_select.value });
 		});
-	})();
+
+		const export_logs_button = create_text_element(settings_button_row, "button", "Export Logs", { class:"btn-edit", style:"margin-left: 0.5rem;" });
+		export_logs_button.addEventListener("click", async () => {
+			const logs = await get_logs();
+			export_logs(logs!);
+		});
+
+		const configuratorModeLabel = create_element(settings_button_row, "label", { style: "padding: 4px; border: 1px solid #ccc; border-radius: 6px;" });
+		const configuratorModeCheckbox = create_element(configuratorModeLabel, "input", { type: "checkbox" });
+		configuratorModeCheckbox.checked = shared.data.configurator_mode;
+		configuratorModeLabel.append(" Configurator Mode");
+		configuratorModeCheckbox.addEventListener("change", () => {
+			shared.applyStateChange({ configurator_mode: configuratorModeCheckbox.checked });
+			use_configuration_mode();
+			renderSettings();
+		});
+
+		const urlParams = new URLSearchParams(location.search);
+		if (urlParams.get('import') === '1') {
+			urlParams.delete('import');
+			const newSearch = urlParams.toString();
+			const newUrl = location.pathname + (newSearch ? '?' + newSearch : '') + location.hash;
+			history.replaceState(null, '', newUrl);
+			sharedImportBtn.focus();
+			sharedImportBtn.classList.add('btn-import-highlight');
+		}
+		controller_goback.addEventListener("click", () => {
+			sharedImportBtn.classList.remove('btn-import-highlight');
+		});
+	
+		sharedImportInput.addEventListener("change", async (event) => {
+			const target = event.target as HTMLInputElement;
+			const files = target.files;
+			if (!files || files.length === 0) return;
+	
+			try {
+				const fileContent = await load_file_to_string(files[0]!);
+				const imported = JSON.parse(fileContent);
+				await shared.applyStateChange(imported);
+				LOGGER.debug("Settings imported successfully", imported);
+				alert("Settings imported successfully!");
+				location.reload();
+			} catch (error) {
+				LOGGER.log("Failed to import settings", error);
+				alert("Failed to import settings. Please check the file format.");
+			} finally {
+				// Reset file input
+				sharedImportInput.value = '';
+			}
+		});
+	
+		// Settings - general_settings
+		const general_settings = create_element(settings_container, "div", { id: "general_settings", class: "general_settings", style: "margin: 1rem;" });
+		const datetime_locale_select = create_formcontrol(general_settings, "select", "datetime_locale", "Datetime locale", { value: shared.data.datetime_locale, options: [
+			{ title: "German format dd.MM.yyyy HH:mm:ss", value: "de_DE" },
+			{ title: "USA format MM/dd/yyyy HH:mm:ss", value: "en_US" },
+			{ title: "ISO 8601 format YYYY-MM-DD hh:mm:ss", value: "ISO" },
+		] });
+		datetime_locale_select.addEventListener("change", () => {
+			shared.applyStateChange({ datetime_locale: datetime_locale_select.value });
+		});
+	
+		// Settings - checkbox settings
+		const checkbox_container = create_element(settings_container, "div", { id: "checkbox_settings", class: "checkbox_settings", style: "margin: 1rem;" });
+		const settingsAttributes = [
+			{ key: "allow_prompt" as const, label: "Allow prompt() if value could not be determined" },
+			{ key: "paste_cleaner_enabled" as const, label: "Clean paste input (Ctrl+V)" },
+			{ key: "allow_alert_notify" as const, label: "Allow alert() for notifications" },
+		];
+	
+		settingsAttributes.forEach(({ key, label }) => {
+			const row = create_element(checkbox_container, "div", { class: "checkbox_row" });
+			const id = `checkbox_settings_${key}`;
+			const checkbox = create_element(row, "input", { id, type: "checkbox" }) as HTMLInputElement;
+			checkbox.checked = shared.data[key];
+	
+			create_text_element(row, "label", label, { for: id });
+	
+			checkbox.addEventListener("change", () => {
+				shared.applyStateChange({ [key]: checkbox.checked });
+			});
+		});
+	
+		// Settings - notification sound
+		const sound_container = create_element(settings_container, "div", { id: "sound_settings", class: "sound_settings", style: "margin: 1rem;" });
+		const sound_enabled_row = create_element(sound_container, "div", { class: "checkbox_row" });
+		const sound_enabled_checkbox = create_element(sound_enabled_row, "input", { id: "sound_enabled_checkbox", type: "checkbox" }) as HTMLInputElement;
+		sound_enabled_checkbox.checked = shared.data.notify_sound_enabled;
+		create_text_element(sound_enabled_row, "label", "Play Audio", { for: sound_enabled_checkbox.id });
+		sound_enabled_checkbox.addEventListener("change", () => {
+			shared.applyStateChange({ notify_sound_enabled: sound_enabled_checkbox.checked });
+		});
+	
+		const sound_source_select = create_formcontrol(sound_container, "select", "notify_sound_source", "Play Audio (Default source)", {
+			value: shared.data.notify_sound_source,
+			options: BUNDLED_SOUNDS.map(s => ({ title: s.name, value: s.type === "beep" ? "beep" : s.path })),
+		});
+		sound_source_select.addEventListener("change", () => {
+			shared.applyStateChange({ notify_sound_source: sound_source_select.value });
+		});
+	
+		const speaker_device_select = create_formcontrol(sound_container, "select", "notify_speaker_device", "Play Audio: Device", {
+			value: shared.data.notify_speaker_device,
+			options: [{ title: "Default device", value: "default" }],
+		});
+		(async () => {
+			try {
+				const devices = await navigator.mediaDevices.enumerateDevices();
+				const audioOutputs = devices.filter(d => d.kind === "audiooutput");
+				for (const device of audioOutputs) {
+					const option = document.createElement("option");
+					option.value = device.deviceId;
+					option.text = device.label || `Speaker (${device.deviceId.slice(0, 8)}…)`;
+					if (device.deviceId === speaker_device_select.value) option.selected = true;
+					speaker_device_select.appendChild(option);
+				}
+			} catch {
+				// enumerateDevices unavailable — only "Default device" shown
+			}
+			speaker_device_select.addEventListener("change", () => {
+				shared.applyStateChange({ notify_speaker_device: speaker_device_select.value });
+			});
+		})();
+	}
+	renderSettings();
 
 	// Section containers are handled from openSection() by menu click.
 }

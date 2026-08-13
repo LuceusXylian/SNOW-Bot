@@ -152,6 +152,7 @@ export interface ButtonGridButton {
 }
 
 export interface SharedDataInner {
+	configurator_mode: boolean;
 	//** if false, it acts as a kill switch and stops any proccesses in "content.ts" */
 	active: boolean,
 	allow_prompt: boolean,
@@ -440,6 +441,7 @@ export class SharedData {
 		this.COMMANDER = COMMANDER;
 		this.data = {
 			active: data.active ?? DEFAULT_ACTIVE,
+			configurator_mode: data.configurator_mode ?? true,
 			allow_prompt: data.allow_prompt ?? DEFAULT_ALLOW_PROMPT,
 			paste_cleaner_enabled: data.paste_cleaner_enabled ?? DEFAULT_PASTE_CLEANER_ENABLED,
 			allow_alert_notify: data.allow_alert_notify ?? DEFAULT_ALLOW_ALERT_NOTIFY,
