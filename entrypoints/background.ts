@@ -54,6 +54,15 @@ export default defineBackground(() => {
 		COMMANDER.forgetTab(tabId);
 	});
 
+	async function template_execute_insert(bot: BotInstance, template_id: string, options: Object) {
+		const template = shared.get_template(template_id);
+		let content = template.content;
+		for (const [key, value] of Object.entries(shared.data.persistent_variables)) {
+			content = content.split("{"+key+"}").join(value);
+		}
+		return bot.sendMessage(MessageType.INSERT_TEMPLATE, {...options, content: content });
+	}
+
 	initializeSharedData(COMMANDER).then(async (loadedShared) => {
 		shared = loadedShared;
 		LOGGER.log("Background script initialized", { id: browser.runtime.id });
@@ -179,6 +188,20 @@ export default defineBackground(() => {
 						}
 
 						return error_message("Invalid template data");
+					}
+
+					case MessageType.INSERT_TEMPLATE: {
+						let { template_id } = message.data || {};
+
+						if (template_id) {
+							const result = await template_execute_insert(await COMMANDER.getBotFocus(), template_id, {})
+							if (result.success) {
+								return success_message(result.data);
+							} else {
+								return error_message(result.error);
+							}
+						}
+						return error_message("Invalid template_id "+template_id);
 					}
 
 					case MessageType.EXECUTE_SCRIPT: {
@@ -352,6 +375,7 @@ export default defineBackground(() => {
 						const result = await checkConditions(script_line.conditions, bot, local_variables, foreach_context, lineContext);
 						if (!result.success) {
 							await progress_report(session_id, script, "error", "Script `"+script.name+"` line #"+index+" aborted. "+result.error);
+							// FIXME: should not abort here on false
 							return;
 						}
 						if (!result.result) {
@@ -382,10 +406,9 @@ export default defineBackground(() => {
 
 									if (action.arguments.set_method === ActionSetMethod.TEMPLATE) {
 										// send INSERT_TEMPLTE with return_content option
-										const template = shared.get_template(action.arguments.id as string);
-										const response = await bot.sendMessage(MessageType.INSERT_TEMPLATE, { content: template.content, return_content: true });
+										const response = await template_execute_insert(bot, action.arguments.id as string, { return_content: true });
 										if (!response.success) {
-											throw new Error("Failed to resolve templte content: " + response.error);
+											throw new Error("Failed to resolve template content: " + response.error);
 										}
 										setVariable(scope, name, response.data.resolvedContent);
 									} else {
@@ -433,12 +456,8 @@ export default defineBackground(() => {
 										case MessageType.INSERT_TEMPLATE: {
 											if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": id is invalid");
 											if (!action.arguments.element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
-											const template = shared.get_template(action.arguments.id);
-											if (!template) throw new Error("Error in script#"+script.id+": missing template `"+action.arguments.id+"`");
 
-											const content = resolveActionArgument(template.content, local_variables);
 											const insertData: Record<string, any> = {
-												content: content,
 												element_selector: action.arguments.element_selector,
 												delete_insert: true,
 												dispatch_input: action.arguments.dispatch_input,
@@ -448,7 +467,7 @@ export default defineBackground(() => {
 												insertData.foreach_selector = foreach_context.foreach_selector;
 												insertData.foreach_index = foreach_context.foreach_index;
 											}
-											const result = await bot.sendMessage(action.type.message_type, insertData, lineContext);
+											const result = await template_execute_insert(bot, action.arguments.id as string, insertData);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;

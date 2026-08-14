@@ -249,11 +249,12 @@ class BackgroundMessageHandler {
 						let target_label = conditionTargetType_toString(target_type);
 						if(condition.target.element_selector) target_label += " " + condition.target.element_selector;
 						if(condition.target.attribute) target_label += " " + condition.target.attribute;
-						LOGGER.debug(`Condition ${c}: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.string_value)} got ${JSON.stringify(value1)}`);
+						const message = `Condition ${c}: ${target_label}  ${JSON.stringify(condition.string_value)} ${ConditionType[condition.type]} ${JSON.stringify(value1)} = `+result;
+						LOGGER.debug(message);
 						if(!result) {
 							return success_message({
 								result: false,
-								error: `Condition ${c}: ${target_label} ${ConditionType[condition.type]} expected ${JSON.stringify(condition.string_value)} but got ${JSON.stringify(value1)}`,
+								error: message,
 							});
 						}
 					}

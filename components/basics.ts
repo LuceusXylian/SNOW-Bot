@@ -1,4 +1,4 @@
-import { SEND_MESSAGE_TIMEOUT_MS, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE, get_default_button_grid_cols } from "./constants";
+import { QUERY_SELECTOR_LIST_DELIMITER, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE, get_default_button_grid_cols } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
 import { testCondition, ConditionTargetType, conditionType_toString, type Script, type Trigger } from "./scripting";
 
@@ -169,6 +169,8 @@ export interface SharedDataInner {
 	button_grid_cols: number;
 	button_grid_min_rows: number;
 	datetime_locale: string,
+	predefined_global_vars: Record<string, string>,
+	predefined_profile_vars: Record<number, Record<string, string>>,
 	persistent_variables: Record<string, string>,
 }
 
@@ -221,8 +223,10 @@ export class BotCommander {
 								data: data,
 								frameId: firstFrame.frameId
 							}, { frameId: firstFrame.frameId });
-
+						console.log("sendMessage first ", first);
+						
 						if (!first.success) {
+							console.log("sendMessage filtered_frames ", filtered_frames);
 							for (let f = 1; f < filtered_frames.length; f++) {
 								const frame = filtered_frames[f]!;
 								console.log("sendMessage frameIndex "+f, frame.url);
@@ -456,8 +460,48 @@ export class SharedData {
 			button_grid_cols: data.button_grid_cols ?? get_default_button_grid_cols(),
 			button_grid_min_rows: data.button_grid_min_rows ?? 4,
 			datetime_locale: data.datetime_locale ?? DEFAULT_DATETIME_LOCALE,
+			predefined_global_vars: data.predefined_global_vars ?? {},
+			predefined_profile_vars: data.predefined_profile_vars ?? {},
 			persistent_variables: data.persistent_variables ?? {},
 		};
+		this.syncPersistentVariables();
+	}
+
+	buildPersistentVariables(profileIndex: number = this.data.button_grid_index): Record<string, string> {
+		const profileVars = this.data.predefined_profile_vars?.[profileIndex] ?? {};
+		const merged: Record<string, string> = {
+			...this.data.predefined_global_vars,
+			...profileVars,
+		};
+		this.data.persistent_variables = merged;
+		return merged;
+	}
+
+	syncPersistentVariables(): void {
+		this.data.persistent_variables = this.buildPersistentVariables();
+	}
+
+	changeProfile(profileIndex: number) {
+		this.unsetActiveProfileVars(this.data.button_grid_index);
+		this.data.button_grid_index = profileIndex;
+		this.syncPersistentVariables();
+		this.applyStateChange({
+			predefined_global_vars: this.data.predefined_global_vars,
+			button_grid_index: this.data.button_grid_index,
+			predefined_profile_vars: this.data.predefined_profile_vars,
+			persistent_variables: this.data.persistent_variables,
+		});
+	}
+
+	unsetActiveProfileVars(profileIndex: number) {
+		const previousVars = this.data.predefined_profile_vars?.[profileIndex] ?? {};
+		const preservedGlobals = { ...(this.data.predefined_global_vars ?? {}) };
+		for (const key of Object.keys(previousVars)) {
+			if (!(key in preservedGlobals)) {
+				delete this.data.persistent_variables[key];
+			}
+		}
+		this.data.persistent_variables = { ...preservedGlobals };
 	}
 
 	async setTemplate(template: TemplateData): Promise<void> {
@@ -500,6 +544,9 @@ export class SharedData {
 	 */
 	async applyStateChange(update: Partial<SharedDataInner>) {
 		Object.assign(this.data, update);
+		if (update.button_grid_index !== undefined || update.predefined_profile_vars !== undefined || update.predefined_global_vars !== undefined) {
+			this.syncPersistentVariables();
+		}
 		if (this.COMMANDER.LOGGER.from === LogFrom.popup) {
 			// pass to background
 			await sendMessage(this.LOGGER, {
@@ -594,17 +641,22 @@ export function old__querySelector(selector: string, rootNode=document.body): HT
 }
 
 /** document.querySelector(), but also goes through shadow DOMs and slots */
-export function querySelector(selector: string, rootNode: ParentNode = document.body): HTMLElement | null {
-    const selectors = selector.split("|").map((value) => value.trim());
+export function querySelector(selector_list: string, rootNode: ParentNode = document.body): HTMLElement | null {
+    const selectors = selector_list.split(QUERY_SELECTOR_LIST_DELIMITER).map((value) => value.trim());
     const visited = new Set<Element>();
 
-	for (const alt of selectors) {
-		const result = __querySelector(alt, visited, rootNode);
+	for (const selector of selectors) {
+		const result = __querySelector(selector, visited, rootNode);
+		console.log("querySelector selector", selector, " result", result);
+		
 		if (result) return result;
 	}
 	return null;
 }
 function __querySelector(selector: string, visited: Set<Element>, rootNode: ParentNode = document.body): HTMLElement | null {
+	const t1 = document.querySelector(selector);
+	if(t1) return t1 as HTMLElement;
+	
     // We ignore the "." delimiter for class because some weird websites use it in IDs.
     const selector_id = selector.split("#")[1];
     const elem = selector_id ? document.getElementById(selector_id) : null;
@@ -656,12 +708,12 @@ function __querySelector(selector: string, visited: Set<Element>, rootNode: Pare
 }
 
 /** document.querySelectorAll(), but also traverses shadow DOMs and slots */
-export function querySelectorAll(selector: string, rootNode: ParentNode = document.body) {
-    const selectors = selector.split("|").map((value) => value.trim());
+export function querySelectorAll(selector_list: string, rootNode: ParentNode = document.body) {
+    const selectors = selector_list.split(QUERY_SELECTOR_LIST_DELIMITER).map((value) => value.trim());
     const visited = new Set<Element>();
 	const elements: HTMLElement[] = [];
-	for (const alt of selectors) {
-		for (const element of __querySelectorAll(alt, visited, rootNode)) {
+	for (const selector of selectors) {
+		for (const element of __querySelectorAll(selector, visited, rootNode)) {
 			elements.push(element);
 		}
 	}

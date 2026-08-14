@@ -188,6 +188,96 @@ export function create_modal(onCreate: (container: HTMLElement) => void): Promis
 	});
 }
 
+export function create_delete_confirm_modal(
+    message: string = "Are you sure you want to delete this item?"
+): Promise<boolean> {
+    return new Promise((resolve) => {
+        const modal = create_element(document.body, "div", { class: "modal" });
+
+        const content = create_element(modal, "div");
+        content.style.color = "#fff";
+        content.style.backgroundColor = "#0a3042";
+        content.style.borderRadius = "10px";
+        content.style.maxWidth = "500px";
+        content.style.padding = "30px 16px 16px 16px";
+        content.style.boxShadow = "0 12px 32px rgba(0, 0, 0, 0.2)";
+        content.style.position = "relative";
+
+        const closeButton = create_text_element(
+            content,
+            "button",
+            "×",
+            { type: "button", style: "color: white;" }
+        );
+
+        closeButton.style.position = "absolute";
+        closeButton.style.top = "0";
+        closeButton.style.right = "0";
+        closeButton.style.border = "none";
+        closeButton.style.background = "transparent";
+        closeButton.style.fontSize = "1.5rem";
+        closeButton.style.cursor = "pointer";
+        closeButton.style.lineHeight = "1";
+
+        const messageElement = create_text_element(
+            content,
+            "p",
+            message
+        );
+        messageElement.style.margin = "0 0 16px 0";
+
+        const buttonContainer = create_element(content, "div");
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.justifyContent = "flex-end";
+        buttonContainer.style.gap = "8px";
+
+        const cancelButton = create_text_element(
+            buttonContainer,
+            "button",
+            "Cancel",
+            { type: "button" }
+        );
+
+        cancelButton.style.padding = "8px 16px";
+        cancelButton.style.border = "none";
+        cancelButton.style.borderRadius = "6px";
+        cancelButton.style.cursor = "pointer";
+
+        const deleteButton = create_text_element(
+            buttonContainer,
+            "button",
+            "Delete",
+            { type: "button" }
+        );
+
+        deleteButton.style.padding = "8px 16px";
+        deleteButton.style.border = "none";
+        deleteButton.style.borderRadius = "6px";
+        deleteButton.style.backgroundColor = "#dc2626";
+        deleteButton.style.color = "#fff";
+        deleteButton.style.cursor = "pointer";
+
+        const close = (confirmed: boolean) => {
+            fadeOutAndRemove(modal);
+            resolve(confirmed);
+        };
+
+        closeButton.addEventListener("click", () => close(false));
+        cancelButton.addEventListener("click", () => close(false));
+        deleteButton.addEventListener("click", () => close(true));
+
+        modal.addEventListener("keyup", (ev: KeyboardEvent) => {
+            if (ev.key === "Escape") {
+                close(false);
+            } else if (ev.key === "Enter") {
+                close(true);
+            }
+        });
+
+        fadeIn(modal);
+    });
+}
+
 export function load_file_to_string(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();

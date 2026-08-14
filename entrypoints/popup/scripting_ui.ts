@@ -1,6 +1,6 @@
 import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
-import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS } from "@/components/constants";
+import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS, QUERY_SELECTOR_LIST_DELIMITER } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { alert_modal, create_formcontrol, create_text_element } from "@/components/ui";
 
@@ -81,7 +81,7 @@ export class ScriptingUI {
 		const col_container = create_element(parent, "div", { class: "fc-container-3" });
 		const fc_container = create_element(col_container, "div");
 		const element_selector_inputs: HTMLInputElement[] = [];
-		const selector_array = element_selector_list.split("|");
+		const selector_array = element_selector_list.split(QUERY_SELECTOR_LIST_DELIMITER);
 		let more_extra = selector_array.length > 1;
 
 		const __create_element_selector_fc = (parent: HTMLElement, element_selector: string) => {
@@ -125,7 +125,7 @@ export class ScriptingUI {
 		})
 
 		function get_element_selector_list() {
-			return element_selector_inputs.map((input) => input.value).join("|");
+			return element_selector_inputs.map((input) => input.value).join(QUERY_SELECTOR_LIST_DELIMITER);
 		}
 		return {col_container, get_element_selector_list};
 	}
@@ -182,7 +182,7 @@ export class ScriptingUI {
 		
 		const valueInput = create_formcontrol(container, "text", "string_value", "Value", { value: initial?.string_value ?? "", class: "fc-container-3", required: true });
 		const {col_container, get_element_selector_list} = this.create_element_selector_fc(container, initial?.target.element_selector ?? "");
-		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "", class: "fc-container-3" });
+		const attribiteInput = create_formcontrol(container, "text", "attribute", "Attribute", { value: initial?.target.attribute ?? "value", class: "fc-container-3" });
 		
 		const targetTypeSelect_change = () => {
 			const type = parseInt(targetTypeSelect.value);
@@ -302,6 +302,8 @@ export class ScriptingUI {
 				let argument_value: string;
 				if (initial) {
 					argument_value = (initial.arguments as any)[argument.argument as any] ?? "";
+				} else if(argument.argument === "attribute") {
+					argument_value = "value";
 				} else {
 					argument_value = "";
 				}
@@ -538,7 +540,7 @@ export class ScriptingUI {
 			linesContainer.innerHTML = "";
 			linesForms.forEach((item, idx) => {
 				const wrapper = create_element(linesContainer, "div", { style: "position:relative" });
-				const controls = create_element(wrapper, "div", { style: "display:flex;gap:4px;margin-bottom:8px" });
+				const controls = create_element(wrapper, "div", { style: "position: absolute;left: 0;top: 0;z-index: 1;display:flex;gap:4px;margin-bottom:8px" });
 				
 				if (idx > 0) {
 					const upBtn = create_text_element(controls, "button", "↑", {class:"fc fc-small", style: "width: auto;"});

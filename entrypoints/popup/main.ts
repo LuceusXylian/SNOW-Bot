@@ -2,11 +2,11 @@ import { SharedData, LogFrom, Logger, BotCommander, type LogEntry, dateToISOStri
 import { sendMessage, MessageType } from '@/components/messaging';
 import { get_shared_data } from '@/components/client';
 import { KEY_POPUP_MENU_INDEX, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS } from '@/components/constants';
-import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal, create_formcontrol } from '@/components/ui';
+import { add_spoiler_event, create_element, create_text_element, save_as_file, load_file_to_string, create_modal, create_delete_confirm_modal, create_formcontrol } from '@/components/ui';
 import { ChatUI } from './chat_ui';
 import { ScriptingUI } from './scripting_ui';
 import { TriggersUI } from './triggers_ui';
-import { buttongrid_ui } from './buttongrid_ui';
+import { buttongrid_ui, create_profile_select, profile_select_onchange } from './buttongrid_ui';
 
 
 const LOGGER = new Logger(LogFrom.popup);
@@ -23,7 +23,7 @@ function open_new_tab(extra_query_string: string, hash: string) {
 	const new_tab_button = document.getElementById("open_new_tab")!;
 	if (IS_POPUP) {
 		new_tab_button.addEventListener("click", () => {
-			open_new_tab("", location.hash);
+			open_new_tab("", "");
 			window.close();
 		});
 	} else {
@@ -175,6 +175,8 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			menu_item_selected = null;
 			if (IS_POPUP) {
 				storage.setItem(KEY_POPUP_MENU_INDEX, null);
+			} else {
+				location.hash = "";
 			}
 			title_sub.innerHTML = "";
 		}
@@ -245,7 +247,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			btn_insert.innerText = "Execute Insert";
 			btn_insert.addEventListener('click', async () => {
 				// Send insert command which will append text to the last selected input/textarea
-				const response = await COMMANDER.sendMessageFocus(MessageType.INSERT_TEMPLATE, { content: template.content });
+				const response = await sendMessage(LOGGER, { type: MessageType.INSERT_TEMPLATE, data: { template_id: template.id }});
 				LOGGER.debug("Template insert command sent", response);
 			});
 
@@ -351,7 +353,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			id: "shared-export-btn",
 			type: "button",
 			class: "btn-insert",
-			style: "margin-left: .5rem",
+			style: "margin-bottom: .5rem; margin-left: .5rem;",
 		});
 		sharedExportBtn.addEventListener("click", export_settings_as_file);
 
@@ -360,7 +362,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				id: "shared-export-btn",
 				type: "button",
 				class: "btn-insert",
-				style: "margin-left: .5rem",
+				style: "margin-bottom: .5rem; margin-left: .5rem",
 			});
 			sharedExportBtn2.addEventListener("click", () => {
 				const pre = shared.data.configurator_mode;
@@ -374,7 +376,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			id: "shared-import-btn",
 			type: "button",
 			class: "btn-delete",
-			style: "margin-left: .5rem",
+			style: "margin-bottom: .5rem; margin-left: .5rem",
 		});
 		sharedImportBtn.addEventListener("click", () => {
 			if (IS_POPUP) {
@@ -385,13 +387,13 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			}
 		});
 
-		const export_logs_button = create_text_element(settings_button_row, "button", "Export Logs", { class:"btn-edit", style:"margin-left: 0.5rem;" });
+		const export_logs_button = create_text_element(settings_button_row, "button", "Export Logs", { class:"btn-edit", style:"margin-bottom: .5rem; margin-left: 0.5rem;" });
 		export_logs_button.addEventListener("click", async () => {
 			const logs = await get_logs();
 			export_logs(logs!);
 		});
 
-		const configuratorModeLabel = create_element(settings_button_row, "label", { style: "padding: 4px; border: 1px solid #ccc; border-radius: 6px;" });
+		const configuratorModeLabel = create_element(settings_button_row, "label", { style: "margin-left: 0.5rem; margin-bottom: .5rem; padding: 4px; border: 1px solid #ccc; border-radius: 6px; white-space: nowrap;" });
 		const configuratorModeCheckbox = create_element(configuratorModeLabel, "input", { type: "checkbox" });
 		configuratorModeCheckbox.checked = shared.data.configurator_mode;
 		configuratorModeLabel.append(" Configurator Mode");
@@ -436,7 +438,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		});
 	
 		// Settings - general_settings
-		const general_settings = create_element(settings_container, "div", { id: "general_settings", class: "general_settings", style: "margin: 1rem;" });
+		const general_settings = create_element(settings_container, "div", { id: "general_settings", style: "margin: 1rem;" });
 		const datetime_locale_select = create_formcontrol(general_settings, "select", "datetime_locale", "Datetime locale", { value: shared.data.datetime_locale, options: [
 			{ title: "German format dd.MM.yyyy HH:mm:ss", value: "de_DE" },
 			{ title: "USA format MM/dd/yyyy HH:mm:ss", value: "en_US" },
@@ -445,7 +447,70 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		datetime_locale_select.addEventListener("change", () => {
 			shared.applyStateChange({ datetime_locale: datetime_locale_select.value });
 		});
-	
+
+		// Settings - Predefined persistent variables
+		const predefined_vars_section = create_element(settings_container, "div", { id: "predefined_vars_section", style: "padding: 0 1rem 1rem 1rem; background:  #0d4159;" });
+		create_text_element(predefined_vars_section, "h3", "Predefined persistent variables", { style: "margin: 0;" });
+		const predefined_vars_help = create_text_element(predefined_vars_section, "p", "Global values are available for every profile; profile values override them for the selected profile.", {style:"font-size: 0.8em; margin: 0 0.25rem 0.25rem 0.25rem;"});
+		predefined_container(predefined_vars_section, shared.data.predefined_global_vars, () => {
+			shared.syncPersistentVariables();
+			shared.applyStateChange({predefined_global_vars: shared.data.predefined_global_vars});
+		});
+		
+		// profile select dropdown
+		const predefined_profile_container = create_element(settings_container, "div", { id: "predefined_profile_container", style: "padding: 0 1rem 1rem 1rem; background:  #0d4159;" });
+		const profile_title_row = create_element(predefined_profile_container, "div", { id: "profile_title_row", style: "" });
+		const h3 = create_text_element(profile_title_row, "h3", "Predefined variables for profile: ", { style: "display: inline-block; vertical-align: top; width: 230px; margin: 0 0 8px 0;" });
+		const profile_select = create_profile_select(shared, profile_title_row, false);
+		profile_select.className += " fc-small";
+		const predefined_profile_rows_container = create_element(predefined_profile_container, "div", { id: "predefined_profile_container_inner" });
+		const profile_onchange = () => {
+			predefined_profile_rows_container.innerHTML = "";
+			if (profile_select.value !== "" && profile_select.value !== "-1") {
+				const index = parseInt(profile_select.value);
+				const vars = shared.data.predefined_profile_vars[index] || {} as Record<string, string>;
+				
+				shared.applyStateChange({
+					button_grid_index: index,
+				});
+				predefined_container(predefined_profile_rows_container, vars, () => {
+					shared.changeProfile(parseInt(profile_select.value));
+				});
+			}
+		};
+		profile_select.addEventListener("click", () => profile_select_onchange(shared, profile_select, false, profile_onchange, profile_onchange));
+		profile_onchange();
+		const profile_edit_name = create_text_element(profile_title_row, "button", "Edit name", { class: "btn-insert", style: "width: 80px;" });
+		profile_edit_name.addEventListener("click", () => {
+			if (profile_select.value !== "" && profile_select.value !== "-1") {
+				const index = parseInt(profile_select.value);
+				const profile = shared.data.button_grids[index]!;
+				create_modal((container: HTMLElement) => {
+					create_formcontrol(container, "text", "title", "Title", { value: profile.title });
+				}).then((result) => {
+					profile.title = result.title!;
+					shared.applyStateChange({ button_grids: shared.data.button_grids });
+					renderSettings();
+				});
+			}
+		})
+		const profile_delete = create_text_element(profile_title_row, "button", "Delete profile", { class: "btn-delete", style: "width: 100px;" });
+		profile_delete.addEventListener("click", () => {
+			if (profile_select.value !== "" && profile_select.value !== "-1") {
+				const index = parseInt(profile_select.value);
+				const profile = shared.data.button_grids[index]!;
+				create_delete_confirm_modal("Are you sure, you want to delete profile \""+profile.title+"\"").then(() => {
+					delete shared.data.button_grids[index];
+					if (shared.data.button_grid_index === index) {
+						shared.data.button_grid_index = -1;
+					}
+					shared.applyStateChange({ button_grids: shared.data.button_grids, button_grid_index: shared.data.button_grid_index });
+					renderSettings();
+				});
+			}
+		})
+		profile_select.parentElement!.style.width = "calc(100% - 20px - "+h3.style.width+" - "+profile_edit_name.style.width+" - "+profile_delete.style.width+")";
+
 		// Settings - checkbox settings
 		const checkbox_container = create_element(settings_container, "div", { id: "checkbox_settings", class: "checkbox_settings", style: "margin: 1rem;" });
 		const settingsAttributes = [
@@ -507,6 +572,49 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				shared.applyStateChange({ notify_speaker_device: speaker_device_select.value });
 			});
 		})();
+	}
+	function predefined_container(container: HTMLElement, record: Record<string, string>, onstatechange: ()=>void) {
+		const inner_container = create_element(container, "div", { style: "max-width: 600px;" });
+		function predefined_row(key: string, value: string) {
+			const row = create_element(inner_container, "div");
+			const key_fc = create_formcontrol(row, "text", "key", "Variablename", { value: key });
+			key_fc.parentElement!.className += " fc-container-3";
+			key_fc.parentElement!.style.marginRight = "0";
+			key_fc.addEventListener("change", () => {
+				delete record[key];
+				key = key_fc.value.trim();
+				if (key) {
+					record[key] = value_fc.value;
+				}
+				onstatechange();
+			});
+			create_text_element(row, "div", "=", { style: "display: inline-block; vertical-align: bottom; padding: 0 0 6px 6px;" });
+			const value_fc = create_formcontrol(row, "text", "value", "Value", { value: value });
+			value_fc.parentElement!.className += " fc-container-3";
+			key_fc.parentElement!.style.marginLeft = "0";
+			value_fc.addEventListener("change", () => {
+				key = key_fc.value.trim();
+				if (key) {
+					record[key] = value_fc.value;
+					onstatechange();
+				}
+			});
+			const delete_btn = create_text_element(row, "button", "Delete", { class: "btn-delete fc-container-20", style:"height: 38px; vertical-align: bottom;" });
+			delete_btn.addEventListener("click", () => {
+				delete record[key];
+				onstatechange();
+				row.remove();
+			});
+		}
+
+		for (const [key, value] of Object.entries(record)) {
+			predefined_row(key, value);
+		}
+
+		const add_btn = create_text_element(container, "button", "Add variable", { class: "btn-insert", style: "margin-top: 10px;"});
+		add_btn.addEventListener("click", () => {
+			predefined_row("", "");
+		})
 	}
 	renderSettings();
 

@@ -176,7 +176,7 @@ export class TriggersUI extends ScriptingUI {
 			],
 			required: true,
 		});
-		const {element_selector_container, element_selector_input} = this.create_element_selector_fc(container, initial?.element_selector ?? "");
+		const {col_container, get_element_selector_list} = this.create_element_selector_fc(container, initial?.element_selector ?? "");
 		
 		const removeBtn = create_text_element(container, "button", "Remove", { class: "btn-delete", style: "margin-top: 0.75rem;" });
 		removeBtn.addEventListener("click", () => {
@@ -188,7 +188,7 @@ export class TriggersUI extends ScriptingUI {
 			get(): TriggerEvent {
 				return {
 					event_type: eventType.value,
-					element_selector: element_selector_input.value.trim(),
+					element_selector: get_element_selector_list(),
 				};
 			}
 		};

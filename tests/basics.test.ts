@@ -27,6 +27,20 @@ describe('basics utilities', () => {
     expect(Array.isArray(sd.data.templates)).toBe(true);
   });
 
+  it('merges predefined global and profile variables into persistent variables', async () => {
+    const LOGGER: any = { from: 0, debug: () => {}, log: () => {} };
+    const COMMANDER: any = { LOGGER };
+    const sd = new SharedData(LOGGER, COMMANDER, {
+      predefined_global_vars: { environment: 'prod' },
+      predefined_profile_vars: { '2': { user: 'alice' } },
+      button_grid_index: 2,
+    });
+
+    const merged = sd.buildPersistentVariables();
+    expect(merged).toEqual({ environment: 'prod', user: 'alice' });
+    expect(sd.data.persistent_variables).toEqual({ environment: 'prod', user: 'alice' });
+  });
+
   it('withTimeout rejects when a promise takes too long', async () => {
     vi.useFakeTimers();
     try {
@@ -40,6 +54,23 @@ describe('basics utilities', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('unsetActiveProfileVars clears only the previous profile-scoped values and keeps globals', () => {
+    const LOGGER: any = { from: 0, debug: () => {}, log: () => {} };
+    const COMMANDER: any = { LOGGER };
+    const sd = new SharedData(LOGGER, COMMANDER, {
+      predefined_global_vars: { shared: 'global' },
+      predefined_profile_vars: {
+        0: { user: 'alice', shared: 'profile-override' },
+      },
+      button_grid_index: 0,
+      persistent_variables: { shared: 'profile-override', user: 'alice' },
+    });
+
+    sd.unsetActiveProfileVars(0);
+
+    expect(sd.data.persistent_variables).toEqual({ shared: 'global' });
   });
 
   it('shouldSendMessageToFrame filters by hostname and URL conditions', () => {
