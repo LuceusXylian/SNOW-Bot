@@ -54,11 +54,11 @@ export default defineBackground(() => {
 		COMMANDER.forgetTab(tabId);
 	});
 
-	async function template_execute_insert(bot: BotInstance, template_id: string, options: Object) {
+	async function template_execute_insert(bot: BotInstance, template_id: string, options: Object, local_variables: Record<string, string>) {
 		const template = shared.get_template(template_id);
-		let content = template.content;
+		let content = resolveActionArgument(template.content, local_variables);
 		for (const [key, value] of Object.entries(shared.data.persistent_variables)) {
-			content = content.split("{"+key+"}").join(value);
+			content = content.split("["+key+"]").join(value);
 		}
 		return bot.sendMessage(MessageType.INSERT_TEMPLATE, {...options, content: content });
 	}
@@ -194,7 +194,7 @@ export default defineBackground(() => {
 						let { template_id } = message.data || {};
 
 						if (template_id) {
-							const result = await template_execute_insert(await COMMANDER.getBotFocus(), template_id, {})
+							const result = await template_execute_insert(await COMMANDER.getBotFocus(), template_id, {}, {})
 							if (result.success) {
 								return success_message(result.data);
 							} else {
@@ -324,8 +324,8 @@ export default defineBackground(() => {
 				const response = await bot.sendMessage(MessageType.CHECK_CONDITIONS, messageData, script_context);
 				return {
 					success: response.success,
-					result: response.data?.result ?? true,
-					error: response.data?.error ?? "",
+					result: response.data?.result,
+					error: response.success? (response.data?.message ?? "") : (response.error ?? ""),
 				};
 			}
 			return { success: true, result: true, error: "", script_context };
@@ -373,6 +373,8 @@ export default defineBackground(() => {
 					const lineContext: ScriptMessageContext = frame_conditions.length ? { conditions: frame_conditions } : {};
 					if (script_line.conditions.length) {
 						const result = await checkConditions(script_line.conditions, bot, local_variables, foreach_context, lineContext);
+						// "No bot available with the current conditions" -> ERROR, should skip instead
+						LOGGER.debug("line #"+index+" sendMessage_filtered_frames0 result ", result);
 						if (!result.success) {
 							await progress_report(session_id, script, "error", "Script `"+script.name+"` line #"+index+" aborted. "+result.error);
 							// FIXME: should not abort here on false
@@ -406,7 +408,7 @@ export default defineBackground(() => {
 
 									if (action.arguments.set_method === ActionSetMethod.TEMPLATE) {
 										// send INSERT_TEMPLTE with return_content option
-										const response = await template_execute_insert(bot, action.arguments.id as string, { return_content: true });
+										const response = await template_execute_insert(bot, action.arguments.id as string, { return_content: true }, local_variables);
 										if (!response.success) {
 											throw new Error("Failed to resolve template content: " + response.error);
 										}
@@ -467,7 +469,7 @@ export default defineBackground(() => {
 												insertData.foreach_selector = foreach_context.foreach_selector;
 												insertData.foreach_index = foreach_context.foreach_index;
 											}
-											const result = await template_execute_insert(bot, action.arguments.id as string, insertData);
+											const result = await template_execute_insert(bot, action.arguments.id as string, insertData, local_variables);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;

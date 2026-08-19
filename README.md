@@ -38,7 +38,7 @@ Browser automation assistant for form filling, scriptable workflows, and task au
 - Chat UI to send commands and receive responses
 - ButtonGrid: customizable Script launcher
 - Popup navigation with location.hash
-	- if empty it uses persistant stored value
+	- if empty it uses persistent stored value
 
 ## Permissions
 - `notifications` — Required to show native OS notification popups.

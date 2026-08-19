@@ -215,7 +215,20 @@ export class BotCommander {
 							? frames.filter((frame) => shouldSendMessageToFrame(frame.url, options))
 							: frames;
 
-						if(filtered_frames.length === 0) throw new Error("No bot available with the current conditions");
+						if(filtered_frames.length === 0) {
+							const error = "No bot available with the current conditions";
+							if (message_type === MessageType.CHECK_CONDITIONS) {
+								return {
+									success: true,
+									data: {
+										result: false,
+										message: error,
+									}
+								}
+							} else {
+								throw new Error(error);
+							}
+						}
 						
 						const firstFrame = filtered_frames[0]!;
 						const first = await browser.tabs.sendMessage(this.tabId, {

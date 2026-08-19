@@ -254,7 +254,7 @@ class BackgroundMessageHandler {
 						if(!result) {
 							return success_message({
 								result: false,
-								error: message,
+								message: message,
 							});
 						}
 					}
