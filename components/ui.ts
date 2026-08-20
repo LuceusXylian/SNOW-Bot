@@ -401,7 +401,7 @@ export function create_formcontrol<K extends keyof FormcontrolTypeNameMap>(paren
 	return input_element as FormcontrolTypeNameMap[K];
 }
 
-export function create_chat_bubble(parent: HTMLElement, kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
+export function create_chat_bubble(parent: HTMLElement, kind: "command" | "response" | "progress" | "error" | "info" | "user", title: string, text: string, meta?: string) {
 	const row = create_element(parent, "div", { class: `chat-history-entry chat-history-${kind}` });
 	const header = create_element(row, "div", { class: "chat-history-header" });
 	create_text_element(header, "span", title, { class: "chat-history-title" });

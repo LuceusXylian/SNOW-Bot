@@ -207,21 +207,20 @@ export default defineBackground(() => {
 						return error_message("Invalid template_id "+template_id);
 					}
 
-					case MessageType.EXECUTE_SCRIPT: {
-						let { session_id, script_id } = message.data || {};
-						if (typeof session_id !== "number") session_id = null;
+				case MessageType.EXECUTE_SCRIPT: {
+					let { session_id, script_id, function_arguments } = message.data || {};
+					if (typeof session_id !== "number") session_id = null;
 
-						if (script_id) {
-							const script = shared.get_script(script_id);
-							if (script) {
-								// TODO: Chat UI asks for inputs of FunctionArgument[]
-								void script_worker(session_id, script, {});
-								return success_message({});
-							}
-							await progress_report(session_id, { name: String(script_id) } as Script, "error", "Invalid script with id " + script_id);
+					if (script_id) {
+						const script = shared.get_script(script_id);
+						if (script) {
+							void script_worker(session_id, script, function_arguments ?? {});
+							return success_message({});
 						}
-						return error_message("Invalid script with id "+script_id);
+						await progress_report(session_id, { name: String(script_id) } as Script, "error", "Invalid script with id " + script_id);
 					}
+					return error_message("Invalid script with id "+script_id);
+				}
 					
 					case MessageType.TRIGGER_FIRED: {
 						let { session_id, focus_bot, bot_id, trigger_id } = message.data || {};
@@ -383,7 +382,7 @@ export default defineBackground(() => {
 						LOGGER.debug("line #"+index+" sendMessage_filtered_frames0 result ", result);
 						if (!result.success) {
 							await progress_report(session_id, script, "error", "Script `"+script.name+"` line #"+index+" aborted. "+result.error);
-							// FIXME: should not abort here on false
+							// should not abort here on false
 							return;
 						}
 						if (!result.result) {

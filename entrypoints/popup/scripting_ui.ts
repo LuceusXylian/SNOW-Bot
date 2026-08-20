@@ -1,4 +1,4 @@
-import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind, type FunctionArgument } from "@/components/scripting";
+import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind, type FunctionArgument, type ActionArguments } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS, QUERY_SELECTOR_LIST_DELIMITER } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";

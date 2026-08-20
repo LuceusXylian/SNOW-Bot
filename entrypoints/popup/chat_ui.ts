@@ -1,5 +1,5 @@
 import { execute_script } from "@/components/scripting";
-import type { Script } from "@/components/scripting";
+import type { Script, FunctionArgument } from "@/components/scripting";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { create_chat_bubble, create_element, create_text_element } from "@/components/ui";
 import { MessageType, registerMessageHandler } from "@/components/messaging";
@@ -21,6 +21,8 @@ export class ChatUI extends ScriptingUI {
 	private statusContainer: HTMLElement | null = null;
 	private cleanupCallbacks: Array<() => void> = [];
 	private suggestionHideTimer: number | null = null;
+	private argumentCollectionActive = false;
+	private argumentResolve: ((value: string) => void) | null = null;
 
 	constructor(shared: SharedData, LOGGER: Logger, COMMANDER: BotCommander) {
 		super(shared, LOGGER, COMMANDER);
@@ -62,7 +64,7 @@ export class ChatUI extends ScriptingUI {
 	// SESSION_ID to know which controller should be notified for progress reports
 	override readonly SESSION_ID: number = new Date().getTime();
 
-	private appendHistory(kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
+	private appendHistory(kind: "command" | "response" | "progress" | "error" | "info" | "user", title: string, text: string, meta?: string) {
 		if (!this.historyContainer) {
 			return;
 		}
@@ -239,6 +241,7 @@ export class ChatUI extends ScriptingUI {
 		};
 
 		const renderSuggestions = () => {
+			if (this.argumentCollectionActive) return;
 			if (!this.queryInput || !this.executeButton) {
 				return;
 			}
@@ -280,13 +283,60 @@ export class ChatUI extends ScriptingUI {
 
 			if (event.key === "Enter") {
 				event.preventDefault();
+				if (this.argumentCollectionActive && this.argumentResolve) {
+					this.argumentResolve(this.queryInput!.value);
+					this.queryInput!.value = "";
+				} else {
+					this.executeSelectedScript();
+				}
+			}
+		});
+		this.executeButton.addEventListener("click", () => {
+			if (this.argumentCollectionActive && this.argumentResolve) {
+				this.argumentResolve(this.queryInput!.value);
+				this.queryInput!.value = "";
+			} else {
 				this.executeSelectedScript();
 			}
 		});
-		this.executeButton.addEventListener("click", () => this.executeSelectedScript());
 
 		renderSuggestions();
 		this.queryInput.focus();
+	}
+
+	private async promptFunctionArguments(functionArguments: FunctionArgument[]): Promise<Record<string, string> | null> {
+		if (functionArguments === undefined || functionArguments.length === 0) return {};
+		const result: Record<string, string> = {};
+		for (const fa of functionArguments) {
+			const answer = await this.awaitArgument(fa);
+			if (answer === null) return null;
+			result[fa.varname] = answer;
+		}
+		return result;
+	}
+
+	private awaitArgument(fa: FunctionArgument): Promise<string | null> {
+		return new Promise((resolve) => {
+			if (!this.queryInput || !this.executeButton || !this.statusContainer) {
+				resolve(null);
+				return;
+			}
+			this.appendHistory("info", "Question", fa.question);
+			this.argumentCollectionActive = true;
+			this.executeButton.disabled = false;
+			this.statusContainer.innerText = `Enter value for: ${fa.question}`;
+			this.queryInput.value = "";
+			this.queryInput.placeholder = fa.question;
+			this.queryInput.focus();
+
+			this.argumentResolve = (value: string) => {
+				this.argumentCollectionActive = false;
+				this.argumentResolve = null;
+				this.appendHistory("user", "Answer", value);
+				this.queryInput!.placeholder = "Search scripts";
+				resolve(value);
+			};
+		});
 	}
 
 	private async executeSelectedScript() {
@@ -307,7 +357,15 @@ export class ChatUI extends ScriptingUI {
 		this.executeButton.disabled = true;
 		this.statusContainer!.innerText = `Executing ${script.name}...`;
 
-		const response = await execute_script(this.LOGGER, this.SESSION_ID, script.id);
+		const function_arguments = await this.promptFunctionArguments(script.function_arguments);
+		if (function_arguments === null) {
+			this.appendHistory("info", "Cancelled", `Execution of ${script.name} cancelled.`);
+			this.statusContainer!.innerText = `Cancelled`;
+			this.executeButton.disabled = false;
+			return;
+		}
+
+		const response = await execute_script(this.LOGGER, this.SESSION_ID, script.id, function_arguments);
 		if (!response.success) {
 			this.appendHistory("error", "Response", response.error ?? `Failed to execute ${script.name}`);
 		}

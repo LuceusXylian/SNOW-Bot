@@ -1,4 +1,5 @@
 import { create_element, create_text_element, create_modal, FadingChatModal, create_formcontrol } from '@/components/ui';
+import type { FunctionArgument } from '@/components/scripting';
 
 
 let button_edit_mode = false;
@@ -177,10 +178,30 @@ export function buttongrid_ui(shared: SharedData, LOGGER: Logger, COMMANDER: Bot
 	button_grid_rows_fc.addEventListener("keyup", create_buttons);
 	create_buttons();
 
-	
+	async function promptFunctionArguments(functionArguments: FunctionArgument[]): Promise<Record<string, string> | null> {
+		if (functionArguments === undefined || functionArguments.length === 0) return {};
+		try {
+			const result = await create_modal((container) => {
+				for (const fa of functionArguments) {
+					if (fa.type === "textarea" || fa.type === "list") {
+						create_formcontrol(container, "textarea", fa.varname, fa.question, { value: fa.varvalue, required: !fa.optional });
+					} else {
+						create_formcontrol(container, "text", fa.varname, fa.question, { value: fa.varvalue, required: !fa.optional });
+					}
+				}
+			});
+			return result;
+		} catch {
+			return null;
+		}
+	}
+
 	async function execute_script_bgrid(script: Script) {
+		const function_arguments = await promptFunctionArguments(script.function_arguments);
+		if (function_arguments === null) return;
+
 		fading_chat_modal.fadeIn();
-		const response = await execute_script(LOGGER, SESSION_ID, script.id);
+		const response = await execute_script(LOGGER, SESSION_ID, script.id, function_arguments);
 		// show fading modal with command bubble
 		try {
 			if (!response.success) {

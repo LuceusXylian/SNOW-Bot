@@ -136,6 +136,8 @@ textarea { width: 100%; resize: vertical; min-height: 50px; }
 .chat-history-progress { border-left: 3px solid #f0b429; }
 .chat-history-error { border-left: 3px solid #d32f2f; }
 .chat-history-info { border-left: 3px solid rgba(255, 255, 255, 0.35); }
+.chat-history-user { background: rgba(86, 141, 243, 0.18); border-left: none; border-right: 3px solid #568df3; align-self: flex-end; max-width: 80%; }
+.chat-history-user .chat-history-header { justify-content: flex-end; }
 .chat-history-header { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .chat-history-title { font-weight: 700; }
 .chat-history-meta { color: rgba(255, 255, 255, 0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

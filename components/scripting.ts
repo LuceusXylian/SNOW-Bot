@@ -294,8 +294,8 @@ export interface ForeachContext {
 }
 
 // Send message from popup to background to start a script
-export function execute_script(LOGGER: Logger, SESSION_ID: number, script_id: string) {
+export function execute_script(LOGGER: Logger, SESSION_ID: number, script_id: string, function_arguments?: Record<string, string>) {
 	return sendMessage(LOGGER, { type: MessageType.EXECUTE_SCRIPT, data: {
-		session_id: SESSION_ID, script_id: script_id
+		session_id: SESSION_ID, script_id: script_id, function_arguments: function_arguments ?? {}
 	}});
 }
