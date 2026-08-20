@@ -1,4 +1,4 @@
-import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind } from "@/components/scripting";
+import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind, type FunctionArgument } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS, QUERY_SELECTOR_LIST_DELIMITER } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
@@ -277,6 +277,7 @@ export class ScriptingUI {
 		
 		// Auto generate arguments inputs
 		const arguments_fc_array: (HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement)[] = [];
+		let function_arguments_fc_array: (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement)[] = [];
 		let arguments_container = create_element(container, "div");
 		const action_hint = create_text_element(container, "div", "", { class: "action-hint", style: "margin-top: 0.5rem; color: #ccc; font-size: 0.9rem;" });
 		let get_element_selector: (()=>string)|null = null;
@@ -354,9 +355,28 @@ export class ScriptingUI {
 						checked: checkboxChecked,
 					}));
 				} else if (argument.reference && this.shared.data[referenceKey] !== undefined) {
-					arguments_fc_array.push(
-						this.build_fc_reference(arguments_container, argument.argument, referenceKey, argument_value)
-					)
+					const reference_select = this.build_fc_reference(arguments_container, argument.argument, referenceKey, argument_value)
+					arguments_fc_array.push(reference_select);
+					if (action_type.kind === ActionKind.SCRIPT) {
+						const change = () => {
+							for(const fc of function_arguments_fc_array) fc.remove();
+							function_arguments_fc_array = [];
+
+							const script = this.shared.get_script(reference_select.value);
+							for(const fa of script.function_arguments) {
+								let varvalue = "";
+								if (initial && initial.arguments.pass_variables) {
+									for (const [_varname, _varvalue] of Object.entries(initial.arguments.pass_variables)) {
+										if(_varname === fa.varname) varvalue = _varvalue;
+									}
+								}
+								const fc = create_formcontrol(arguments_container, fa.type as any, fa.varname, fa.question, { value: varvalue, class: "fc-container-3" });
+								function_arguments_fc_array.push(fc);
+							}
+						}
+						change();
+						reference_select.addEventListener("change", change);
+					}
 				} else {
 					if (argument.use_set_method) {
 						const set_method_fc = create_formcontrol(arguments_container, "select", "set_method", "set method", {
@@ -397,13 +417,19 @@ export class ScriptingUI {
 		return {
 			elem: container,
 			get(): Action {
-				const _arguments: Record<string, string> = {};
+				const _arguments: ActionArguments = {};
 				for (let index = 0; index < arguments_fc_array.length; index++) {
 					const fc = arguments_fc_array[index]!;
 					_arguments[fc.name] = fc.value;
 				}
 				if (get_element_selector) {
 					_arguments["element_selector"] = get_element_selector();
+				}
+				if (function_arguments_fc_array) {
+					_arguments.pass_variables = {};
+					for(const fc of function_arguments_fc_array) {
+						_arguments.pass_variables[fc.name] = fc.value;
+					}
 				}
 				console.log("_arguments", _arguments);
 				
@@ -526,10 +552,90 @@ export class ScriptingUI {
 		const title_row = create_element(container, "div", { class:"row" });
 		const nameInput = create_formcontrol(title_row, "text", "script_name", "Script Name", { value: initial?.name ?? "", required: true });
 		nameInput.parentElement!.style.cssText = "flex-grow: 1;	margin-top: 0";
-		const hide_checkbox_container = create_element(title_row, "label", { style:"width: 110px;" });
+		const hide_checkbox_container = create_element(title_row, "label", { style:"width: 130px;" });
 		const hide_checkbox = create_element(hide_checkbox_container, "input", { class:"", type: "checkbox" });
 		if(initial) hide_checkbox.checked = initial.hide;
 		create_text_element(hide_checkbox_container, "span", " hide in ButtonGrid/Chat");
+		
+		const add_function_argument_btn = create_text_element(title_row, "button", "Add argument", { type: "button", class: "btn-insert", style:"" });
+		const function_argument_container = create_element(container, "div", { class:"" });
+		let function_argument_incrementor = 0;
+		const get_function_arguments: (() => FunctionArgument)[] = [];
+		function create_function_argument_row(initial?: FunctionArgument) {
+			const index = function_argument_incrementor;
+			const function_argument_row = create_element(function_argument_container, "div", { class:"row", style: "padding-top: 10px;" });
+			const question = create_formcontrol(function_argument_row, "text", "question", "Question", { value: initial?.question ?? "", required: true });
+			question.parentElement!.style.flex = "1";
+			const varname = create_formcontrol(function_argument_row, "text", "varname", "Variable Name", { value: initial?.varname ?? "", required: true });
+			varname.parentElement!.style.flex = "1";
+			const type = create_formcontrol(function_argument_row, "select", "type", "Type", { value: initial?.type ?? "", required: true, options: [
+				{ title: "Text", value: "text" },
+				{ title: "Text Multiline", value: "textarea" },
+				{ title: "List", value: "list" },
+			] });
+			type.parentElement!.style.flex = "1";
+			const delimiters = create_formcontrol(function_argument_row, "select", "delimiters", "List Delimiters", { empty_is_value: true });
+			delimiters.multiple = true;
+			delimiters.parentElement!.style.flex = "1";
+
+			for (const [value, label, default_selected] of [
+				["\r\n", "Windows Newline (CRLF)", true],
+				["\n", "Newline (LF)", true],
+				[",", "Comma (,)", false],
+				[";", "Semicolon (;)", false],
+				["|", "Pipe (|)", false],
+				["\t", "Tab", false],
+				[" ", "Space", false],
+			]) {
+				const option = create_text_element(delimiters, "option", label as string);
+				option.value = value as string;
+
+				if (initial) {
+					if (initial.delimiters.includes(value as string)) {
+						option.selected = true;
+					}
+				} else if (default_selected) {
+					option.selected = true;
+				}
+
+				delimiters.appendChild(option);
+			};
+
+			const optional = create_formcontrol(function_argument_row, "checkbox", "optional", "Optional", { checked: initial && initial.optional });
+			const trim = create_formcontrol(function_argument_row, "checkbox", "trim", "Trim spaces", { checked: initial && initial.trim });
+			trim.parentElement!.style.width = "40px";
+
+			const type_change_fn = () => {
+				if (type.value === "list") {
+					delimiters.parentElement!.style.display = "";
+				} else {
+					delimiters.parentElement!.style.display = "none";
+				}
+			};
+			type.addEventListener("change", type_change_fn);
+			type_change_fn();
+			
+			const delete_btn = create_text_element(function_argument_row, "button", "Delete", { type: "button", class: "btn-delete", style: "margin-left: 1rem;" });
+			delete_btn.addEventListener("click", () => {
+				delete get_function_arguments[index];
+				function_argument_row.remove();
+			});
+
+			get_function_arguments[index] = () => {
+				return {
+					question: question.value,
+					varname: varname.value,
+					varvalue: "",
+					type: type.value,
+					delimiters: [delimiters.value],
+					optional: optional.checked,
+					trim: trim.checked,
+				}
+			}
+			function_argument_incrementor++;
+		}
+		add_function_argument_btn.addEventListener("click", ()=>create_function_argument_row());
+		if (initial && initial.function_arguments) for(const fa of initial.function_arguments) create_function_argument_row(fa);
 		
 		// ScriptLines section
 		const linesContainer = create_element(container, "div", { class: "scriptlines-container", style: "padding: 8px;" });
@@ -603,11 +709,14 @@ export class ScriptingUI {
 			}
 			nameInput.style.borderColor = "";
 			
+			const function_arguments: FunctionArgument[] = [];
+			for(const f of get_function_arguments) if(f) function_arguments.push(f());
 			shared.setScript({
 				version: SCRIPTING_VERSION,
 				id: initial?.id ?? "SCRIPT"+new Date().getTime(),
 				name: name,
 				hide: hide_checkbox.checked,
+				function_arguments,
 				lines: linesForms.map(f => f.form.get())
 			});
 			on_set();

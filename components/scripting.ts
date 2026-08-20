@@ -121,23 +121,25 @@ export interface Reference {
 	id: string,
 	name: string,
 }
+export interface ActionArguments {
+	element_selector?: string,
+	id?: string,
+	text?: string,
+	seconds?: number,
+	name?: string,
+	value?: string,
+	source?: string,
+	target?: string,
+	scope?: VariableScope,
+	[key: string]: any,
+	attribute?: string,
+	event_type?: string,
+	set_method?: ActionSetMethod;
+	pass_variables?: Record<string, string>
+}
 export interface Action {
     type: ActionType,
-    arguments: {
-        element_selector?: string,
-        id?: string,
-        text?: string,
-        seconds?: number,
-        name?: string,
-        value?: string,
-        source?: string,
-        target?: string,
-        scope?: VariableScope,
-        [key: string]: any,
-        attribute?: string,
-        event_type?: string,
-        set_method?: ActionSetMethod;
-    },
+    arguments: ActionArguments,
 }
 
 
@@ -247,11 +249,24 @@ export interface ScriptLine {
 	actions: Action[],
 }
 
+export interface FunctionArgument {
+	// User friendly text to prompt the user about this variable
+	question: string,
+	varname: string,
+	varvalue: string,
+	// Types: text, textarea, textarea list
+	type: string,
+	delimiters: string[],
+	trim: boolean,
+	optional: boolean,
+}
+
 export interface Script {
 	version: number,
 	id: string,
 	name: string,
 	hide: boolean,
+	function_arguments: FunctionArgument[];
 	lines: ScriptLine[],
 }
 

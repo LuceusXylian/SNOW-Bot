@@ -29,8 +29,11 @@ export default defineBackground(() => {
 	let shared: SharedData;
 
 	function resolveActionArgument(value: string, local_variables: Record<string, string>): string {
+		console.log("resolveActionArgument", value);
+		
 		if (typeof value !== "string") return value;
-
+		console.log("resolveActionArgument 2222", value);
+		
 		return value.replace(/\$\{(local|global|persistent):([a-zA-Z0-9_\-]+)\}/g, (_match, scope, name) => {
 			const variableName = String(name);
 			switch (scope) {
@@ -211,7 +214,8 @@ export default defineBackground(() => {
 						if (script_id) {
 							const script = shared.get_script(script_id);
 							if (script) {
-								void script_worker(session_id, script);
+								// TODO: Chat UI asks for inputs of FunctionArgument[]
+								void script_worker(session_id, script, {});
 								return success_message({});
 							}
 							await progress_report(session_id, { name: String(script_id) } as Script, "error", "Invalid script with id " + script_id);
@@ -246,7 +250,7 @@ export default defineBackground(() => {
 						}
 
 						await progress_report(session_id, script, "progress", "Trigger `"+trigger.name+"` conditions fulfilled.");
-						void script_worker(session_id, script, bot);
+						void script_worker(session_id, script, {}, bot);
 						return success_message({});
 					}
 
@@ -341,12 +345,14 @@ export default defineBackground(() => {
 				default: return null;
 			}
 		}
-		async function script_worker(session_id: number|null, script: Script, _bot?: BotInstance, foreach_context?: ForeachContext) {
+
+		// pass_variables become local_variables
+		async function script_worker(session_id: number|null, script: Script, pass_variables: Record<string, string>, _bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
 				const bot = _bot  ?? await COMMANDER.getBotFocus();
 				await progress_report(session_id, script, "progress", "Script `" + script.name + "` started");
 
-				const local_variables: Record<string, string> = {};
+				const local_variables: Record<string, string> = pass_variables;
 				function setVariable(scope: string, name: string, value: string) {
 					if (!name) return;
 					switch (scope) {
@@ -396,7 +402,13 @@ export default defineBackground(() => {
 									const action_script = shared.get_script(action.arguments.id);
 									if (!action_script) throw new Error("Error in script#"+script.id+": missing nested script `"+action.arguments.id+"`");
 									await progress_report(session_id, script, "progress", "START Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
-									await script_worker(session_id, action_script, bot);
+									const pass_vars: Record<string, string> = {};
+									if (action.arguments.pass_variables) {
+										for(const [name, value] of Object.entries(action.arguments.pass_variables)) {
+											pass_vars[name] = resolveActionArgument(value, local_variables);
+										}
+									}
+									await script_worker(session_id, action_script, pass_vars, bot);
 									await progress_report(session_id, script, "progress", "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
 								break;
 								}
@@ -460,7 +472,7 @@ export default defineBackground(() => {
 											if (!action.arguments.element_selector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
 
 											const insertData: Record<string, any> = {
-												element_selector: action.arguments.element_selector,
+												element_selector: resolveActionArgument(action.arguments.element_selector ?? "", local_variables),
 												delete_insert: true,
 												dispatch_input: action.arguments.dispatch_input,
 												dispatch_change: action.arguments.dispatch_change,
@@ -480,12 +492,11 @@ export default defineBackground(() => {
 										case MessageType.SET_ELEMENT_ATTRIBUTE: {
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.attribute) throw new Error("Error in script#"+script.id+": attribute is invalid");
-											const value = resolveActionArgument(action.arguments.value ?? "", local_variables);
 											const setAttrData: Record<string, any> = {
-												element_selector: action.arguments.element_selector,
+												element_selector: resolveActionArgument(action.arguments.element_selector ?? "", local_variables),
 												attribute: action.arguments.attribute,
 												set_method: action.arguments.set_method,
-												value: value,
+												value: resolveActionArgument(action.arguments.value ?? "", local_variables),
 												dispatch_input: action.arguments.dispatch_input,
 												dispatch_change: action.arguments.dispatch_change,
 											};
@@ -505,7 +516,7 @@ export default defineBackground(() => {
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.event_type) throw new Error("Error in script#"+script.id+": event_type is invalid");
 											const triggerData: Record<string, any> = {
-												element_selector: action.arguments.element_selector,
+												element_selector: resolveActionArgument(action.arguments.element_selector ?? "", local_variables),
 												event_type: action.arguments.event_type,
 											};
 											if (foreach_context) {
@@ -583,41 +594,6 @@ export default defineBackground(() => {
 									} catch (err) {
 										LOGGER.log("Failed to fetch audio and send bytes to content", err);
 									}
-
-
-									// if (source === "beep") {
-									// 	COMMANDER.sendMessageFocus(MessageType.PLAY_AUDIO, {
-									// 		source,
-									// 		speaker_device: shared.data.notify_speaker_device,
-									// 	});
-									// } else {
-									// 	try {
-									// 		const prevTabs = await browser.tabs.query({ active: true, currentWindow: true });
-									// 		const prevTabId = prevTabs[0]?.id;
-									// 		const created = await browser.tabs.create({ url: source, active: true });
-									// 		const createdId = created?.id;
-
-									// 		// After 1 second, restore focus to the previously active tab
-									// 		setTimeout(async () => {
-									// 			try {
-									// 				if (prevTabId != null) await browser.tabs.update(prevTabId, { active: true });
-									// 			} catch (err) {
-									// 				LOGGER.log("Failed to restore focus to previous tab", err);
-									// 			}
-									// 		}, 1000);
-
-									// 		// After 10 seconds, close the created tab
-									// 		setTimeout(async () => {
-									// 			try {
-									// 				if (createdId != null) await browser.tabs.remove(createdId);
-									// 			} catch (err) {
-									// 				LOGGER.log("Failed to close created audio tab", err);
-									// 			}
-									// 		}, 10000);
-									// 	} catch (err) {
-									// 		LOGGER.log("Failed to open audio URL in tab", err);
-									// 	}
-									// }
 								}
 								break;
 							}
@@ -666,7 +642,7 @@ export default defineBackground(() => {
 											setVariable("local", "foreach_index", String(i));
 											setVariable("local", "foreach_count", String(count));
 											setVariable("local", "foreach_selector", forEachSelector);
-											await script_worker(session_id, foreachScript, bot, {
+											await script_worker(session_id, foreachScript, {}, bot, {
 												foreach_selector: forEachSelector,
 												foreach_index: i,
 											});
