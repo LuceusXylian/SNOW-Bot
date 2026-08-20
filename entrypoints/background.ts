@@ -48,6 +48,12 @@ export default defineBackground(() => {
 		});
 	}
 
+	browser.runtime.onInstalled.addListener((details) => {
+		if (details.reason === "install") {
+			browser.tabs.create({ url: browser.runtime.getURL("/welcome.html") });
+		}
+	});
+
 	browser.tabs.onActivated.addListener((activeInfo) => {
 		LOGGER.debug("Tab activated", activeInfo.tabId);
 		COMMANDER.trackFocusedTab(activeInfo.tabId);

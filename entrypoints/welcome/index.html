@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<link rel="stylesheet" href="../popup/style.css" />
+	<title>Welcome to SNOW Bot</title>
+	<style>
+		.welcome {
+			max-width: 560px;
+			margin: 2rem auto;
+			padding: 0 1rem;
+		}
+		h1 { margin-bottom: 0; font-size: 22px; font-weight: 700; }
+		.welcome p { margin: 0.5rem 0; line-height: 1.5; }
+		.welcome-actions {
+			margin-top: 1.5rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+		.welcome-actions button {
+			padding: 0.6rem 1rem;
+			font-size: 14px;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+			width: 100%;
+		}
+		.btn-import {
+			background-color: #2563eb;
+			color: #fff;
+		}
+		.btn-import:hover {
+			background-color: #1d4ed8;
+		}
+		.btn-skip {
+			background-color: transparent;
+			color: #94a3b8;
+			text-decoration: underline;
+		}
+		.btn-skip:hover {
+			color: #e2e8f0;
+		}
+		#status {
+			margin-top: 1rem;
+			color: #4ade80;
+			font-size: 14px;
+			min-height: 1.2em;
+		}
+	</style>
+</head>
+<body>
+	<main class="welcome">
+		<h1>Welcome to SNOW Bot</h1>
+		<p>SNOW Bot is a browser automation assistant for form filling, recurring workflows, and browser-triggered actions.</p>
+		<p>Manage templates, scripts, triggers, button shortcuts, and chat-driven commands.</p>
+
+		<h2 style="margin-top: 30px; font-size: 20px; margin-bottom: 0;">Quick Start</h2>
+		<p>If a colleague or friend gave you a configuration file, import it below to get started quickly.</p>
+
+		<div class="welcome-actions">
+			<button id="import-btn" type="button" class="btn-import">Import Configuration</button>
+			<input type="file" id="import-input" accept=".json" style="display: none;" />
+			<button id="skip-btn" type="button" class="btn-skip">Skip — I'll configure manually</button>
+		</div>
+
+		<div id="status"></div>
+	</main>
+
+	<script src="main.js" type="module"></script>
+</body>
+</html>

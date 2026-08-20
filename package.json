@@ -2,7 +2,7 @@
   "name": "snow-bot",
   "description": "Browser automation assistant for form filling, scriptable workflows, and task automation.",
   "private": true,
-  "version": "1.1.4",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "wxt -b firefox",
@@ -12,8 +12,9 @@
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "build:chrome": "wxt build",
-    "zip": "wxt zip",
+    "zip": "wxt zip -b firefox && wxt zip -b chrome",
     "zip:firefox": "wxt zip -b firefox",
+    "zip:chrome": "wxt zip -b chrome",
     "compile": "tsc --noEmit",
     "test": "vitest",
     "test:ci": "vitest --run",
@@ -25,5 +26,5 @@
     "vitest": "^4.1.10",
     "wxt": "^0.21.3"
   },
-  "packageManager": "pnpm@11.20.0"
+  "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621"
 }
