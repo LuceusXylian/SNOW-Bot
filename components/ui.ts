@@ -1,3 +1,4 @@
+import type { Logger } from "./basics";
 
 
 /**
@@ -152,10 +153,22 @@ export function create_modal(onCreate: (container: HTMLElement) => void): Promis
 		submitButton.style.color = '#fff';
 		submitButton.style.cursor = 'pointer';
 
-		closeButton.addEventListener('click', () => {
+		const close_fn = () => {
 			fadeOutAndRemove(modal);
-			reject('Modal closed');
+			document.removeEventListener("keyup", onEscKeyUp);
+		};
+		closeButton.addEventListener('click', () => {
+			close_fn();
+			reject('Modal closed via close button');
 		});
+
+		const onEscKeyUp = (event: KeyboardEvent): void => {
+			if (event.key === "Escape") {
+				close_fn();
+				reject('Modal closed via Escape key');
+			}
+		};
+		document.addEventListener("keyup", onEscKeyUp);
 
 		const submit_fn = () => {
 			const results: Record<string, string> = {};
@@ -165,7 +178,7 @@ export function create_modal(onCreate: (container: HTMLElement) => void): Promis
 					results[control.name] = control.value;
 				}
 			});
-			fadeOutAndRemove(modal);
+			close_fn();
 			resolve(results);
 		};
 		submitButton.addEventListener('click', submit_fn);
@@ -412,9 +425,13 @@ export function create_chat_bubble(parent: HTMLElement, kind: "command" | "respo
 }
 
 export class FadingChatModal {
+	LOGGER: Logger;
+	SESSION_ID: number;
 	modal: HTMLDivElement;
 	content: HTMLDivElement;
-	constructor() {
+	constructor(LOGGER: Logger, SESSION_ID: number) {
+		this.LOGGER = LOGGER;
+		this.SESSION_ID = SESSION_ID;
 		this.modal = create_element(document.body, "div", { class: "modal", style: "display: none; opacity: 0; pointer-events: none;" });
 		this.content = create_element(this.modal, 'div');
 		this.content.style.color = '#fff';
@@ -428,6 +445,16 @@ export class FadingChatModal {
 		this.content.style.right = '0px';
 		this.content.style.bottom = '0px';
 		this.content.style.pointerEvents = 'none';
+
+		registerMessageHandler(async (message) => {
+			if (message.type === MessageType.PROGRESS_REPORT) {
+				if (message.data && message.data.session_id === SESSION_ID && message.data.message) {
+					console.log("message.data", message.data);
+					this.set_chat_bubble(message.data.kind, message.data.kind, message.data.message, String(message.data.meta ?? ""));
+				}
+			}
+			return { success: true };
+		});
 	}
 
 	fadeIn() {
@@ -450,5 +477,48 @@ export class FadingChatModal {
 	append_chat_bubble(kind: "command" | "response" | "progress" | "error" | "info", title: string, text: string, meta?: string) {
 		const container = create_element(this.content, 'div', { class: "bg-color", style: "border-radius: 8px; overflow: hidden; margin-top: 10px;" });
 		create_chat_bubble(container, kind, title, text, meta);
+	}
+
+	
+	async promptFunctionArguments(functionArguments: FunctionArgument[]): Promise<Record<string, string> | null> {
+		if (functionArguments === undefined || functionArguments.length === 0) return {};
+		try {
+			const result = await create_modal((container) => {
+				let first = true;
+				for (const fa of functionArguments) {
+					let fc;
+					if (fa.type === "textarea" || fa.type === "list") {
+						fc = create_formcontrol(container, "textarea", fa.varname, fa.question, { value: fa.varvalue, required: !fa.optional });
+					} else {
+						fc = create_formcontrol(container, "text", fa.varname, fa.question, { value: fa.varvalue, required: !fa.optional });
+					}
+					if (first) {
+						setTimeout(() => {
+							fc.focus();
+						}, 100);
+					}
+				}
+			});
+			return result;
+		} catch {
+			return null;
+		}
+	}
+
+	async execute_script(script: Script) {
+		const function_arguments = await this.promptFunctionArguments(script.function_arguments);
+		if (function_arguments === null) return;
+
+		this.fadeIn();
+		const response = await execute_script(this.LOGGER, this.SESSION_ID, script.id, function_arguments);
+		// show fading modal with command bubble
+		try {
+			if (!response.success) {
+				this.append_chat_bubble("error", "Response", response.error ?? `Failed to execute ${script.name}`, script.id);
+			}
+			this.fadeOut();
+		} catch (err) {
+			console.error("show_fading_chat_modal failed", err);
+		}
 	}
 }

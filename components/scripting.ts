@@ -173,9 +173,9 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 		name: "Assign Variable from Element Attribute",
 		kind: ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE,
 		available_arguments: [
+			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
 			{ argument: "scope", type: "text", required: true, use_set_method: false },
 			{ argument: "name", type: "text", required: true, use_set_method: false },
-			{ argument: "element_selector", type: "text", required: true, use_set_method: false },
 			{ argument: "attribute", type: "text", required: true, use_set_method: false },
 		],
 	},

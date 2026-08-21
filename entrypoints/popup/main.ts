@@ -6,7 +6,7 @@ import { add_spoiler_event, create_element, create_text_element, save_as_file, l
 import { ChatUI } from './chat_ui';
 import { ScriptingUI } from './scripting_ui';
 import { TriggersUI } from './triggers_ui';
-import { buttongrid_ui, create_profile_select, profile_select_onchange } from './buttongrid_ui';
+import { buttongrid_ui, ProfileSelector } from './buttongrid_ui';
 
 
 const LOGGER = new Logger(LogFrom.popup);
@@ -461,29 +461,29 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		const predefined_profile_container = create_element(settings_container, "div", { id: "predefined_profile_container", style: "padding: 0 1rem 1rem 1rem; background:  #0d4159;" });
 		const profile_title_row = create_element(predefined_profile_container, "div", { id: "profile_title_row", style: "" });
 		const h3 = create_text_element(profile_title_row, "h3", "Predefined variables for profile: ", { style: "display: inline-block; vertical-align: top; width: 230px; margin: 0 0 8px 0;" });
-		const profile_select = create_profile_select(shared, profile_title_row, false);
-		profile_select.className += " fc-small";
+		const profile_selector = new ProfileSelector(shared, profile_title_row, false);
+		profile_selector.profile_select.className += " fc-small";
 		const predefined_profile_rows_container = create_element(predefined_profile_container, "div", { id: "predefined_profile_container_inner" });
 		const profile_onchange = () => {
 			predefined_profile_rows_container.innerHTML = "";
-			if (profile_select.value !== "" && profile_select.value !== "-1") {
-				const index = parseInt(profile_select.value);
-				const vars = shared.data.predefined_profile_vars[index] || {} as Record<string, string>;
+			if (profile_selector.profile_select.value !== "" && profile_selector.profile_select.value !== "-1") {
+				const index = parseInt(profile_selector.profile_select.value);
+				if(shared.data.predefined_profile_vars[index] === undefined) shared.data.predefined_profile_vars[index] = {};
 				
 				shared.applyStateChange({
 					button_grid_index: index,
 				});
-				predefined_container(predefined_profile_rows_container, vars, () => {
-					shared.changeProfile(parseInt(profile_select.value));
+				predefined_container(predefined_profile_rows_container, shared.data.predefined_profile_vars[index], () => {
+					shared.changeProfile(parseInt(profile_selector.profile_select.value));
 				});
 			}
 		};
-		profile_select.addEventListener("click", () => profile_select_onchange(shared, profile_select, false, profile_onchange, profile_onchange));
+		profile_selector.profile_select.addEventListener("change", () => profile_selector.profile_select_onchange(shared, profile_onchange, profile_onchange));
 		profile_onchange();
 		const profile_edit_name = create_text_element(profile_title_row, "button", "Edit name", { class: "btn-insert", style: "width: 80px;" });
 		profile_edit_name.addEventListener("click", () => {
-			if (profile_select.value !== "" && profile_select.value !== "-1") {
-				const index = parseInt(profile_select.value);
+			if (profile_selector.profile_select.value !== "" && profile_selector.profile_select.value !== "-1") {
+				const index = parseInt(profile_selector.profile_select.value);
 				const profile = shared.data.button_grids[index]!;
 				create_modal((container: HTMLElement) => {
 					create_formcontrol(container, "text", "title", "Title", { value: profile.title });
@@ -496,11 +496,14 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 		})
 		const profile_delete = create_text_element(profile_title_row, "button", "Delete profile", { class: "btn-delete", style: "width: 100px;" });
 		profile_delete.addEventListener("click", () => {
-			if (profile_select.value !== "" && profile_select.value !== "-1") {
-				const index = parseInt(profile_select.value);
+			if (profile_selector.profile_select.value !== "" && profile_selector.profile_select.value !== "-1") {
+				const index = parseInt(profile_selector.profile_select.value);
 				const profile = shared.data.button_grids[index]!;
 				create_delete_confirm_modal("Are you sure, you want to delete profile \""+profile.title+"\"").then(() => {
-					delete shared.data.button_grids[index];
+					shared.data.button_grids = shared.data.button_grids.filter(
+						(item, i) => item !== null && i !== index
+					);
+					  
 					if (shared.data.button_grid_index === index) {
 						shared.data.button_grid_index = -1;
 					}
@@ -509,7 +512,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 				});
 			}
 		})
-		profile_select.parentElement!.style.width = "calc(100% - 20px - "+h3.style.width+" - "+profile_edit_name.style.width+" - "+profile_delete.style.width+")";
+		profile_selector.profile_select.parentElement!.style.width = "calc(100% - 20px - "+h3.style.width+" - "+profile_edit_name.style.width+" - "+profile_delete.style.width+")";
 
 		// Settings - checkbox settings
 		const checkbox_container = create_element(settings_container, "div", { id: "checkbox_settings", class: "checkbox_settings", style: "margin: 1rem;" });
@@ -573,6 +576,7 @@ async function init(COMMANDER: BotCommander, shared: SharedData) {
 			});
 		})();
 	}
+
 	function predefined_container(container: HTMLElement, record: Record<string, string>, onstatechange: ()=>void) {
 		const inner_container = create_element(container, "div", { style: "max-width: 600px;" });
 		function predefined_row(key: string, value: string) {

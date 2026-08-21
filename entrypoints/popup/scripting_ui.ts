@@ -23,6 +23,7 @@ export class ScriptingUI {
 	
 	/** list all scripts with actions: edit, delete, execute */
 	build_scripting_list(parent: HTMLElement) {
+		const fading_chat_modal = new FadingChatModal(this.LOGGER, this.SESSION_ID);
 		const new_spoiler = create_element(parent, "div", { class:"spoiler-container" });
 		const new_spoiler_title = create_text_element(new_spoiler, "div", "Create new Script", { class:"spoiler-title" });
 		const new_spoiler_content = create_element(new_spoiler, "div", { class:"spoiler-content" });
@@ -70,7 +71,7 @@ export class ScriptingUI {
 					render_script_list();
 				});
 				create_text_element(actions, "button", "Execute", { class:"btn-insert" }).addEventListener("click", () => {
-					execute_script(this.LOGGER, this.SESSION_ID, script.id)
+					fading_chat_modal.execute_script(script);
 				});
 			}
 		}
@@ -284,13 +285,15 @@ export class ScriptingUI {
 		const action_type_change_event = () => {
 			arguments_container.innerHTML = "";
 			action_hint.innerText = "";
+			for(const fc of function_arguments_fc_array) fc.remove();
+			function_arguments_fc_array = [];
 			arguments_fc_array.length = 0;
 			if (action_type_select.value === "") return;
 			const action_type = SCRIPTING_ACTIONS_TYPES[parseInt(action_type_select.value)]!;
 			if (action_type.kind === ActionKind.SET_VARIABLE) {
 				action_hint.innerText += 'Define a variable name and value. Local variables exist only during this script run. Variables can be used in STRING with ${local:var}.';
 			} else if (action_type.kind === ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE) {
-				action_hint.innerText += 'Read an element attribute and store it in a variable. Variables can be used in STRING with ${local:var}.<br>';
+				action_hint.innerText += 'Read an element attribute and store it in a variable. Variables can be used in STRING with ${local:var}.\n';
 				action_hint.innerText += 'Use "length" as attribute to get the count of selector matches. ';
 				action_hint.innerText += 'Special values as "attribute": value, innertext, innerhtml, outerhtml';
 			}
@@ -345,7 +348,6 @@ export class ScriptingUI {
 				} else if (argument.argument === "element_selector") {
 					const {get_element_selector_list} = this.create_element_selector_fc(arguments_container, argument_value);
 					get_element_selector = get_element_selector_list;
-					arguments_container = create_element(arguments_container, "div", { class: "fc-container-6", style: "vertical-align: top;" });
 				} else if (argument.type === "checkbox") {
 					const checkboxChecked = argument_value === "true" || argument_value === "on" || argument_value === "1" || argument_value === "";
 					arguments_fc_array.push(create_formcontrol(arguments_container, "checkbox", argument.argument, argument.argument, {
@@ -362,16 +364,18 @@ export class ScriptingUI {
 							for(const fc of function_arguments_fc_array) fc.remove();
 							function_arguments_fc_array = [];
 
-							const script = this.shared.get_script(reference_select.value);
-							for(const fa of script.function_arguments) {
-								let varvalue = "";
-								if (initial && initial.arguments.pass_variables) {
-									for (const [_varname, _varvalue] of Object.entries(initial.arguments.pass_variables)) {
-										if(_varname === fa.varname) varvalue = _varvalue;
+							if (reference_select.value !== "") {
+								const script = this.shared.get_script(reference_select.value);
+								for(const fa of script.function_arguments) {
+									let varvalue = "";
+									if (initial && initial.arguments.pass_variables) {
+										for (const [_varname, _varvalue] of Object.entries(initial.arguments.pass_variables)) {
+											if(_varname === fa.varname) varvalue = _varvalue;
+										}
 									}
+									const fc = create_formcontrol(arguments_container, fa.type as any, fa.varname, fa.question, { value: varvalue, class: "fc-container-3" });
+									function_arguments_fc_array.push(fc);
 								}
-								const fc = create_formcontrol(arguments_container, fa.type as any, fa.varname, fa.question, { value: varvalue, class: "fc-container-3" });
-								function_arguments_fc_array.push(fc);
 							}
 						}
 						change();
