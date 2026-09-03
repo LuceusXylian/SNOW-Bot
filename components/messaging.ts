@@ -73,11 +73,13 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, errorMessa
  * @param callback Function that handles incoming messages and returns a response
  */
 export function registerMessageHandler<T>(
-	callback: (message: Message, sender?: any) => Promise<MessageResponse<T>> | MessageResponse<T>
+	callback: (message: Message, sender?: any) => Promise<MessageResponse<T> | undefined> | MessageResponse<T> | undefined
 ) {
 	// @ts-ignore noImplicitAny
 	browser.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-		Promise.resolve(callback(message, sender)).then(sendResponse).catch((error) => {
+		Promise.resolve(callback(message, sender)).then((response) => {
+			if (response !== undefined) sendResponse(response);
+		}).catch((error) => {
 			sendResponse({
 				success: false,
 				error: error instanceof Error ? error.message : String(error),

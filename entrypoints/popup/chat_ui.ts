@@ -43,7 +43,6 @@ export class ChatUI extends ScriptingUI {
 					instance.appendHistory(message.data.kind, message.data.kind, message.data.message, String(message.data.meta ?? ""));
 				}
 			}
-			return { success: true };
 		});
 	}
 

@@ -453,7 +453,6 @@ export class FadingChatModal {
 					this.set_chat_bubble(message.data.kind, message.data.kind, message.data.message, String(message.data.meta ?? ""));
 				}
 			}
-			return { success: true };
 		});
 	}
 

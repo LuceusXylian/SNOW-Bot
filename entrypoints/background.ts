@@ -27,6 +27,14 @@ export default defineBackground(() => {
 	const COMMANDER = new BotCommander(LOGGER);
 	const global_variables: Record<string, string> = {};
 	let shared: SharedData;
+	let handleMessage: ((message: Message, sender?: any) => Promise<MessageResponse<any>>) | undefined;
+	const sharedReady = initializeSharedData(COMMANDER);
+
+	registerMessageHandler(async (message, sender) => {
+		await sharedReady;
+		if (!handleMessage) return error_message("Background message handler is not ready");
+		return handleMessage(message, sender);
+	});
 
 	function resolveActionArgument(value: string, local_variables: Record<string, string>): string {
 		console.log("resolveActionArgument", value);
@@ -72,14 +80,14 @@ export default defineBackground(() => {
 		return bot.sendMessage(MessageType.INSERT_TEMPLATE, {...options, content: content });
 	}
 
-	initializeSharedData(COMMANDER).then(async (loadedShared) => {
+	sharedReady.then(async (loadedShared) => {
 		shared = loadedShared;
 		LOGGER.log("Background script initialized", { id: browser.runtime.id });
 
 		/**
 		 * Message handler for all incoming messages
 		 */
-		async function handleMessage(message: Message, sender?: any): Promise<MessageResponse<any>> {
+		handleMessage = async function(message: Message, sender?: any): Promise<MessageResponse<any>> {
 			LOGGER.debug(`Received message: ${message.type}`, message);
 
 			try {
@@ -97,7 +105,8 @@ export default defineBackground(() => {
 					case MessageType.GET_STATE:
 						// Return current shared data
 						LOGGER.debug("shared.export()", shared.export())
-						return success_message(JSON.stringify(shared.export(), null));
+						const response = success_message(JSON.stringify(shared.export(), null));
+						return response;
 
 					case MessageType.UPDATE_SHARED_DATA: {
 						// Update active state
@@ -268,9 +277,6 @@ export default defineBackground(() => {
 				return error_message(error instanceof Error ? error.message : String(error));
 			}
 		}
-
-		// Register the message handler
-		registerMessageHandler(handleMessage);
 
 		// create function to send progress reports
 		async function progress_report(session_id: number|null, script: Script, kind: "progress" | "error" | "info" | "response", message: string) {
