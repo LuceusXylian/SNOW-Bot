@@ -71,13 +71,14 @@ export default defineBackground(() => {
 		COMMANDER.forgetTab(tabId);
 	});
 
-	async function template_execute_insert(bot: BotInstance, template_id: string, options: Object, local_variables: Record<string, string>) {
+	async function template_execute_insert(_bot: BotInstance|undefined, template_id: string, options: Object, local_variables: Record<string, string>, message_context?: ScriptMessageContext) {
+		const bot = _bot ?? await COMMANDER.getBotFocus();
 		const template = shared.get_template(template_id);
 		let content = resolveActionArgument(template.content, local_variables);
 		for (const [key, value] of Object.entries(shared.data.persistent_variables)) {
 			content = content.split("["+key+"]").join(value);
 		}
-		return bot.sendMessage(MessageType.INSERT_TEMPLATE, {...options, content: content });
+		return bot.sendMessage(MessageType.INSERT_TEMPLATE, {...options, content: content }, message_context);
 	}
 
 	sharedReady.then(async (loadedShared) => {
@@ -229,7 +230,7 @@ export default defineBackground(() => {
 					if (script_id) {
 						const script = shared.get_script(script_id);
 						if (script) {
-							void script_worker(session_id, script, function_arguments ?? {});
+							void script_worker(session_id, script, function_arguments ?? {}, true);
 							return success_message({});
 						}
 						await progress_report(session_id, { name: String(script_id) } as Script, "error", "Invalid script with id " + script_id);
@@ -258,13 +259,13 @@ export default defineBackground(() => {
 								condition.target.target_type === ConditionTargetType.HOSTNAME ||
 								condition.target.target_type === ConditionTargetType.URL
 							);
-							const lineContext: ScriptMessageContext = frame_conditions.length ? { conditions: frame_conditions } : {};
-							const result = await checkConditions(trigger.conditions, bot, {}, undefined, lineContext);
+							const lineContext: ScriptMessageContext|undefined = frame_conditions.length ? { conditions: frame_conditions } : undefined;
+							const result = await checkConditions(trigger.conditions, {}, bot, undefined, lineContext);
 							if(!result.success || !result.result) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
 						await progress_report(session_id, script, "progress", "Trigger `"+trigger.name+"` conditions fulfilled.");
-						void script_worker(session_id, script, {}, bot);
+						void script_worker(session_id, script, {}, true, bot);
 						return success_message({});
 					}
 
@@ -299,17 +300,24 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
-		async function checkConditions(conditions: Condition[], bot: BotInstance, local_variables: Record<string, string>, foreach_context?: ForeachContext, script_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; script_context?: ScriptMessageContext }> {
+		async function checkConditions(conditions: Condition[], local_variables: Record<string, string>, bot?: BotInstance, foreach_context?: ForeachContext, script_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; script_context?: ScriptMessageContext }> {
 			const variableConditions: Condition[] = [];
+			const urlConditions: Condition[] = [];
 			const otherConditions: Condition[] = [];
 			for (let condIndex = 0; condIndex < conditions.length; condIndex++) {
 				const condition = conditions[condIndex]!;
-				if (condition.target.target_type === ConditionTargetType.VARIABLE) {
+				if (condition.target.target_type === ConditionTargetType.VARIABLE
+				) {
 					variableConditions.push(condition);
+				} else if (condition.target.target_type === ConditionTargetType.HOSTNAME
+					|| condition.target.target_type === ConditionTargetType.URL
+				) {
+					urlConditions.push(condition);
 				} else {
 					otherConditions.push(condition);
 				}
 			}
+
 			for (let condIndex = 0; condIndex < variableConditions.length; condIndex++) {
 				const condition = variableConditions[condIndex]!;
 				const scope = condition.target.variable_scope;
@@ -330,7 +338,57 @@ export default defineBackground(() => {
 					};
 				}
 			}
+
+			if (urlConditions.length > 0) {
+				if (script_context) {
+					for(const c of urlConditions) {
+						if (!script_context.conditions.includes(c)) {
+							script_context.conditions.push(c);
+						}
+					}
+				} else {
+					script_context = { conditions: urlConditions };
+				}
+
+				let bot_is_none: boolean;
+				try {
+					bot = bot ?? await COMMANDER.getBotFocus();
+					bot_is_none = false;
+				} catch {
+					bot_is_none = true;
+					LOGGER.debug("COMMANDER.getBotFocus was unable to get a bot, but this can be intended behavihour then opening new URLs");
+				}
+
+				for(const c of urlConditions) {
+					// Exists checks
+					switch (c.type) {
+						case ConditionType.EXISTS: {
+							if(bot_is_none) {
+								return { success: true, result: false, error: "", script_context };
+							}
+							continue;
+						}
+						case ConditionType.EXISTS_NOT
+							|| ConditionType.IS_NOT
+							|| ConditionType.CONTAINS_NOT
+						: {
+							if(bot_is_none) {
+								return { success: true, result: true, error: "", script_context };
+							}
+							continue;
+						}
+						default:
+							break;
+					}
+				}
+				
+				if(!bot) return { success: true, result: false, error: "", script_context };
+				const result = background_check_conditions(await bot.getUrl(), script_context);
+				if(!result) return { success: true, result: false, error: "", script_context };
+			}
+
 			if (otherConditions.length > 0) {
+				bot = bot ?? await COMMANDER.getBotFocus();
 				const messageData: Record<string, any> = { conditions: otherConditions };
 				if (foreach_context) {
 					messageData.foreach_selector = foreach_context.foreach_selector;
@@ -358,9 +416,10 @@ export default defineBackground(() => {
 		}
 
 		// pass_variables become local_variables
-		async function script_worker(session_id: number|null, script: Script, pass_variables: Record<string, string>, _bot?: BotInstance, foreach_context?: ForeachContext) {
+		async function script_worker(session_id: number|null, script: Script, pass_variables: Record<string, string>, is_main: boolean, bot?: BotInstance, foreach_context?: ForeachContext) {
 			try {
-				const bot = _bot  ?? await COMMANDER.getBotFocus();
+				// We do not get bot focus on start, because we have actions that opens URLs -> new bot
+				// const bot = _bot  ?? await COMMANDER.getBotFocus();
 				await progress_report(session_id, script, "progress", "Script `" + script.name + "` started");
 
 				const local_variables: Record<string, string> = pass_variables;
@@ -387,9 +446,9 @@ export default defineBackground(() => {
 						condition.target.target_type === ConditionTargetType.HOSTNAME ||
 						condition.target.target_type === ConditionTargetType.URL
 					);
-					const lineContext: ScriptMessageContext = frame_conditions.length ? { conditions: frame_conditions } : {};
+					const lineContext: ScriptMessageContext|undefined = frame_conditions.length ? { conditions: frame_conditions } : undefined;
 					if (script_line.conditions.length) {
-						const result = await checkConditions(script_line.conditions, bot, local_variables, foreach_context, lineContext);
+						const result = await checkConditions(script_line.conditions, local_variables, bot, foreach_context, lineContext);
 						// "No bot available with the current conditions" -> ERROR, should skip instead
 						LOGGER.debug("line #"+index+" sendMessage_filtered_frames0 result ", result);
 						if (!result.success) {
@@ -419,7 +478,7 @@ export default defineBackground(() => {
 											pass_vars[name] = resolveActionArgument(value, local_variables);
 										}
 									}
-									await script_worker(session_id, action_script, pass_vars, bot);
+									await script_worker(session_id, action_script, pass_vars, false, bot);
 									await progress_report(session_id, script, "progress", "DONE  Action: Script `"+action_script.name+"` from Script `"+script.name+"`.");
 								break;
 								}
@@ -431,7 +490,7 @@ export default defineBackground(() => {
 
 									if (action.arguments.set_method === ActionSetMethod.TEMPLATE) {
 										// send INSERT_TEMPLTE with return_content option
-										const response = await template_execute_insert(bot, action.arguments.id as string, { return_content: true }, local_variables);
+										const response = await template_execute_insert(bot, action.arguments.id as string, { return_content: true }, local_variables, lineContext);
 										if (!response.success) {
 											throw new Error("Failed to resolve template content: " + response.error);
 										}
@@ -443,6 +502,7 @@ export default defineBackground(() => {
 									break;
 								}
 								case ActionKind.ASSIGN_VARIABLE_ELEMENT_ATTRIBUTE: {
+									bot = await COMMANDER.getBotFocus();
 									const scope = action.arguments.scope;
 									const name = action.arguments.name;
 									if (!scope) throw new Error("Error in script#" + script.id + ": variable scope is invalid");
@@ -492,7 +552,7 @@ export default defineBackground(() => {
 												insertData.foreach_selector = foreach_context.foreach_selector;
 												insertData.foreach_index = foreach_context.foreach_index;
 											}
-											const result = await template_execute_insert(bot, action.arguments.id as string, insertData, local_variables);
+											const result = await template_execute_insert(bot, action.arguments.id as string, insertData, local_variables, lineContext);
 											if (!result.success) {
 												await progress_report(session_id, script, "error", "Script `"+script.name+"` aborted. Action "+action.type.message_type+" failed. "+result.error);
 												return;
@@ -501,6 +561,7 @@ export default defineBackground(() => {
 										}
 
 										case MessageType.SET_ELEMENT_ATTRIBUTE: {
+											bot = await COMMANDER.getBotFocus();
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.attribute) throw new Error("Error in script#"+script.id+": attribute is invalid");
 											const setAttrData: Record<string, any> = {
@@ -524,6 +585,7 @@ export default defineBackground(() => {
 										}
 
 										case MessageType.TRIGGER_ELEMENT_EVENT: {
+											bot = await COMMANDER.getBotFocus();
 											if (!action.arguments.element_selector) throw new Error("Error in script#"+script.id+": element_selector is invalid");
 											if (!action.arguments.event_type) throw new Error("Error in script#"+script.id+": event_type is invalid");
 											const triggerData: Record<string, any> = {
@@ -608,14 +670,16 @@ export default defineBackground(() => {
 								}
 								break;
 							}
-								case ActionKind.OPEN_URL: {
+							case ActionKind.OPEN_URL: {
 								const url = resolveActionArgument(action.arguments.url ?? "", local_variables);
 								if (!url) throw new Error("Error in script#" + script.id + ": url is invalid");
 								const newTab = action.arguments.new_tab !== "false";
 								await progress_report(session_id, script, "progress", "Opening URL: " + url + (newTab ? " (new tab)" : ""));
 								if (newTab) {
+									// TODO: if varname is provided then save created tabId as local variable
 									await browser.tabs.create({ url, active: true });
 								} else {
+									bot = bot ?? await COMMANDER.getBotFocus();
 									await browser.tabs.update(bot.tabId, { url });
 								}
 								break;
@@ -631,6 +695,7 @@ export default defineBackground(() => {
 									break;
 								}
 								case ActionKind.FOREACH_ELEMENT: {
+									bot = bot ?? await COMMANDER.getBotFocus();
 									const forEachSelector = resolveActionArgument(action.arguments.element_selector ?? "", local_variables);
 									if (!forEachSelector) throw new Error("Error in script#" + script.id + ": element_selector is invalid");
 									if (!action.arguments.id) throw new Error("Error in script#" + script.id + ": id is invalid");
@@ -653,7 +718,7 @@ export default defineBackground(() => {
 											setVariable("local", "foreach_index", String(i));
 											setVariable("local", "foreach_count", String(count));
 											setVariable("local", "foreach_selector", forEachSelector);
-											await script_worker(session_id, foreachScript, {}, bot, {
+											await script_worker(session_id, foreachScript, {}, false, bot, {
 												foreach_selector: forEachSelector,
 												foreach_index: i,
 											});
@@ -675,7 +740,7 @@ export default defineBackground(() => {
 					}
 				}
 
-				if (_bot === undefined) progress_report(session_id, script, "response", "Script `" + script.name + "` completed. All actions ended successfully.");
+				if (is_main) progress_report(session_id, script, "response", "Script `" + script.name + "` completed. All actions ended successfully.");
 			} catch (error) {
 				if (error instanceof ExitAllScriptsError) {
 					await progress_report(session_id, script, "info", "Script `" + script.name + "` stopped by Exit All.");

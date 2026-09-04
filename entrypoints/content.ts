@@ -70,7 +70,7 @@ class BackgroundMessageHandler {
 			}
 
 			// check if bot is enabled before any bot action
-			if(!this.shared.data.active) error_message("Bot is disabled");
+			if(!this.shared.data.active) return error_message("Bot is disabled");
 
 			switch (message.type) {
 				case MessageType.INSERT_TEMPLATE: {

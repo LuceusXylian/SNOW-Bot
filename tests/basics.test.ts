@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { success_message, error_message, SharedData, shouldSendMessageToFrame } from '../components/basics';
+import { success_message, error_message, SharedData, background_check_conditions } from '../components/basics';
 import { withTimeout } from '../components/messaging';
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED } from '../components/constants';
 import { ConditionType, ConditionTargetType } from '../components/scripting';
@@ -73,7 +73,7 @@ describe('basics utilities', () => {
     expect(sd.data.persistent_variables).toEqual({ shared: 'global' });
   });
 
-  it('shouldSendMessageToFrame filters by hostname and URL conditions', () => {
+  it('background_check_conditions filters by hostname and URL conditions', () => {
     const hostnameConditions = [{
       target: { target_type: ConditionTargetType.HOSTNAME },
       type: ConditionType.IS,
@@ -85,10 +85,10 @@ describe('basics utilities', () => {
       string_value: '/tickets',
     }];
 
-    expect(shouldSendMessageToFrame('https://example.com/page', { conditions: hostnameConditions })).toBe(true);
-    expect(shouldSendMessageToFrame('https://foo.example.com/page', { conditions: hostnameConditions })).toBe(false);
-    expect(shouldSendMessageToFrame('https://example.com/tickets/1', { conditions: urlConditions })).toBe(true);
-    expect(shouldSendMessageToFrame('https://example.com/orders/1', { conditions: urlConditions })).toBe(false);
+    expect(background_check_conditions('https://example.com/page', { conditions: hostnameConditions })).toBe(true);
+    expect(background_check_conditions('https://foo.example.com/page', { conditions: hostnameConditions })).toBe(false);
+    expect(background_check_conditions('https://example.com/tickets/1', { conditions: urlConditions })).toBe(true);
+    expect(background_check_conditions('https://example.com/orders/1', { conditions: urlConditions })).toBe(false);
   });
 
   it('replaces unresolved placeholders with empty strings when prompting is disabled', async () => {

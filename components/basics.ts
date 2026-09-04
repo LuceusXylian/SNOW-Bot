@@ -28,14 +28,14 @@ export interface TemplateData {
 }
 
 export interface ScriptMessageContext {
-	conditions?: Condition[];
+	conditions: Condition[];
 }
 
-export function shouldSendMessageToFrame(frameUrl: string, scriptContext?: ScriptMessageContext): boolean {
-	if (!scriptContext?.conditions?.length) return true;
+export function background_check_conditions(frameUrl: string, scriptContext?: ScriptMessageContext): boolean {
+	if (!scriptContext?.conditions.length) return true;
 
-	console.log("shouldSendMessageToFrame frameUrl ", frameUrl);
-	console.log("shouldSendMessageToFrame scriptContext?.conditions ", scriptContext?.conditions);
+	console.log("background_check_conditions frameUrl ", frameUrl);
+	console.log("background_check_conditions scriptContext?.conditions ", scriptContext?.conditions);
 	for (const condition of scriptContext.conditions) {
 		let value1;
 		if (condition.target.target_type === ConditionTargetType.HOSTNAME) {
@@ -47,10 +47,10 @@ export function shouldSendMessageToFrame(frameUrl: string, scriptContext?: Scrip
 		}
 
 		const ret = testCondition(condition.type, value1, condition.string_value);
-		console.log("shouldSendMessageToFrame testCondition", value1, conditionType_toString(condition.type), condition.string_value, " = ", ret);
+		console.log("background_check_conditions testCondition", value1, conditionType_toString(condition.type), condition.string_value, " = ", ret);
 		if (!ret) return false;
 	}
-	console.log("shouldSendMessageToFrame frameUrl TRUE", frameUrl);
+	console.log("background_check_conditions frameUrl TRUE", frameUrl);
 	return true;
 }
 
@@ -60,7 +60,9 @@ export interface BotInstance {
 	// frameIds: number[]; Idea: instead of sending to all frames, send only to registered frames, to avoid so send to dead frames
 	hostname: string;
 	is_busy: boolean;
-	sendMessage: (message_type: MessageType, data: Object, options?: ScriptMessageContext) => Promise<any>
+	sendMessage: (message_type: MessageType, data: Object, message_context?: ScriptMessageContext) => Promise<any>,
+	// get current URL with tabId
+	getUrl: () => Promise<string>,
 }
 
 export enum BotSelect {
@@ -204,15 +206,15 @@ export class BotCommander {
 				tabId,
 				hostname,
 				is_busy: false,
-				sendMessage: async function (message_type: MessageType, data: Object, options?: ScriptMessageContext) {
+				sendMessage: async function (message_type: MessageType, data: Object, message_context?: ScriptMessageContext) {
 					this.is_busy = true;
 					
 					try {
 						const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
 						if(frames === null) return self.remove_bot(bot_id, "it has no frames");
 						
-						const filtered_frames = (options?.conditions?.length)
-							? frames.filter((frame) => shouldSendMessageToFrame(frame.url, options))
+						const filtered_frames = (message_context?.conditions.length)
+							? frames.filter((frame) => background_check_conditions(frame.url, message_context))
 							: frames;
 
 						if(filtered_frames.length === 0) {
@@ -273,6 +275,11 @@ export class BotCommander {
 						}
 						return error_message("Failed to send message: "+String(error));
 					}
+				},
+				// get current URL with tabId
+				getUrl: async () => {
+					const tab = await browser.tabs.get(tabId);
+					return tab.url ?? "";
 				}
 			};
 			this.botInstances[bot_id] = botInstance;

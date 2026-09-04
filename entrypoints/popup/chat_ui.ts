@@ -35,6 +35,8 @@ export class ChatUI extends ScriptingUI {
 		}
 		ChatUI.isListenerRegistered = true;
 
+		// IMPORTANT: this handler should never return a response! Because this would block the background from beeing able to respond
+		// which causes bots beeing unable to register
 		registerMessageHandler(async (message) => {
 			if (message.type === MessageType.PROGRESS_REPORT) {
 				const instance = ChatUI.activeInstance;
