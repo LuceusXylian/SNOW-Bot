@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { success_message, error_message, SharedData, background_check_conditions } from '../components/basics';
+import { success_message, error_message, SharedData, background_check_conditions, migrateScriptingData } from '../components/basics';
 import { withTimeout } from '../components/messaging';
 import { DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED } from '../components/constants';
 import { ConditionType, ConditionTargetType } from '../components/scripting';
@@ -85,10 +85,28 @@ describe('basics utilities', () => {
       string_value: '/tickets',
     }];
 
-    expect(background_check_conditions('https://example.com/page', { conditions: hostnameConditions })).toBe(true);
-    expect(background_check_conditions('https://foo.example.com/page', { conditions: hostnameConditions })).toBe(false);
-    expect(background_check_conditions('https://example.com/tickets/1', { conditions: urlConditions })).toBe(true);
-    expect(background_check_conditions('https://example.com/orders/1', { conditions: urlConditions })).toBe(false);
+    expect(background_check_conditions('https://example.com/page', { conditionGroups: [{ conditions: hostnameConditions }] })).toBe(true);
+    expect(background_check_conditions('https://foo.example.com/page', { conditionGroups: [{ conditions: hostnameConditions }] })).toBe(false);
+    expect(background_check_conditions('https://example.com/tickets/1', { conditionGroups: [{ conditions: urlConditions }] })).toBe(true);
+    expect(background_check_conditions('https://example.com/orders/1', { conditionGroups: [{ conditions: urlConditions }] })).toBe(false);
+  });
+
+  it('supports OR between condition groups and migrates legacy conditions', () => {
+    const oldData = {
+      scripts: [{ version: 0, id: 'script', name: 'Script', hide: false, function_arguments: [], lines: [{ conditions: [], actions: [] }] }],
+      triggers: [{ id: 'trigger', name: 'Trigger', script_id: 'script', events: [], every: null, conditions: [] }],
+    } as any;
+    migrateScriptingData(oldData);
+
+    expect(oldData.scripts[0].lines[0].conditionGroups).toEqual([{ conditions: [] }]);
+    expect(oldData.scripts[0].lines[0].conditions).toBeUndefined();
+    expect(oldData.triggers[0].conditionGroups).toEqual([{ conditions: [] }]);
+    expect(background_check_conditions('https://example.com/orders/1', {
+      conditionGroups: [
+        { conditions: [{ target: { target_type: ConditionTargetType.HOSTNAME }, type: ConditionType.IS, string_value: 'other.example' }] },
+        { conditions: [{ target: { target_type: ConditionTargetType.URL }, type: ConditionType.CONTAINS, string_value: '/orders/' }] },
+      ],
+    })).toBe(true);
   });
 
   it('replaces unresolved placeholders with empty strings when prompting is disabled', async () => {

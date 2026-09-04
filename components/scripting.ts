@@ -74,6 +74,10 @@ export interface Condition {
 	string_value: string
 }
 
+export interface ConditionGroup {
+	conditions: Condition[];
+}
+
 export enum ActionKind {
 	/** Run a script. Could be dangerous if a script is calling itself over and over again. */
 	SCRIPT = 0,
@@ -245,7 +249,7 @@ export const SCRIPTING_ACTIONS_TYPES: ActionType[] = [
 
 export interface ScriptLine {
 	/** empty array means that it has no conditions and it will always execute the actions */
-	conditions: Condition[],
+	conditionGroups: ConditionGroup[],
 	actions: Action[],
 }
 
@@ -284,8 +288,8 @@ export interface Trigger {
 	events: TriggerEvent[],
 	/** triggers every x seconds using setInterval */
 	every: number|null,
-	/** Additinal conditions before executing script */
-	conditions: Condition[],
+	/** Additional condition groups before executing script */
+	conditionGroups: ConditionGroup[],
 }
 
 export interface ForeachContext {

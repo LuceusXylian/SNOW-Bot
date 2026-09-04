@@ -1,4 +1,4 @@
-import type { Trigger, TriggerEvent, Condition } from "@/components/scripting";
+import type { Trigger, TriggerEvent, Condition, ConditionGroup } from "@/components/scripting";
 import { MessageType, sendMessage } from "@/components/messaging";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
 import { alert_modal, create_element, create_text_element, create_formcontrol } from "@/components/ui";
@@ -97,15 +97,24 @@ export class TriggersUI extends ScriptingUI {
 
 		create_text_element(parent, "h5", "Conditions");
 		const conditionsContainer = create_element(parent, "div");
-		const conditionForms: Array<{ get: () => Condition; elem: HTMLElement }> = [];
-
-		const addCondition = (initialCondition?: Condition) => {
-			const form = this.build_condition_form(conditionsContainer, initialCondition);
-			conditionForms.push(form);
+		const groupForms: Array<{ get: () => ConditionGroup; add: (condition?: Condition) => void }> = [];
+		const addGroup = (initialGroup?: ConditionGroup) => {
+			const groupContainer = create_element(conditionsContainer, "div", { style: "border:1px solid #777;padding:8px;margin:8px 0;" });
+			create_text_element(groupContainer, "strong", groupForms.length === 0 ? "All of these conditions" : "OR group");
+			const conditionForms: Array<{ get: () => Condition; elem: HTMLElement }> = [];
+			const group = { get: () => ({ conditions: conditionForms.map(form => form.get()) }), add: (condition?: Condition) => {
+				const form = this.build_condition_form(groupContainer, condition);
+				conditionForms.push(form);
+				groupContainer.appendChild(form.elem);
+			} };
+			groupForms.push(group);
+			conditionsContainer.appendChild(groupContainer);
+			(initialGroup?.conditions ?? []).forEach(condition => group.add(condition));
 		};
-
-		(initial?.conditions ?? []).forEach((cond) => addCondition(cond));
-		create_text_element(parent, "button", "+ Add Condition", { class: "fc fc-small", style: "margin-top: 1rem;" }).addEventListener("click", () => addCondition());
+		(initial?.conditionGroups ?? []).forEach(group => addGroup(group));
+		if (groupForms.length === 0) addGroup();
+		create_text_element(parent, "button", "+ Add Condition", { class: "fc fc-small", style: "margin-top: 1rem;" }).addEventListener("click", () => groupForms[groupForms.length - 1]!.add());
+		create_text_element(parent, "button", "+ Add OR Group", { class: "fc fc-small", style: "margin-top: 1rem; margin-left: .5rem;" }).addEventListener("click", () => addGroup());
 
 		const saveBtn = create_text_element(parent, "button", "Save Trigger", { class: "fc", style: "margin-top: 1.5rem;" });
 		saveBtn.addEventListener("click", async () => {
@@ -128,9 +137,7 @@ export class TriggersUI extends ScriptingUI {
 				.filter((form) => parent.contains(form.elem))
 				.map((form) => form.get())
 				.filter((event) => event.event_type && event.element_selector);
-			const conditions = conditionForms
-				.filter((form) => parent.contains(form.elem))
-				.map((form) => form.get());
+			const conditionGroups = groupForms.map((form) => form.get());
 			const everyValue = everyInput.value.trim();
 			const every = everyValue.length ? Number(everyValue) : null;
 
@@ -145,7 +152,7 @@ export class TriggersUI extends ScriptingUI {
 				script_id: scriptSelect.value,
 				events,
 				every: every !== null && !Number.isNaN(every) && every > 0 ? every : null,
-				conditions,
+				conditionGroups,
 			};
 
 			const existing = this.shared.data.triggers.findIndex((item) => item.id === trigger.id);

@@ -1,7 +1,7 @@
 import { LogFrom, Logger, SharedData, type SharedDataInner, type BotInstance, BotCommander, error_message, BotSelect, type ScriptMessageContext } from "@/components/basics";
 import { registerMessageHandler, type Message, type MessageResponse, MessageType, withTimeout } from "@/components/messaging";
 import { KEY_SHARED_DATA, APP_NAME } from "@/components/constants";
-import { ActionSetMethod, ActionKind, type Condition, ConditionTargetType, type ForeachContext, type Script, testCondition, conditionType_toString } from "@/components/scripting";
+import { ActionSetMethod, ActionKind, type Condition, type ConditionGroup, ConditionTargetType, type ForeachContext, type Script, testCondition, conditionType_toString } from "@/components/scripting";
 import { play_audio } from "@/components/client";
 
 const LOGGER = new Logger(LogFrom.background);
@@ -254,13 +254,9 @@ export default defineBackground(() => {
 							return error_message("Trigger #"+trigger_id+" references missing script");
 						}
 
-						if (trigger.conditions.length) {
-							const frame_conditions = trigger.conditions.filter((condition) =>
-								condition.target.target_type === ConditionTargetType.HOSTNAME ||
-								condition.target.target_type === ConditionTargetType.URL
-							);
-							const lineContext: ScriptMessageContext|undefined = frame_conditions.length ? { conditions: frame_conditions } : undefined;
-							const result = await checkConditions(trigger.conditions, {}, bot, undefined, lineContext);
+						if (trigger.conditionGroups.length) {
+							const lineContext = conditionGroupsToMessageContext(trigger.conditionGroups);
+							const result = await checkConditions(trigger.conditionGroups, {}, bot, undefined, lineContext);
 							if(!result.success || !result.result) return error_message("Trigger #"+trigger_id+" conditions failed. "+result.error);
 						}
 
@@ -300,7 +296,16 @@ export default defineBackground(() => {
 			await progress_report(session_id, script, "error", `${context}: ${errorText}`);
 		}
 
-		async function checkConditions(conditions: Condition[], local_variables: Record<string, string>, bot?: BotInstance, foreach_context?: ForeachContext, script_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; script_context?: ScriptMessageContext }> {
+		function conditionGroupsToMessageContext(conditionGroups: ConditionGroup[]): ScriptMessageContext {
+			const groups = conditionGroups
+				.map(group => ({ conditions: group.conditions.filter(condition =>
+					condition.target.target_type === ConditionTargetType.HOSTNAME || condition.target.target_type === ConditionTargetType.URL
+				) }))
+				.filter(group => group.conditions.length);
+			return { conditionGroups: groups };
+		}
+
+		async function checkConditionGroup(conditions: Condition[], local_variables: Record<string, string>, message_context: ScriptMessageContext, bot?: BotInstance, foreach_context?: ForeachContext): Promise<{ success: boolean; result: boolean; error: string; message_context: ScriptMessageContext }> {
 			const variableConditions: Condition[] = [];
 			const urlConditions: Condition[] = [];
 			const otherConditions: Condition[] = [];
@@ -323,7 +328,7 @@ export default defineBackground(() => {
 				const scope = condition.target.variable_scope;
 				const name = condition.target.variable_name;
 				if (!scope || !name) {
-					return { success: false, result: false, error: "Condition "+condIndex+": Variable condition missing scope or name" };
+					return { success: false, result: false, error: "Condition "+condIndex+": Variable condition missing scope or name", message_context };
 				}
 				const value1 = getVariable(local_variables, scope, name);
 				const value2 = resolveActionArgument(condition.string_value, local_variables);
@@ -334,20 +339,14 @@ export default defineBackground(() => {
 						success: true,
 						result: false,
 						error: "Failed "+debug_text,
-						script_context,
+						message_context,
 					};
 				}
 			}
 
 			if (urlConditions.length > 0) {
-				if (script_context) {
-					for(const c of urlConditions) {
-						if (!script_context.conditions.includes(c)) {
-							script_context.conditions.push(c);
-						}
-					}
-				} else {
-					script_context = { conditions: urlConditions };
+				if (!message_context) {
+					message_context = { conditionGroups: [{ conditions: urlConditions }] };
 				}
 
 				let bot_is_none: boolean;
@@ -364,7 +363,7 @@ export default defineBackground(() => {
 					switch (c.type) {
 						case ConditionType.EXISTS: {
 							if(bot_is_none) {
-								return { success: true, result: false, error: "", script_context };
+								return { success: true, result: false, error: "", message_context };
 							}
 							continue;
 						}
@@ -373,7 +372,7 @@ export default defineBackground(() => {
 							|| ConditionType.CONTAINS_NOT
 						: {
 							if(bot_is_none) {
-								return { success: true, result: true, error: "", script_context };
+								return { success: true, result: true, error: "", message_context };
 							}
 							continue;
 						}
@@ -382,26 +381,40 @@ export default defineBackground(() => {
 					}
 				}
 				
-				if(!bot) return { success: true, result: false, error: "", script_context };
-				const result = background_check_conditions(await bot.getUrl(), script_context);
-				if(!result) return { success: true, result: false, error: "", script_context };
+				if(!bot) return { success: true, result: false, error: "", message_context };
+				const result = background_check_conditions(await bot.getUrl(), message_context);
+				if(!result) return { success: true, result: false, error: "", message_context };
 			}
 
 			if (otherConditions.length > 0) {
 				bot = bot ?? await COMMANDER.getBotFocus();
-				const messageData: Record<string, any> = { conditions: otherConditions };
+				const messageData: Record<string, any> = { conditionGroups: [{ conditions: otherConditions }] };
 				if (foreach_context) {
 					messageData.foreach_selector = foreach_context.foreach_selector;
 					messageData.foreach_index = foreach_context.foreach_index;
 				}
-				const response = await bot.sendMessage(MessageType.CHECK_CONDITIONS, messageData, script_context);
+				const response = await bot.sendMessage(MessageType.CHECK_CONDITIONS, messageData, message_context);
 				return {
 					success: response.success,
 					result: response.data?.result,
 					error: response.success? (response.data?.message ?? "") : (response.error ?? ""),
+					message_context,
 				};
 			}
-			return { success: true, result: true, error: "", script_context };
+			return { success: true, result: true, error: "", message_context };
+		}
+
+		async function checkConditions(conditionGroups: ConditionGroup[], local_variables: Record<string, string>, bot?: BotInstance, foreach_context?: ForeachContext, message_context?: ScriptMessageContext): Promise<{ success: boolean; result: boolean; error: string; message_context?: ScriptMessageContext }> {
+			if (!conditionGroups.length) return { success: true, result: true, error: "", message_context };
+			let lastResult: { success: boolean; result: boolean; error: string; message_context?: ScriptMessageContext } = { success: true, result: false, error: "", message_context };
+			for (const group of conditionGroups) {
+				const groupContext = conditionGroupsToMessageContext([group]);
+				const result = await checkConditionGroup(group.conditions, local_variables, bot, foreach_context, message_context);
+				if (!result.success) return result;
+				if (result.result) return result;
+				lastResult = result;
+			}
+			return lastResult;
 		}
 
 		class ExitAllScriptsError extends Error {}
@@ -442,13 +455,9 @@ export default defineBackground(() => {
 
 				for (let index = 0; index < script.lines.length; index++) {
 					const script_line = script.lines[index]!;
-					const frame_conditions = script_line.conditions.filter((condition) =>
-						condition.target.target_type === ConditionTargetType.HOSTNAME ||
-						condition.target.target_type === ConditionTargetType.URL
-					);
-					const lineContext: ScriptMessageContext|undefined = frame_conditions.length ? { conditions: frame_conditions } : undefined;
-					if (script_line.conditions.length) {
-						const result = await checkConditions(script_line.conditions, local_variables, bot, foreach_context, lineContext);
+					const lineContext = conditionGroupsToMessageContext(script_line.conditionGroups);
+					if (script_line.conditionGroups.length) {
+						const result = await checkConditions(script_line.conditionGroups, local_variables, bot, foreach_context, lineContext);
 						// "No bot available with the current conditions" -> ERROR, should skip instead
 						LOGGER.debug("line #"+index+" sendMessage_filtered_frames0 result ", result);
 						if (!result.success) {

@@ -26,7 +26,7 @@ export enum MessageType {
 export interface Message {
 	type: MessageType;
 	data?: any;
-	script_context?: ScriptMessageContext;
+	message_context?: ScriptMessageContext;
 }
 
 export interface MessageResponse<T> {

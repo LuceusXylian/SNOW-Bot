@@ -1,4 +1,4 @@
-import { type Script, type Trigger, type ScriptLine, type Condition, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind, type FunctionArgument, type ActionArguments } from "@/components/scripting";
+import { type Script, type Trigger, type ScriptLine, type Condition, type ConditionGroup, ConditionType, ConditionTargetType, ActionSetMethod, type Action, SCRIPTING_ACTIONS_TYPES, type Reference, execute_script, ActionKind, type FunctionArgument, type ActionArguments } from "@/components/scripting";
 import { MessageType } from "@/components/messaging";
 import { SCRIPTING_VERSION, IS_POPUP_QUERY_STRING, BUNDLED_SOUNDS, QUERY_SELECTOR_LIST_DELIMITER } from "@/components/constants";
 import { BotCommander, Logger, SharedData } from "@/components/basics";
@@ -459,40 +459,33 @@ export class ScriptingUI {
 		
 		// Conditions section
 		create_text_element(container, "h5", "Conditions");
-		const conditionsContainer = create_element(container, "div", { class: "conditions-list" });
-		const conditionForms: { elem: HTMLElement, get: () => Condition }[] = [];
-		
-		const renderConditions = () => {
-			conditionsContainer.innerHTML = "";
-			conditionForms.forEach((form) => {
-				conditionsContainer.appendChild(form.elem);
-			});
+		const conditionsContainer = create_element(container, "div", { class: "condition-groups-list" });
+		const groupForms: { elem: HTMLElement, get: () => ConditionGroup, add: (condition?: Condition) => void }[] = [];
+		const addGroup = (initialGroup?: ConditionGroup) => {
+			const groupContainer = create_element(conditionsContainer, "div", { class: "condition-group", style: "border:1px solid #777;padding:8px;margin:8px 0;" });
+			create_text_element(groupContainer, "strong", groupForms.length === 0 ? "All of these conditions" : "OR group");
+			const conditionContainer = create_element(groupContainer, "div", { class: "conditions-list" });
+			const conditionForms: { elem: HTMLElement, get: () => Condition }[] = [];
+			const form = { elem: groupContainer, get: () => ({ conditions: conditionForms.map(item => item.get()) }), add: (condition?: Condition) => {
+				const conditionForm = this.build_condition_form(conditionContainer, condition, () => {
+					const index = conditionForms.findIndex(item => item.elem === conditionForm.elem);
+					if (index !== -1) conditionForms.splice(index, 1);
+					conditionContainer.innerHTML = "";
+					conditionForms.forEach(item => conditionContainer.appendChild(item.elem));
+				});
+				conditionForms.push(conditionForm);
+				conditionContainer.appendChild(conditionForm.elem);
+			} };
+			groupForms.push(form);
+			conditionsContainer.appendChild(groupContainer);
+			(initialGroup?.conditions ?? []).forEach(condition => form.add(condition));
 		};
-		
-		(initial?.conditions ?? []).forEach(cond => {
-			const condForm = this.build_condition_form(conditionsContainer, cond, () => {
-				const index = conditionForms.findIndex((f) => f.elem === condForm.elem);
-				if (index !== -1) {
-					conditionForms.splice(index, 1);
-					renderConditions();
-				}
-			});
-			conditionForms.push(condForm);
-		});
-		renderConditions();
-		
+		(initial?.conditionGroups ?? []).forEach(group => addGroup(group));
+		if (groupForms.length === 0) addGroup();
 		const addCondBtn = create_text_element(container, "button", "+ Add Condition", { class:"fc fc-small", style:"margin-top: 1rem;" });
-		(addCondBtn as HTMLButtonElement).addEventListener("click", () => {
-			const condForm = this.build_condition_form(conditionsContainer, undefined, () => {
-				const index = conditionForms.findIndex((f) => f.elem === condForm.elem);
-				if (index !== -1) {
-					conditionForms.splice(index, 1);
-					renderConditions();
-				}
-			});
-			conditionForms.push(condForm);
-			renderConditions();
-		});
+		(addCondBtn as HTMLButtonElement).addEventListener("click", () => groupForms[groupForms.length - 1]!.add());
+		const addGroupBtn = create_text_element(container, "button", "+ Add OR Group", { class:"fc fc-small", style:"margin-top: 1rem; margin-left: .5rem;" });
+		(addGroupBtn as HTMLButtonElement).addEventListener("click", () => addGroup());
 		
 		// Actions section
 		create_text_element(container, "h5", "Actions");
@@ -534,7 +527,7 @@ export class ScriptingUI {
 		return {
 			get(): ScriptLine {
 				return {
-					conditions: conditionForms.map(f => f.get()),
+					conditionGroups: groupForms.map(f => f.get()),
 					actions: actionForms.map(f => f.get())
 				};
 			}
@@ -742,18 +735,26 @@ export class ScriptingUI {
 		// Conditions section
 		create_text_element(container, "h4", "Trigger Conditions");
 		const conditionsContainer = create_element(container, "div", { class: "trigger-conditions-list" });
-		const conditionForms: ReturnType<typeof this.build_condition_form>[] = [];
-		
-		(initial?.conditions ?? []).forEach(cond => {
-			const condForm = this.build_condition_form(conditionsContainer, cond);
-			conditionForms.push(condForm);
-		});
-		
+		const groupForms: { get: () => ConditionGroup, add: (condition?: Condition) => void }[] = [];
+		const addGroup = (initialGroup?: ConditionGroup) => {
+			const groupContainer = create_element(conditionsContainer, "div", { style: "border:1px solid #777;padding:8px;margin:8px 0;" });
+			create_text_element(groupContainer, "strong", groupForms.length === 0 ? "All of these conditions" : "OR group");
+			const conditionForms: ReturnType<typeof this.build_condition_form>[] = [];
+			const group = { get: () => ({ conditions: conditionForms.map(form => form.get()) }), add: (condition?: Condition) => {
+				const conditionForm = this.build_condition_form(groupContainer, condition);
+				conditionForms.push(conditionForm);
+				groupContainer.appendChild(conditionForm.elem);
+			} };
+			groupForms.push(group);
+			conditionsContainer.appendChild(groupContainer);
+			(initialGroup?.conditions ?? []).forEach(condition => group.add(condition));
+		};
+		(initial?.conditionGroups ?? []).forEach(group => addGroup(group));
+		if (groupForms.length === 0) addGroup();
 		const addCondBtn = create_text_element(container, "button", "+ Add Condition");
-		(addCondBtn as HTMLButtonElement).addEventListener("click", () => {
-			const condForm = this.build_condition_form(conditionsContainer);
-			conditionForms.push(condForm);
-		});
+		(addCondBtn as HTMLButtonElement).addEventListener("click", () => groupForms[groupForms.length - 1]!.add());
+		const addGroupBtn = create_text_element(container, "button", "+ Add OR Group");
+		(addGroupBtn as HTMLButtonElement).addEventListener("click", () => addGroup());
 		
 		// Script section
 		create_text_element(container, "h4", "Associated Script");
@@ -785,7 +786,7 @@ export class ScriptingUI {
 				script_id: script.id,
 				events: initial?.events ?? [],
 				every: everyInput.value ? parseInt(everyInput.value) : null,
-				conditions: conditionForms.map(f => f.get()),
+				conditionGroups: groupForms.map(f => f.get()),
 			};
 			(container as any).trigger = trigger;
 		});

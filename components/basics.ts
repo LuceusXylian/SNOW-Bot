@@ -1,6 +1,6 @@
-import { QUERY_SELECTOR_LIST_DELIMITER, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE, get_default_button_grid_cols } from "./constants";
+import { QUERY_SELECTOR_LIST_DELIMITER, DEFAULT_ACTIVE, DEFAULT_ALLOW_PROMPT, DEFAULT_PASTE_CLEANER_ENABLED, MAX_LOG_ENTRIES, DEFAULT_ALLOW_ALERT_NOTIFY, DEFAULT_DATETIME_LOCALE, DEFAULT_NOTIFY_SOUND_ENABLED, DEFAULT_NOTIFY_SOUND_SOURCE, DEFAULT_NOTIFY_SPEAKER_DEVICE, get_default_button_grid_cols, SCRIPTING_VERSION } from "./constants";
 import { MessageType, sendMessage } from "./messaging";
-import { testCondition, ConditionTargetType, conditionType_toString, type Script, type Trigger } from "./scripting";
+import { testCondition, ConditionTargetType, conditionType_toString, type ConditionGroup, type Script, type Trigger } from "./scripting";
 
 export enum LogFrom {
 	popup = 0,
@@ -28,30 +28,33 @@ export interface TemplateData {
 }
 
 export interface ScriptMessageContext {
-	conditions: Condition[];
+	conditionGroups: ConditionGroup[];
 }
 
 export function background_check_conditions(frameUrl: string, scriptContext?: ScriptMessageContext): boolean {
-	if (!scriptContext?.conditions.length) return true;
+	if (!scriptContext?.conditionGroups.length) return true;
 
 	console.log("background_check_conditions frameUrl ", frameUrl);
-	console.log("background_check_conditions scriptContext?.conditions ", scriptContext?.conditions);
-	for (const condition of scriptContext.conditions) {
-		let value1;
-		if (condition.target.target_type === ConditionTargetType.HOSTNAME) {
-			value1 = new URL(frameUrl).hostname;
-		} else if (condition.target.target_type === ConditionTargetType.URL) {
-			value1 = frameUrl;
-		} else {
-			continue;
-		}
+	console.log("background_check_conditions scriptContext?.conditionGroups ", scriptContext?.conditionGroups);
+	for (const group of scriptContext.conditionGroups) {
+		let groupMatches = true;
+		for (const condition of group.conditions) {
+			let value1;
+			if (condition.target.target_type === ConditionTargetType.HOSTNAME) value1 = new URL(frameUrl).hostname;
+			else if (condition.target.target_type === ConditionTargetType.URL) value1 = frameUrl;
+			else continue;
 
-		const ret = testCondition(condition.type, value1, condition.string_value);
-		console.log("background_check_conditions testCondition", value1, conditionType_toString(condition.type), condition.string_value, " = ", ret);
-		if (!ret) return false;
+			const ret = testCondition(condition.type, value1, condition.string_value);
+			console.log("background_check_conditions testCondition", value1, conditionType_toString(condition.type), condition.string_value, " = ", ret);
+			if (!ret) {
+				groupMatches = false;
+				break;
+			}
+		}
+		if (groupMatches) return true;
 	}
 	console.log("background_check_conditions frameUrl TRUE", frameUrl);
-	return true;
+	return false;
 }
 
 export interface BotInstance {
@@ -176,6 +179,30 @@ export interface SharedDataInner {
 	persistent_variables: Record<string, string>,
 }
 
+export function migrateScriptingData(data: Partial<SharedDataInner>): Partial<SharedDataInner> {
+	const legacyData = data as Partial<SharedDataInner> & {
+		scripts?: Array<Script & { lines: Array<Script["lines"][number] & { conditions?: Condition[] }> }>;
+		triggers?: Array<Trigger & { conditions?: Condition[] }>;
+	};
+
+	for (const script of legacyData.scripts ?? []) {
+		for (const line of script.lines ?? []) {
+			if (!line.conditionGroups && line.conditions) {
+				line.conditionGroups = [{ conditions: line.conditions }];
+				delete line.conditions;
+			}
+		}
+		script.version = SCRIPTING_VERSION;
+	}
+	for (const trigger of legacyData.triggers ?? []) {
+		if (!trigger.conditionGroups && trigger.conditions) {
+			trigger.conditionGroups = [{ conditions: trigger.conditions }];
+			delete trigger.conditions;
+		}
+	}
+	return data;
+}
+
 
 /**
  * BotCommander includes botInstances and methods to send commands to "content.ts" the bot.
@@ -213,7 +240,7 @@ export class BotCommander {
 						const frames = await browser.webNavigation.getAllFrames({ tabId: this.tabId });
 						if(frames === null) return self.remove_bot(bot_id, "it has no frames");
 						
-						const filtered_frames = (message_context?.conditions.length)
+						const filtered_frames = (message_context?.conditionGroups.length)
 							? frames.filter((frame) => background_check_conditions(frame.url, message_context))
 							: frames;
 
@@ -461,6 +488,7 @@ export class SharedData {
 	COMMANDER: BotCommander;
 
 	constructor(LOGGER: Logger, COMMANDER: BotCommander, data: Partial<SharedDataInner> = {}) {
+		migrateScriptingData(data);
 		this.LOGGER = LOGGER;
 		this.COMMANDER = COMMANDER;
 		this.data = {

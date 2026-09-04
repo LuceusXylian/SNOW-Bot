@@ -1,7 +1,7 @@
 import { LogFrom, Logger, SharedData, dateToLocaleString, error_message, querySelector, querySelectorAll, success_message } from "@/components/basics";
 import { registerMessageHandler, sendMessage, type Message, type MessageResponse, MessageType } from "@/components/messaging";
 import { get_shared_data, play_audio } from '@/components/client';
-import { type Trigger, type Condition, type ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
+import { type Trigger, type Condition, type ConditionGroup, type ConditionTarget, ConditionTargetType, ConditionType, ActionSetMethod, conditionTargetType_toString, testCondition } from "@/components/scripting";
 import { resolveTemplateContent } from "@/components/template-resolution";
 
 const LOGGER = new Logger(LogFrom.content);
@@ -233,32 +233,34 @@ class BackgroundMessageHandler {
 				}
 
 				case MessageType.CHECK_CONDITIONS: {
-					// All conditions need to be true
-					const conditions = message.data.conditions as Condition[];
+					const conditionGroups = message.data.conditionGroups as ConditionGroup[];
 					const { foreach_selector, foreach_index } = message.data || {};
 					let rootNode: ParentNode = document.body;
 					if (foreach_selector && foreach_index !== undefined) {
 						const foreachRoot = this.getForeachRoot(foreach_selector, foreach_index);
 						if (foreachRoot) rootNode = foreachRoot;
 					}
-					for (let c = 0; c < conditions.length; c++) {
-						const condition = conditions[c]!;
-						const value1 = this.get_condition_target_value(condition.target, rootNode);
-						const result = testCondition(condition.type, value1, condition.string_value);
-						const target_type = condition.target.target_type;
-						let target_label = conditionTargetType_toString(target_type);
-						if(condition.target.element_selector) target_label += " " + condition.target.element_selector;
-						if(condition.target.attribute) target_label += " " + condition.target.attribute;
-						const message = `Condition ${c}: ${target_label}  ${JSON.stringify(condition.string_value)} ${ConditionType[condition.type]} ${JSON.stringify(value1)} = `+result;
-						LOGGER.debug(message);
-						if(!result) {
-							return success_message({
-								result: false,
-								message: message,
-							});
+					for (let groupIndex = 0; groupIndex < conditionGroups.length; groupIndex++) {
+						const group = conditionGroups[groupIndex]!;
+						let groupMatches = true;
+						for (let conditionIndex = 0; conditionIndex < group.conditions.length; conditionIndex++) {
+							const condition = group.conditions[conditionIndex]!;
+							const value1 = this.get_condition_target_value(condition.target, rootNode);
+							const result = testCondition(condition.type, value1, condition.string_value);
+							const target_type = condition.target.target_type;
+							let target_label = conditionTargetType_toString(target_type);
+							if(condition.target.element_selector) target_label += " " + condition.target.element_selector;
+							if(condition.target.attribute) target_label += " " + condition.target.attribute;
+							const conditionMessage = `Condition group ${groupIndex}, condition ${conditionIndex}: ${target_label}  ${JSON.stringify(condition.string_value)} ${ConditionType[condition.type]} ${JSON.stringify(value1)} = `+result;
+							LOGGER.debug(conditionMessage);
+							if(!result) {
+								groupMatches = false;
+								break;
+							}
 						}
+						if (groupMatches) return success_message({ result: true });
 					}
-					return success_message({ result: true });
+					return success_message({ result: false, message: "All condition groups failed" });
 				}
 				
 				case MessageType.ELEMENT_SELECTOR: {
